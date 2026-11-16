@@ -21,3 +21,11 @@
 - 설정: .github/workflows/deploy.yml (npm ci → npm run build → upload-pages-artifact → deploy-pages). 첫 실행 run 43826682872 성공.
 - 확인: https://yongbard.github.io/party-rpg/ 를 헤드리스 Chrome 으로 열어 2웨이브까지 진행 확인(100fps).
 - 결과: README 경로 항목에 배포 주소·저장소 추가. 이 기록 변경은 로컬 커밋만 하고 push 하지 않았다.
+
+## 2026-11-17 — 로딩 최적화 (모델 37MB → 4.2MB)
+
+- 한 일: 원본 모델을 data/kaykit/ 로 옮기고, src/tools/optimize-assets.mjs (npm run assets) 가 public/assets/ 에 게임용 모델을 만들게 했다. 모델마다 src/data.ts 의 animsByModel 이 고른 애니메이션만 남김(76~95개 → 6~11개), resample·dedup·prune, meshopt 압축(level medium). 쓰지 않는 Rogue.glb 는 뺐다. 무기 .gltf 는 .glb 로 합쳤다.
+- 함정: 애니메이션만 dispose 하면 샘플러가 남아 키프레임 배열이 그대로 남는다(처음엔 18.7MB). 샘플러·채널까지 지우고 prune 으로 정리. 키프레임 시간 배열은 애니메이션끼리 공유되므로 직접 지우면 안 된다.
+- 설정: Babylon MeshoptCompression 디코더를 CDN 대신 public/meshopt_decoder.js (meshoptimizer 패키지에서 복사) 로 지정.
+- 확인: 개발 서버와 배포용 빌드(vite preview) 모두 헤드리스 Chrome 에서 전투·애니메이션·무기·필살기 정상. 캐릭터 3.6MB → 0.4~0.6MB, 합계 33.4MB → 4.2MB. 빌드 dist 13MB, 메인 JS 6.1MB(gzip 1.3MB).
+- 결과: data/kaykit/, public/assets/, public/meshopt_decoder.js, src/tools/optimize-assets.mjs, package.json(assets 스크립트, devDependencies @gltf-transform/core·functions·extensions, meshoptimizer), src/main.ts.

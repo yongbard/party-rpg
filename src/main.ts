@@ -1,4 +1,4 @@
-import { AbstractEngine, Engine, Scene, WebGPUEngine } from '@babylonjs/core';
+import { AbstractEngine, Engine, MeshoptCompression, Scene, WebGPUEngine } from '@babylonjs/core';
 import { buildArena, setupPost } from './arena';
 import { Assets, type AssetEntry } from './assets';
 import { Battle } from './battle';
@@ -10,6 +10,9 @@ import './style.css';
 
 const params = new URLSearchParams(location.search);
 const mobile = matchMedia('(pointer: coarse)').matches;
+
+// 모델은 meshopt 로 압축돼 있다 (npm run assets). 디코더는 CDN 대신 우리 사이트에서 받는다
+MeshoptCompression.Configuration = { decoder: { url: new URL('meshopt_decoder.js', document.baseURI).href } };
 
 async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
   // 기본은 WebGL2. ?gpu=webgpu 로 WebGPU 를 시험한다
@@ -30,7 +33,7 @@ const ASSETS: AssetEntry[] = (() => {
   const chars = ['Knight', 'Barbarian', 'Mage', 'Rogue_Hooded'].map(k => ({ key: k, url: `assets/characters/${k}.glb`, keepAnims: anims.get(k) }));
   const enemies = ['Skeleton_Minion', 'Skeleton_Warrior', 'Skeleton_Rogue', 'Skeleton_Mage'].map(k => ({ key: k, url: `assets/enemies/${k}.glb`, keepAnims: anims.get(k) }));
   const weapons = ['Skeleton_Blade', 'Skeleton_Axe', 'Skeleton_Crossbow', 'Skeleton_Staff', 'Skeleton_Shield_Small_A', 'Skeleton_Shield_Large_A']
-    .map(k => ({ key: k, url: `assets/enemies/weapons/${k}.gltf` }));
+    .map(k => ({ key: k, url: `assets/enemies/weapons/${k}.glb` }));
   return [...chars, ...enemies, ...weapons];
 })();
 
