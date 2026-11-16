@@ -1,0 +1,110 @@
+import { AbstractEngine, Engine, Scene, WebGPUEngine } from '@babylonjs/core';
+import { buildArena, setupPost } from './arena';
+import { Assets, type AssetEntry } from './assets';
+import { Battle } from './battle';
+import { CameraRig } from './camera';
+import { animsByModel } from './data';
+import { Fx } from './fx';
+import { Hud } from './hud';
+import './style.css';
+
+const params = new URLSearchParams(location.search);
+const mobile = matchMedia('(pointer: coarse)').matches;
+
+async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> {
+  // 기본은 WebGL2. ?gpu=webgpu 로 WebGPU 를 시험한다
+  if (params.get('gpu') === 'webgpu' && (await WebGPUEngine.IsSupportedAsync)) {
+    try {
+      const e = new WebGPUEngine(canvas, { antialias: true, stencil: true });
+      await e.initAsync();
+      return e;
+    } catch (err) {
+      console.warn('WebGPU 실패, WebGL2 로 전환', err);
+    }
+  }
+  return new Engine(canvas, false, { stencil: true, powerPreference: 'high-performance' }, false);
+}
+
+const ASSETS: AssetEntry[] = (() => {
+  const anims = animsByModel();
+  const chars = ['Knight', 'Barbarian', 'Mage', 'Rogue_Hooded'].map(k => ({ key: k, url: `assets/characters/${k}.glb`, keepAnims: anims.get(k) }));
+  const enemies = ['Skeleton_Minion', 'Skeleton_Warrior', 'Skeleton_Rogue', 'Skeleton_Mage'].map(k => ({ key: k, url: `assets/enemies/${k}.glb`, keepAnims: anims.get(k) }));
+  const weapons = ['Skeleton_Blade', 'Skeleton_Axe', 'Skeleton_Crossbow', 'Skeleton_Staff', 'Skeleton_Shield_Small_A', 'Skeleton_Shield_Large_A']
+    .map(k => ({ key: k, url: `assets/enemies/weapons/${k}.gltf` }));
+  return [...chars, ...enemies, ...weapons];
+})();
+
+/** 지금 캔버스를 정사각형으로 잘라 이미지로 만든다 (render 직후 같은 작업 안에서 불러야 한다) */
+function grabSquare(canvas: HTMLCanvasElement, size = 192) {
+  const w = canvas.width, h = canvas.height, s = Math.min(w, h);
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  c.getContext('2d')!.drawImage(canvas, (w - s) / 2, (h - s) / 2, s, s, 0, 0, size, size);
+  return c.toDataURL('image/webp', 0.9);
+}
+
+async function main() {
+  const canvas = document.getElementById('c') as HTMLCanvasElement;
+  const engine = await createEngine(canvas);
+  engine.setHardwareScalingLevel(1 / Math.min(window.devicePixelRatio || 1, 2));
+  const scene = new Scene(engine);
+  scene.useRightHandedSystem = true;
+
+  const rig = new CameraRig(scene);
+  const hud = new Hud(engine, scene, canvas);
+  const fx = new Fx(scene);
+  const assets = new Assets(scene);
+
+  hud.loading(0.02, '던전을 짓는 중');
+  const arenaP = buildArena(scene, fx, mobile);
+  await assets.load(ASSETS, p => hud.loading(0.05 + p * 0.85, '모험가를 부르는 중'));
+  const arena = await arenaP;
+  setupPost(scene, [rig.main, rig.cut], mobile);
+
+  const battle = new Battle(scene, assets, fx, rig, hud, arena.shadow);
+  battle.spawnHeroes();
+
+  // 초상화: 영웅 얼굴을 정면에서 찍는다
+  hud.loading(0.95, '초상화를 그리는 중');
+  rig.portrait(battle.heroes[0]);
+  await scene.whenReadyAsync();
+  const portraits = battle.heroes.map(h => {
+    battle.heroes.forEach(o => o.root.setEnabled(o === h));
+    rig.portrait(h);
+    scene.render();
+    scene.render();
+    return grabSquare(canvas);
+  });
+  battle.heroes.forEach(o => o.root.setEnabled(true));
+  rig.usemain();
+  hud.setHeroes(battle.heroes, portraits);
+
+  hud.onUlt = i => battle.requestUlt(i);
+  hud.onSpeed = () => { const s = battle.speed >= 3 ? 1 : battle.speed + 1; battle.setSpeed(s); hud.setSpeed(s); };
+  hud.onPause = () => hud.setPaused(battle.togglePause());
+  canvas.addEventListener('pointerdown', e => {
+    const r = canvas.getBoundingClientRect();
+    battle.tapAt(e.clientX - r.left, e.clientY - r.top);
+  });
+  window.addEventListener('resize', () => engine.resize());
+
+  let fpsEl: HTMLElement | null = null;
+  if (params.has('fps')) { fpsEl = document.createElement('div'); fpsEl.className = 'fps'; document.body.append(fpsEl); }
+
+  engine.runRenderLoop(() => {
+    const dt = engine.getDeltaTime() / 1000;
+    rig.update(dt);
+    arena.update(dt);
+    battle.update(dt);
+    scene.render();
+    if (fpsEl) fpsEl.textContent = `${engine.getFps().toFixed(0)} fps · ${engine.name}`;
+  });
+  hud.hideLoading();
+  battle.start();
+  (window as unknown as { battle: Battle }).battle = battle;
+}
+
+main().catch(err => {
+  console.error(err);
+  document.body.insertAdjacentHTML('beforeend', `<pre class="err">${String(err?.stack ?? err)}</pre>`);
+});
