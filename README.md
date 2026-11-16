@@ -19,7 +19,8 @@
   - 필살기 탭 → 컷인(카메라 클로즈업, 다른 유닛 숨김). 카일은 탭 후 적을 골라 쏜다.
   - 배속 1·2·3×, 일시정지, 결과 화면(영웅별 피해·치유·받은 피해).
   - 헤드리스 Chrome(390×844)에서 60~90fps.
-- 다음: v1 (로비, 캐릭터 16명, 뽑기·천장, 레벨·승급·특성 트리, 저장, GitHub Pages 배포).
+- 2026-11-16: GitHub Pages 에 배포. 폰에서 https://yongbard.github.io/party-rpg/ 로 연다.
+- 다음: v1 (로비, 캐릭터 16명, 뽑기·천장, 레벨·승급·특성 트리, 저장).
 - 최적화 숙제: JS 번들 6.1MB(gzip 1.8MB, Babylon 전체를 불러옴 → 개별 import), 모델 37MB(gltf-transform 으로 압축).
 
 ## 데이터
@@ -39,6 +40,7 @@ party_rpg_261116/
 ├── index.html            진입 HTML (세로 화면 틀, 글꼴)
 ├── package.json          npm 스크립트 (dev, build, preview)
 ├── tsconfig.json, vite.config.ts, .gitignore
+├── .github/workflows/deploy.yml   main push → 빌드 → GitHub Pages 배포
 ├── src/
 │   ├── main.ts           엔진(WebGL2, ?gpu=webgpu 로 WebGPU) 생성, 로딩, 초상화 촬영, 렌더 루프
 │   ├── data.ts           영웅·적·스킬·필살기·웨이브·진형 정의
@@ -73,4 +75,5 @@ npm run build     dist/ 에 배포용 빌드
 
 - 로컬: C:\Users\USER\Desktop\yongbeom\party_rpg_261116
 - 서버: 없음 (로컬 전용)
-- 배포 예정: GitHub Pages (v1 부터, push 전에 확인)
+- 배포: https://yongbard.github.io/party-rpg/ (GitHub Pages, main 에 push 하면 GitHub Actions 가 빌드·배포. push 는 매번 확인받고 한다)
+- 저장소: https://github.com/yongbard/party-rpg (공개)
