@@ -31,7 +31,8 @@ export interface UltDef {
 export type ProjKind = 'bolt' | 'gold' | 'magic' | 'dark' | 'bone';
 
 export interface UnitDef {
-  id: string; name: string; title?: string; archetype?: string;
+  id: string; name: string; title?: string;
+  archetype?: string;                            // 설계 의도 (화면에는 안 보인다)
   model: string; scale?: number; boss?: boolean;
   keep?: string[];                               // 모델에 붙은 무기 중 남길 것
   attach?: { mesh: string; slot: string }[];     // 따로 붙일 무기

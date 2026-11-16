@@ -36,3 +36,9 @@
 - 고친 것: 오른손 좌표계에서 카메라 기준 왼쪽이 +x 라 로비 줄과 전투 진형이 카드 순서와 좌우 반대였다 → 둘 다 x 부호를 뒤집음. 보스 스테이지 버튼의 boss 클래스가 전투 보스 HP 바 스타일(absolute)을 받아 겹침 → is-boss 로 이름 변경.
 - 확인: 헤드리스 Chrome 에서 로비 → 1-1 → 승리(보상 지급) → 로비(재화·클리어 반영, 1-2 열림), 그리고 1-3 보스 스테이지를 레벨 1 파티로 승리(3배속, 필살기 자동).
 - 결과: src/save.ts, src/lobby.ts 새로 만듦. src/main.ts, battle.ts, data.ts, unit.ts, hud.ts, camera.ts, fx.ts, style.css 수정. 설계 문서 저장 방식 localStorage 로 고침.
+
+## 2026-11-17 — 원형 이름 숨김, 화면 크기 대응
+
+- 한 일: 사용자 요청으로 딜탱 유도형·퓨어딜러 같은 원형 이름을 카드·로비 이름표·결과 화면에서 뺐다(data.ts 에는 설계 의도로 남김). 폰에서 "다시 하기"(배포된 v0 은 페이지 새로고침) 뒤 3D 화면 비율이 어긋남 → window resize 대신 ResizeObserver 로 캔버스 크기 변화를 직접 보고 engine.resize.
+- 확인: 헤드리스 Chrome 에서 window resize 없이 #app 높이만 바꿔도 캔버스 버퍼 비율 2.00/2.00 유지. 새로고침 없는 다시 하기 뒤에도 비율·유닛·HP 바 정상.
+- 결과: src/main.ts, src/hud.ts, src/lobby.ts, src/data.ts

@@ -93,7 +93,7 @@ export class Hud {
       const c = this.cards[i];
       c.box.style.setProperty('--accent', h.def.color);
       (c.box.querySelector('img') as HTMLImageElement).src = portraits[i];
-      c.box.querySelector('.nm')!.innerHTML = `<b>${h.def.name}</b><small>${h.def.archetype}</small>`;
+      c.box.querySelector('.nm')!.innerHTML = `<b>${h.def.name}</b>`;
     });
   }
 
@@ -194,7 +194,7 @@ export class Hud {
     const max = Math.max(1, ...heroes.map(h => Math.max(h.dmgDone, h.healDone, h.dmgTaken)));
     const row = (h: Unit) => `
       <div class="rr" style="--accent:${h.def.color}">
-        <div class="rn">${h.def.name}<small>${h.def.archetype}</small></div>
+        <div class="rn">${h.def.name}</div>
         <div class="rbars">
           <div class="rb d"><i style="width:${(h.dmgDone / max) * 100}%"></i><span>피해 ${Math.round(h.dmgDone).toLocaleString()}</span></div>
           <div class="rb h"><i style="width:${(h.healDone / max) * 100}%"></i><span>치유 ${Math.round(h.healDone).toLocaleString()}</span></div>

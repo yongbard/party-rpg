@@ -63,7 +63,7 @@ export class Lobby {
         <div class="res"><i class="ic-gem"></i><b>${save.gems.toLocaleString()}</b></div>
       </div>
       <div class="lb-plates">${this.units.map(u => `
-        <div class="plate" style="--accent:${u.def.color}"><b>${u.def.name}</b><span>Lv.${save.heroes[u.def.id].level}</span><small>${u.def.archetype}</small></div>`).join('')}
+        <div class="plate" style="--accent:${u.def.color}"><b>${u.def.name}</b><span>Lv.${save.heroes[u.def.id].level}</span></div>`).join('')}
       </div>
       <div class="lb-panel">
         <div class="lb-ch">${CHAPTER}</div>

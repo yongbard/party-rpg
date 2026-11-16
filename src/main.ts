@@ -135,7 +135,8 @@ async function main() {
     const r = canvas.getBoundingClientRect();
     battle?.tapAt(e.clientX - r.left, e.clientY - r.top);
   });
-  window.addEventListener('resize', () => engine.resize());
+  // 모바일은 주소창이 접히고 펴질 때 window resize 없이 캔버스 크기만 바뀌기도 한다. 캔버스 크기를 직접 지켜본다
+  new ResizeObserver(() => engine.resize()).observe(canvas);
 
   let fpsEl: HTMLElement | null = null;
   if (params.has('fps')) { fpsEl = document.createElement('div'); fpsEl.className = 'fps'; document.body.append(fpsEl); }
