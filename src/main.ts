@@ -3,9 +3,11 @@ import { buildArena, setupPost } from './arena';
 import { Assets, type AssetEntry } from './assets';
 import { Battle } from './battle';
 import { CameraRig } from './camera';
-import { animsByModel } from './data';
+import { animsByModel, HEROES, heroMul, STAGES } from './data';
 import { Fx } from './fx';
 import { Hud } from './hud';
+import { Lobby } from './lobby';
+import { loadSave, writeSave } from './save';
 import './style.css';
 
 const params = new URLSearchParams(location.search);
@@ -64,30 +66,74 @@ async function main() {
   const arena = await arenaP;
   setupPost(scene, [rig.main, rig.cut], mobile);
 
-  const battle = new Battle(scene, assets, fx, rig, hud, arena.shadow);
-  battle.spawnHeroes();
+  const save = loadSave();
+  const lobby = new Lobby(assets, arena.shadow, rig, hud);
+  lobby.show(save);
 
-  // 초상화: 영웅 얼굴을 정면에서 찍는다
+  // 초상화: 로비에 선 영웅 얼굴을 정면에서 한 명씩 찍는다
   hud.loading(0.95, '초상화를 그리는 중');
-  rig.portrait(battle.heroes[0]);
+  rig.portrait(lobby.units[0]);
   await scene.whenReadyAsync();
-  const portraits = battle.heroes.map(h => {
-    battle.heroes.forEach(o => o.root.setEnabled(o === h));
+  const portraits: Record<string, string> = {};
+  for (const h of lobby.units) {
+    lobby.units.forEach(o => o.root.setEnabled(o === h));
     rig.portrait(h);
     scene.render();
     scene.render();
-    return grabSquare(canvas);
-  });
-  battle.heroes.forEach(o => o.root.setEnabled(true));
-  rig.usemain();
-  hud.setHeroes(battle.heroes, portraits);
+    portraits[h.def.id] = grabSquare(canvas);
+  }
+  lobby.units.forEach(o => o.root.setEnabled(true));
+  rig.setView('lobby');
 
-  hud.onUlt = i => battle.requestUlt(i);
-  hud.onSpeed = () => { const s = battle.speed >= 3 ? 1 : battle.speed + 1; battle.setSpeed(s); hud.setSpeed(s); };
-  hud.onPause = () => hud.setPaused(battle.togglePause());
+  let battle: Battle | null = null;
+  let speed = 1;
+  hud.visible(false);
+
+  const startBattle = (stageId: string) => {
+    const stage = STAGES.find(s => s.id === stageId)!;
+    lobby.hide();
+    rig.setView('battle');
+    const party = save.party.map(id => ({ def: HEROES.find(h => h.id === id)!, mul: heroMul(save.heroes[id].level) }));
+    const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party);
+    battle = b;
+    b.spawnHeroes();
+    hud.setHeroes(b.heroes, b.heroes.map(h => portraits[h.def.id]));
+    hud.visible(true);
+    b.setSpeed(speed);
+    hud.setSpeed(speed);
+    b.onEnd = win => {
+      let reward: { gold: number; gems: number } | null = null;
+      if (win) {
+        const first = !save.cleared.includes(stage.id);
+        reward = { gold: stage.reward.gold, gems: first ? stage.reward.gems : 0 };
+        save.gold += reward.gold;
+        save.gems += reward.gems;
+        if (first) save.cleared.push(stage.id);
+        writeSave(save);
+      }
+      hud.result(win, b.heroes, b.time, reward, () => { endBattle(); startBattle(stage.id); }, () => { endBattle(); lobby.show(save); });
+    };
+    b.start();
+    (window as unknown as { battle: Battle }).battle = b;
+  };
+  const endBattle = () => {
+    battle?.dispose();
+    battle = null;
+    hud.visible(false);
+  };
+  lobby.onStart = startBattle;
+
+  hud.onUlt = i => battle?.requestUlt(i);
+  hud.onSpeed = () => {
+    if (!battle) return;
+    speed = speed >= 3 ? 1 : speed + 1;
+    battle.setSpeed(speed);
+    hud.setSpeed(speed);
+  };
+  hud.onPause = () => { if (battle) hud.setPaused(battle.togglePause()); };
   canvas.addEventListener('pointerdown', e => {
     const r = canvas.getBoundingClientRect();
-    battle.tapAt(e.clientX - r.left, e.clientY - r.top);
+    battle?.tapAt(e.clientX - r.left, e.clientY - r.top);
   });
   window.addEventListener('resize', () => engine.resize());
 
@@ -98,13 +144,13 @@ async function main() {
     const dt = engine.getDeltaTime() / 1000;
     rig.update(dt);
     arena.update(dt);
-    battle.update(dt);
+    battle?.update(dt);
+    if (!battle) lobby.update();
     scene.render();
     if (fpsEl) fpsEl.textContent = `${engine.getFps().toFixed(0)} fps · ${engine.name}`;
   });
   hud.hideLoading();
-  battle.start();
-  (window as unknown as { battle: Battle }).battle = battle;
+  (window as unknown as { game: unknown }).game = { save, lobby, startBattle };
 }
 
 main().catch(err => {

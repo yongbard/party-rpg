@@ -3,10 +3,15 @@ import type { Unit } from './unit';
 
 const ease = (k: number) => 1 - Math.pow(1 - k, 3);
 
+const VIEWS = {
+  battle: { alpha: -Math.PI / 2, beta: 0.84, radius: 23, target: new Vector3(0, 0, 5.2) },
+  lobby: { alpha: -Math.PI / 2, beta: 1.36, radius: 12.5, target: new Vector3(0, 0.3, 3.2) },
+};
+
 export class CameraRig {
   main: ArcRotateCamera;
   cut: UniversalCamera;
-  private base = { alpha: -Math.PI / 2, beta: 0.84, radius: 23, target: new Vector3(0, 0, 5.2) };
+  private base = VIEWS.battle;
   private shakeAmp = 0;
   private t = 0;
   private anim: ((now: number) => void) | null = null;
@@ -27,6 +32,13 @@ export class CameraRig {
   }
 
   shake(a: number) { this.shakeAmp = Math.max(this.shakeAmp, a); }
+
+  setView(v: keyof typeof VIEWS) {
+    this.base = VIEWS[v];
+    this.main.radius = this.base.radius;
+    this.shakeAmp = 0;
+    this.scene.activeCamera = this.main;
+  }
 
   update(dt: number) {
     this.t += dt;

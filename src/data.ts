@@ -284,18 +284,36 @@ export const ENEMIES: Record<string, UnitDef> = {
 };
 
 type Spawn = [kind: string, x: number, z: number];
-export const WAVES: { title: string; units: Spawn[] }[] = [
-  { title: 'WAVE 1', units: [['minion', -2, 6], ['minion', 2, 6], ['minion', 0, 7.5], ['rogue', 0, 10.5]] },
-  { title: 'WAVE 2', units: [['warrior', -1.6, 6], ['warrior', 1.6, 6], ['minion', -3.2, 7.5], ['mage', -1.6, 10.5], ['rogue', 1.6, 10.5]] },
-  { title: 'BOSS', units: [['boss', 0, 8], ['minion', -2.6, 6], ['minion', 2.6, 6], ['mage', -3.4, 11], ['mage', 3.4, 11]] },
+export interface Wave { boss?: boolean; units: Spawn[] }
+
+const W_SKEL: Wave = { units: [['minion', -2, 6], ['minion', 2, 6], ['minion', 0, 7.5], ['rogue', 0, 10.5]] };
+const W_GUARD: Wave = { units: [['warrior', -1.6, 6], ['warrior', 1.6, 6], ['minion', -3.2, 7.5], ['mage', -1.6, 10.5], ['rogue', 1.6, 10.5]] };
+const W_BOSS: Wave = { boss: true, units: [['boss', 0, 8], ['minion', -2.6, 6], ['minion', 2.6, 6], ['mage', -3.4, 11], ['mage', 3.4, 11]] };
+
+export interface Stage {
+  id: string; name: string;
+  level: number;                                 // 적 능력치 배율에 쓴다 (enemyMul)
+  waves: Wave[];
+  reward: { gold: number; gems: number };        // gems 는 첫 클리어 때만
+}
+
+export const CHAPTER = '1장 · 해골 군주의 무덤';
+export const STAGES: Stage[] = [
+  { id: '1-1', name: '무너진 입구', level: 1, waves: [W_SKEL], reward: { gold: 300, gems: 150 } },
+  { id: '1-2', name: '뼈의 회랑', level: 1, waves: [W_SKEL, W_GUARD], reward: { gold: 500, gems: 150 } },
+  { id: '1-3', name: '군주의 방', level: 1, waves: [W_SKEL, W_GUARD, W_BOSS], reward: { gold: 900, gems: 300 } },
 ];
 
-// 영웅 진형 (z+ 가 적 쪽)
+// 레벨에 따른 능력치 배율 (HP·공격·방어에 곱한다)
+export const heroMul = (lv: number) => 1 + 0.08 * (lv - 1);
+export const enemyMul = (lv: number) => 1 + 0.1 * (lv - 1);
+
+// 영웅 진형 (z+ 가 적 쪽). 카메라에서 보면 +x 가 왼쪽이다
 export const FORMATION = [
-  new Vector3(-1.1, 0, -1),   // 앞줄 왼쪽
-  new Vector3(1.1, 0, -1),    // 앞줄 오른쪽
-  new Vector3(-1.5, 0, -3.8), // 뒷줄 왼쪽
-  new Vector3(1.5, 0, -3.8),  // 뒷줄 오른쪽
+  new Vector3(1.1, 0, -1),    // 앞줄 왼쪽
+  new Vector3(-1.1, 0, -1),   // 앞줄 오른쪽
+  new Vector3(1.5, 0, -3.8),  // 뒷줄 왼쪽
+  new Vector3(-1.5, 0, -3.8), // 뒷줄 오른쪽
 ];
 
 // 모델별로 쓰는 애니메이션만 남기려고 모은다 (복제 비용 절감)

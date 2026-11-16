@@ -22,7 +22,8 @@ export class Unit {
   dmgDone = 0; healDone = 0; dmgTaken = 0;
   curAnim: AnimationGroup | null = null;
 
-  constructor(public def: UnitDef, public side: Side, public model: ModelInstance, pos: Vector3, yaw: number) {
+  /** mul: 레벨에 따른 HP·공격·방어 배율 (data.ts 의 heroMul, enemyMul) */
+  constructor(public def: UnitDef, public side: Side, public model: ModelInstance, pos: Vector3, yaw: number, public mul = 1) {
     this.root = model.root;
     this.scale = def.scale ?? 1;
     this.radius = 0.55 * this.scale;
@@ -31,7 +32,7 @@ export class Unit {
     this.home = pos.clone();
     this.yaw = this.yawGoal = yaw;
     this.root.rotation.y = yaw;
-    this.maxHp = this.hp = def.stats.hp;
+    this.maxHp = this.hp = Math.round(def.stats.hp * mul);
     this.cds = def.skills.map(s => s.cd * 0.5);
     this.threat = def.stats.threat * 150;
     model.anims.forEach(g => { g.enableBlending = true; g.blendingSpeed = 0.12; });
@@ -78,5 +79,6 @@ export class Unit {
     return Math.min(0.8, this.drs.reduce((s, d) => s + d.v, 0));
   }
 
-  atkMul() { return 1 + (this.def.rage ?? 0) * (1 - this.hp / this.maxHp); }
+  atk() { return this.def.stats.atk * this.mul * (1 + (this.def.rage ?? 0) * (1 - this.hp / this.maxHp)); }
+  defense() { return this.def.stats.def * this.mul; }
 }

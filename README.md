@@ -20,13 +20,15 @@
   - 배속 1·2·3×, 일시정지, 결과 화면(영웅별 피해·치유·받은 피해).
   - 헤드리스 Chrome(390×844)에서 60~90fps.
 - 2026-11-16: GitHub Pages 에 배포. 폰에서 https://yongbard.github.io/party-rpg/ 로 연다.
-- 다음: v1 (로비, 캐릭터 16명, 뽑기·천장, 레벨·승급·특성 트리, 저장).
+- 2026-11-17: v1 1단계 — 저장(localStorage)과 로비. 로비 → 1장 스테이지 3개(1-1, 1-2, 1-3 보스) 선택 → 전투 → 결과(골드, 첫 클리어 보석) → 로비. 다음 스테이지는 앞 스테이지를 깨야 열린다.
+- 다음: v1 2단계(캐릭터 화면·레벨업) → 3단계(뽑기·천장) → 4단계(특성 트리) → 5단계(캐릭터 16명).
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
 
 ## 데이터
 
-- 캐릭터·적·웨이브 정의: src/data.ts (v1 에서 data/ JSON 으로 옮긴다)
+- 캐릭터·적·스테이지 정의: src/data.ts
+- 플레이 기록: 브라우저 localStorage (기기마다 따로). 지우려면 브라우저 사이트 데이터 삭제
 - 3D 모델 원본: data/kaykit/ (KayKit, CC0, 33MB). 출처는 docs/credits.md
 - 게임이 쓰는 모델: public/assets/ — npm run assets 가 원본에서 만든다(직접 고치지 않는다). 애니메이션을 새로 쓰면 src/data.ts 에 이름을 적고 다시 돌린다.
 
@@ -44,8 +46,10 @@ party_rpg_261116/
 ├── tsconfig.json, vite.config.ts, .gitignore
 ├── .github/workflows/deploy.yml   main push → 빌드 → GitHub Pages 배포
 ├── src/
-│   ├── main.ts           엔진(WebGL2, ?gpu=webgpu 로 WebGPU) 생성, 로딩, 초상화 촬영, 렌더 루프
-│   ├── data.ts           영웅·적·스킬·필살기·웨이브·진형 정의
+│   ├── main.ts           엔진 생성, 로딩, 초상화 촬영, 로비 ↔ 전투 전환·보상 지급, 렌더 루프
+│   ├── data.ts           영웅·적·스킬·필살기, 스테이지·웨이브, 진형, 레벨 배율
+│   ├── save.ts           저장 (localStorage 키 party-rpg-save): 골드, 보석, 영웅 레벨, 파티, 클리어
+│   ├── lobby.ts          로비: 3D 파티 줄 세우기, 재화, 스테이지 선택, 출전
 │   ├── battle.ts         전투 로직: 대상 선택(위협), 이동, 공격, 피해·치유, 투사체, 컷인, 웨이브
 │   ├── unit.ts           유닛 상태와 애니메이션 재생
 │   ├── assets.ts         glb 불러오기, 모델 복제(쓰는 애니메이션만 남김)

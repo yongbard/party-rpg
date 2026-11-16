@@ -1,8 +1,8 @@
 // 실시간 자동 전투: 대상 고르기, 이동, 공격·스킬, 필살기 컷인, 웨이브 진행
 import { AnimationGroup, Mesh, PBRMaterial, Color3, Scene, ShadowGenerator, TrailMesh, Vector3 } from '@babylonjs/core';
-import type { Assets } from './assets';
+import type { Assets, ModelInstance } from './assets';
 import type { CameraRig } from './camera';
-import { COL, ENEMIES, FORMATION, HEROES, WAVES, type ProjKind, type SkillDef, type UnitDef } from './data';
+import { COL, ENEMIES, FORMATION, enemyMul, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
 import { Unit, type Side } from './unit';
@@ -13,6 +13,35 @@ const WEAPONS = new Set([
   'Mug', 'Knife_Offhand', '1H_Crossbow', '2H_Crossbow', 'Knife', 'Throwable',
 ]);
 const isWeapon = (name: string) => [...WEAPONS].find(w => name === w || name.startsWith(`${w}_primitive`));
+
+/** 무기 고르기·붙이기, 그림자, 보스 색까지 마친 모델 (전투와 로비가 같이 쓴다) */
+export function makeModel(assets: Assets, def: UnitDef, shadow: ShadowGenerator): ModelInstance {
+  const m = assets.spawn(def.model, !!def.boss);
+  if (def.keep) {
+    const keep = new Set(def.keep);
+    for (const mesh of [...m.meshes]) {
+      const w = isWeapon(mesh.name);
+      if (w && !keep.has(w)) { mesh.dispose(); m.meshes.splice(m.meshes.indexOf(mesh), 1); }
+    }
+  }
+  for (const a of def.attach ?? []) {
+    const slot = m.find(a.slot);
+    const w = assets.spawn(a.mesh);
+    w.root.parent = slot ?? m.root;
+    m.meshes.push(...w.meshes);
+  }
+  for (const mesh of m.meshes) {
+    shadow.addShadowCaster(mesh, false);
+    mesh.isPickable = false;
+    const mat = mesh.material as PBRMaterial | null;
+    if (mat && 'maxSimultaneousLights' in mat) mat.maxSimultaneousLights = 8;
+    if (def.boss && mat instanceof PBRMaterial) {
+      if (mat.name === 'Glow') mat.emissiveColor = new Color3(1, 0.12, 0.05);
+      else mat.albedoColor = new Color3(0.8, 0.62, 0.7);
+    }
+  }
+  return m;
+}
 
 interface Proj { mesh: Mesh; trail: TrailMesh; tgt: Unit; last: Vector3; speed: number; onHit: () => void }
 type State = 'load' | 'intro' | 'fight' | 'clear' | 'won' | 'lost';
@@ -28,18 +57,21 @@ export class Battle {
   frozen = false;
   state: State = 'load';
   wave = -1;
-  waveCount = WAVES.length;
   targeting: Unit | null = null;
+  /** 전투가 끝나면 부른다 (승패) */
+  onEnd: (win: boolean) => void = () => {};
   private timers: { at: number; fn: () => void }[] = [];
   private projs: Proj[] = [];
 
   constructor(
     public scene: Scene, private assets: Assets, public fx: Fx, private rig: CameraRig,
     public hud: Hud, private shadow: ShadowGenerator,
+    public stage: Stage, private party: { def: UnitDef; mul: number }[],
   ) {}
 
   get heroes() { return this.units.filter(u => u.side === 'hero'); }
-  get waveTitle() { return WAVES[this.wave]?.title ?? ''; }
+  get waveCount() { return this.stage.waves.length; }
+  get waveTitle() { return this.stage.waves[this.wave]?.boss ? 'BOSS' : `WAVE ${this.wave + 1}`; }
   foesOf(u: Unit) { return this.units.filter(x => x.alive && x.side !== u.side); }
   alliesOf(u: Unit) { return this.units.filter(x => x.alive && x.side === u.side); }
   dist(a: Unit, b: Unit) { return Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z); }
@@ -49,41 +81,18 @@ export class Battle {
 
   // ───────── 생성 ─────────
 
-  spawn(def: UnitDef, side: Side, pos: Vector3, yaw: number): Unit {
-    const m = this.assets.spawn(def.model, !!def.boss);
-    if (def.keep) {
-      const keep = new Set(def.keep);
-      for (const mesh of [...m.meshes]) {
-        const w = isWeapon(mesh.name);
-        if (w && !keep.has(w)) { mesh.dispose(); m.meshes.splice(m.meshes.indexOf(mesh), 1); }
-      }
-    }
-    for (const a of def.attach ?? []) {
-      const slot = m.find(a.slot);
-      const w = this.assets.spawn(a.mesh);
-      w.root.parent = slot ?? m.root;
-      m.meshes.push(...w.meshes);
-    }
-    for (const mesh of m.meshes) {
-      this.shadow.addShadowCaster(mesh, false);
-      mesh.isPickable = false;
-      const mat = mesh.material as PBRMaterial | null;
-      if (mat && 'maxSimultaneousLights' in mat) mat.maxSimultaneousLights = 8;
-      if (def.boss && mat instanceof PBRMaterial) {
-        if (mat.name === 'Glow') mat.emissiveColor = new Color3(1, 0.12, 0.05);
-        else mat.albedoColor = new Color3(0.8, 0.62, 0.7);
-      }
-    }
-    const u = new Unit(def, side, m, pos, yaw);
+  spawn(def: UnitDef, side: Side, pos: Vector3, yaw: number, mul = 1): Unit {
+    const m = makeModel(this.assets, def, this.shadow);
+    const u = new Unit(def, side, m, pos, yaw, mul);
     this.units.push(u);
     this.hud.addBar(u);
     return u;
   }
 
   spawnHeroes() {
-    HEROES.forEach((d, i) => {
-      const u = this.spawn(d, 'hero', FORMATION[i], 0);
-      u.play(d.anims.idle);
+    this.party.forEach((p, i) => {
+      const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul);
+      u.play(p.def.anims.idle);
     });
   }
 
@@ -100,15 +109,15 @@ export class Battle {
     this.wave = i;
     // 지난 웨이브의 쓰러진 적 정리
     this.units = this.units.filter(u => u.side === 'hero' || u.alive);
-    const w = WAVES[i];
-    this.hud.banner(w.title, i === WAVES.length - 1 ? ENEMIES.boss.name : '', i === WAVES.length - 1);
+    const w = this.stage.waves[i];
+    this.hud.banner(this.waveTitle, w.boss ? ENEMIES.boss.name : '', !!w.boss);
     for (const [kind, x, z] of w.units) {
-      const u = this.spawn(ENEMIES[kind], 'enemy', new Vector3(x, 0, z), Math.PI);
+      const u = this.spawn(ENEMIES[kind], 'enemy', new Vector3(x, 0, z), Math.PI, enemyMul(this.stage.level));
       const d = u.play(u.def.anims.spawn ?? u.def.anims.idle, false, 1.2);
       u.busyUntil = this.time + d * 0.9;
       this.fx.burst(u.pos.add(new Vector3(0, 0.2, 0)), COL.bone, 18, 3, 0.25);
     }
-    if (i === WAVES.length - 1) this.shake(0.4);
+    if (w.boss) this.shake(0.4);
     this.state = 'fight';
   }
 
@@ -230,8 +239,8 @@ export class Battle {
   damage(src: Unit, tgt: Unit, mult: number, o: { crit?: boolean; lifesteal?: number; noGauge?: boolean } = {}) {
     if (!tgt.alive) return 0;
     const s = src.def.stats;
-    const atk = s.atk * src.atkMul();
-    let raw = Math.max(atk * mult * 0.15, atk * mult - tgt.def.stats.def * 0.5);
+    const atk = src.atk();
+    let raw = Math.max(atk * mult * 0.15, atk * mult - tgt.defense() * 0.5);
     const crit = o.crit ?? Math.random() < s.crit;
     if (crit) raw *= s.critDmg;
     raw *= (1 - tgt.dr(this.time)) * (0.92 + Math.random() * 0.16);
@@ -258,7 +267,7 @@ export class Battle {
 
   heal(src: Unit, tgt: Unit, mult: number) {
     const s = src.def.stats;
-    this.healFlat(src, tgt, s.atk * src.atkMul() * mult * s.healPow * (0.95 + Math.random() * 0.1));
+    this.healFlat(src, tgt, src.atk() * mult * s.healPow * (0.95 + Math.random() * 0.1));
     this.fx.heal(tgt);
   }
 
@@ -346,12 +355,12 @@ export class Battle {
   private checkEnd() {
     if (!this.heroes.some(h => h.alive)) {
       this.state = 'lost';
-      this.after(1.6, () => this.hud.result(false, this.heroes, this.time, () => location.reload()));
+      this.after(1.6, () => this.onEnd(false));
       return;
     }
     if (this.units.some(u => u.side === 'enemy' && u.alive)) return;
     this.state = 'clear';
-    const last = this.wave === WAVES.length - 1;
+    const last = this.wave === this.stage.waves.length - 1;
     for (const h of this.heroes.filter(x => x.alive)) {
       h.moveTo = null;
       h.target = null;
@@ -362,8 +371,8 @@ export class Battle {
     }
     if (last) {
       this.state = 'won';
-      this.hud.banner('승리', '해골 군주를 쓰러뜨렸습니다');
-      this.after(2.4, () => this.hud.result(true, this.heroes, this.time, () => location.reload()));
+      this.hud.banner('승리', this.stage.name);
+      this.after(2.4, () => this.onEnd(true));
       return;
     }
     this.after(1.6, () => this.heroes.filter(h => h.alive).forEach(h => (h.moveTo = h.home.clone())));
@@ -419,6 +428,18 @@ export class Battle {
     this.frozen = false;
     u.busyUntil = this.time + 0.4;
     if (u.alive) ult.run(this, u, target);
+  }
+
+  /** 전투를 끝내고 만든 것을 모두 치운다 */
+  dispose() {
+    this.timers = [];
+    this.projs.forEach(p => { p.mesh.dispose(); p.trail.dispose(); });
+    this.projs = [];
+    this.fx.clear();
+    for (const u of this.units) if (!u.model.root.isDisposed()) u.model.dispose();
+    this.units = [];
+    this.hud.reset();
+    this.scene.animationTimeScale = 1;
   }
 
   setSpeed(s: number) {

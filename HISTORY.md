@@ -29,3 +29,10 @@
 - 설정: Babylon MeshoptCompression 디코더를 CDN 대신 public/meshopt_decoder.js (meshoptimizer 패키지에서 복사) 로 지정.
 - 확인: 개발 서버와 배포용 빌드(vite preview) 모두 헤드리스 Chrome 에서 전투·애니메이션·무기·필살기 정상. 캐릭터 3.6MB → 0.4~0.6MB, 합계 33.4MB → 4.2MB. 빌드 dist 13MB, 메인 JS 6.1MB(gzip 1.3MB).
 - 결과: data/kaykit/, public/assets/, public/meshopt_decoder.js, src/tools/optimize-assets.mjs, package.json(assets 스크립트, devDependencies @gltf-transform/core·functions·extensions, meshoptimizer), src/main.ts.
+
+## 2026-11-17 — v1 1단계: 저장과 로비
+
+- 한 일: 로비 화면(3D 파티 4명이 카메라를 보고 섬, 이름·레벨·원형 표시, 골드·보석, 1장 스테이지 목록, 출전). 전투를 Battle 객체 단위로 만들고 끝나면 dispose(유닛·투사체·이펙트·HUD 정리) — 페이지 새로고침 없이 로비 ↔ 전투 반복. 결과 화면에 보상과 "로비로"/"다시 하기". 저장(src/save.ts, localStorage). 스테이지 3개(1-1 웨이브 1, 1-2 웨이브 2, 1-3 웨이브 3 보스), 첫 클리어 보석 150/150/300, 골드 300/500/900. 영웅·적 레벨 배율(heroMul 1+0.08×(Lv-1), enemyMul 1+0.1×(Lv-1)) 연결. 모델 생성을 makeModel 로 빼서 로비와 전투가 같이 씀. 카메라 시점 프리셋(battle, lobby).
+- 고친 것: 오른손 좌표계에서 카메라 기준 왼쪽이 +x 라 로비 줄과 전투 진형이 카드 순서와 좌우 반대였다 → 둘 다 x 부호를 뒤집음. 보스 스테이지 버튼의 boss 클래스가 전투 보스 HP 바 스타일(absolute)을 받아 겹침 → is-boss 로 이름 변경.
+- 확인: 헤드리스 Chrome 에서 로비 → 1-1 → 승리(보상 지급) → 로비(재화·클리어 반영, 1-2 열림), 그리고 1-3 보스 스테이지를 레벨 1 파티로 승리(3배속, 필살기 자동).
+- 결과: src/save.ts, src/lobby.ts 새로 만듦. src/main.ts, battle.ts, data.ts, unit.ts, hud.ts, camera.ts, fx.ts, style.css 수정. 설계 문서 저장 방식 localStorage 로 고침.

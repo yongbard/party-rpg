@@ -90,6 +90,9 @@ export class Fx {
 
   update(dt: number) { this.items = this.items.filter(i => i.update(dt)); }
 
+  /** 진행 중인 이펙트를 끝까지 돌려 치운다 (전투를 나갈 때) */
+  clear() { this.items.forEach(i => i.update(1e9)); this.items = []; }
+
   /** dur 초 동안 fn(0..1) 을 부른다 (전투 시간 기준) */
   tween(dur: number, fn: (k: number) => void, done?: () => void) {
     let t = 0;

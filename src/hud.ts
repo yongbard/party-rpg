@@ -74,6 +74,19 @@ export class Hud {
   }
   hideLoading() { this.loadEl.classList.add('gone'); setTimeout(() => this.loadEl.remove(), 700); }
 
+  visible(on: boolean) { this.root.style.display = on ? '' : 'none'; }
+
+  /** 전투를 나갈 때: 머리 위 바, 숫자, 배너, 결과를 지운다 */
+  reset() {
+    this.bars.clear();
+    this.world.innerHTML = '';
+    this.bannerEl.className = 'banner';
+    this.resultEl.classList.add('hide');
+    this.hint(false);
+    this.setPaused(false);
+    this.heroes = [];
+  }
+
   setHeroes(heroes: Unit[], portraits: string[]) {
     this.heroes = heroes;
     heroes.forEach((h, i) => {
@@ -177,7 +190,7 @@ export class Hud {
     }
   }
 
-  result(win: boolean, heroes: Unit[], time: number, onRetry: () => void) {
+  result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number } | null, onRetry: () => void, onLobby: () => void) {
     const max = Math.max(1, ...heroes.map(h => Math.max(h.dmgDone, h.healDone, h.dmgTaken)));
     const row = (h: Unit) => `
       <div class="rr" style="--accent:${h.def.color}">
@@ -192,10 +205,12 @@ export class Hud {
       <div class="rbox ${win ? 'win' : 'lose'}">
         <div class="rt">${win ? '승리' : '패배'}</div>
         <div class="rs">전투 시간 ${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}</div>
+        ${reward ? `<div class="rw"><span class="gold">${reward.gold.toLocaleString()}</span>${reward.gems ? `<span class="gem">${reward.gems.toLocaleString()}<small>첫 클리어</small></span>` : ''}</div>` : ''}
         ${heroes.map(row).join('')}
-        <button class="retry">다시 하기</button>
+        <div class="rbtns"><button class="lobby">로비로</button><button class="retry">다시 하기</button></div>
       </div>`;
     this.resultEl.querySelector('.retry')!.addEventListener('click', onRetry);
+    this.resultEl.querySelector('.lobby')!.addEventListener('click', onLobby);
     this.resultEl.classList.remove('hide');
   }
 }
