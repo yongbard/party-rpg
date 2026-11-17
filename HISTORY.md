@@ -74,3 +74,9 @@
 - 확인: 몸(Superhero_Male)·머리카락·의상 파츠·UAL 마네킹이 모두 같은 65관절 릭(UE 마네킹 본 이름: root, pelvis, spine_01…). poc.html 에서 파츠 메시의 skeleton 을 몸 스켈레톤으로 바꿔 붙이고(파츠 자체 스켈레톤은 버림), UAL 애니메이션 그룹을 본 이름으로 몸 노드에 복제해 재생 → 195/195 대상 연결. Ranger(후드·어깨·몸·팔·다리·부츠) / Peasant 교체 성공. 1명 28k 삼각형·13 드로우콜, 8명 224k·97 드로우콜에서 100fps(헤드리스 Chrome). 베이스 gltf 가 가리키는 텍스처 이름 2개가 실제 파일명과 달라(T_Hair_1_Normal_png.png, T_Eye_Normal_png.png) 복사로 맞춤. 의상을 입히면 몸 메시는 숨기고 머리(Face·Eyes·Eyebrows)만 남긴다(Readme 지침).
 - 발견: 무료 Standard 범위가 설명(60~70%)보다 좁다. 몸 2(Superhero 남녀), 헤어 8/20, 의상 2벌(Peasant·Ranger) 파츠 19/62, UAL1 43/120(검·주먹·단순 마법·피격·사망·이동. 활·도끼·지팡이·환호 없음).
 - 결과: poc.html, src/poc.ts, data/quaternius/, public/poc/(git 제외), .gitignore
+
+## 2026-11-17 — 무료 추가 팩 3개
+
+- 한 일: 사용자 결정 "무조건 무료, 무료 팩 → AI 생성 순". Characters - Fantasy Races[Standard] 93MB, Bestiary - Dungeon Monsters[Standard] 45MB, Universal Animation Library 2[Standard] 18MB 를 src/tools/fetch-itch.mjs 로 받아 data/quaternius/races, bestiary, ual2 에 풀었다.
+- 확인: 엘프·오크 남녀 4종(65관절), 임프·퍼글린 2종(55관절, 손가락 없음), UAL2 애니메이션 43개(검 콤보·방패·던지기 등). Races·Bestiary 는 QAL(게임 안 사용 가능, 에셋 단독 재배포 금지) → 원본은 git 제외 유지.
+- 결과: docs/content-design.md 8장(무료 재고와 한계). 무료만으로는 영웅 8~10명·외형 2~3개 수준이라 AI 생성이 주력.
