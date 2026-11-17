@@ -62,3 +62,8 @@
 
 - 한 일: "영웅·무기·장비 다 뽑기, 색만 바꾸지 말고 진짜 많이" 를 위해 무료 3D 에셋을 조사. Quaternius Universal Base Characters(체형 6·헤어 20, CC0), Modular Character Outfits Fantasy(의상 12벌·파츠 62·색 3, CC0), Characters Fantasy Races(12종, QAL), Bestiary(인간형 몬스터 7, QAL), Universal Animation Library 1·2(250+, CC0), Ultimate Monsters(50, CC0). 무기: Binbun RPG Weapons 70, Polyy.AI 50, KayKit Fantasy Weapons 25+, KayKit Adventurers 25 (모두 CC0). 전부 같은 휴머노이드 릭이라 애니메이션 1벌 공용 가능.
 - 결과: docs/content-design.md (목표 수량, 조합형 영웅 정의, 런타임 조립, 장비 부위·출처, 뽑기 표, 데이터·도구, 단계, 결정 사항 4개). design.md 에 참조 추가.
+
+## 2026-11-17 — 3단계 설계 2차: 사용자 결정 반영
+
+- 한 일: 영웅 체계를 "영웅마다 등급 고정" 에서 "영웅은 유니크, 잠재 등급까지 사다리(칭호 8단계·외형 4형)" 로 바꿈. 외형 겹침 금지 규칙(머리·몸통·망토 2개 이상 겹침 금지)을 영웅의 모든 형태에 적용. 방패는 한손 무기군일 때만, 양손 영웅은 장신구 칸 +1. 뽑기 재화는 보석으로 통일(장비 100/900). 목표 영웅 수 60 → 30 (× 4형 = 외형 120).
+- 결과: docs/content-design.md 다시 씀.
