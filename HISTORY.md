@@ -172,3 +172,8 @@
 - 데이터: Ultimate Monsters 16종 GLB, data/ultimate_monsters (5.3MB, git 제외, 주소 sources.txt). 게임에는 public/assets/um 에 2개(Ghost_Skull 227KB, Demon 474KB).
 - 확인: 헤드리스 Chrome. 1-3·2-3 각 웨이브·보스 스킬·필살기·부하 부르기·승리. 균형 1-1 Lv.1 승, 1-3 Lv.1 패·Lv.5 승, 2-1 Lv.8 승, 2-2 Lv.12 승, 2-3 Lv.16 패·Lv.22 승. npm run build 통과.
 - 결과: src/enemies.ts, src/tools/fetch-polypizza.sh, public/assets/um 새로. data.ts, heroes.ts(공용 도우미 export), battle.ts, assets.ts, heroModel.ts, unit.ts, main.ts, lobby.ts, poc.ts, style.css, tools 2개, docs/credits.md, .gitignore 수정.
+
+## 2026-11-18 — 3-5 2부 배포
+
+- 한 일: ce8f8a0 를 main 에 push (사용자 승인). GitHub Actions deploy 성공(47초). 공개 주소에서 public/assets/um/Demon.glb 응답 200 확인.
+- 결과: https://yongbard.github.io/party-rpg/
