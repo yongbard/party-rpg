@@ -169,4 +169,5 @@ export function equippedLook(look: Look, equip: Partial<Record<EquipSlot, number
   return out;
 }
 
-export const ITEM_ICON = (it: Item | ItemBase) => `icons/${('icon' in it ? it : baseOf(it)).icon}.svg`;
+// 절대 주소로 준다. CSS 변수 안의 url() 은 그 변수를 쓰는 CSS 파일 기준으로 풀리므로, 배포판(CSS 가 assets/ 에 있음)에서 상대 경로가 깨진다
+export const ITEM_ICON = (it: Item | ItemBase) => new URL(`icons/${('icon' in it ? it : baseOf(it)).icon}.svg`, document.baseURI).href;
