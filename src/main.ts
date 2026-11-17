@@ -67,7 +67,7 @@ async function main() {
   setupPost(scene, [rig.main, rig.cut], mobile);
 
   const save = loadSave();
-  const lobby = new Lobby(assets, arena.shadow, rig, hud);
+  const lobby = new Lobby(assets, arena.shadow, rig, hud, fx);
   lobby.show(save);
 
   // 초상화: 로비에 선 영웅 얼굴을 정면에서 한 명씩 찍는다
@@ -83,7 +83,8 @@ async function main() {
     portraits[h.def.id] = grabSquare(canvas);
   }
   lobby.units.forEach(o => o.root.setEnabled(true));
-  rig.setView('lobby');
+  lobby.portraits = portraits;
+  rig.setView('lobby', true);
 
   let battle: Battle | null = null;
   let speed = 1;
@@ -92,7 +93,7 @@ async function main() {
   const startBattle = (stageId: string) => {
     const stage = STAGES.find(s => s.id === stageId)!;
     lobby.hide();
-    rig.setView('battle');
+    rig.setView('battle', true);
     const party = save.party.map(id => ({ def: HEROES.find(h => h.id === id)!, mul: heroMul(save.heroes[id].level) }));
     const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party);
     battle = b;
@@ -101,6 +102,8 @@ async function main() {
     hud.visible(true);
     b.setSpeed(speed);
     hud.setSpeed(speed);
+    b.auto = !!save.auto;
+    hud.setAuto(b.auto);
     b.onEnd = win => {
       let reward: { gold: number; gems: number } | null = null;
       if (win) {
@@ -131,6 +134,12 @@ async function main() {
     hud.setSpeed(speed);
   };
   hud.onPause = () => { if (battle) hud.setPaused(battle.togglePause()); };
+  hud.onAuto = () => {
+    save.auto = !save.auto;
+    writeSave(save);
+    hud.setAuto(save.auto);
+    if (battle) battle.auto = save.auto;
+  };
   canvas.addEventListener('pointerdown', e => {
     const r = canvas.getBoundingClientRect();
     battle?.tapAt(e.clientX - r.left, e.clientY - r.top);
@@ -146,7 +155,7 @@ async function main() {
     rig.update(dt);
     arena.update(dt);
     battle?.update(dt);
-    if (!battle) lobby.update();
+    if (!battle) { lobby.update(); fx.update(dt); }
     scene.render();
     if (fpsEl) fpsEl.textContent = `${engine.getFps().toFixed(0)} fps · ${engine.name}`;
   });

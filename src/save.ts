@@ -8,6 +8,7 @@ export interface SaveData {
   heroes: Record<string, { level: number }>;
   party: string[];          // 진형 순서: 앞줄 왼쪽, 앞줄 오른쪽, 뒷줄 왼쪽, 뒷줄 오른쪽
   cleared: string[];        // 클리어한 스테이지 id
+  auto?: boolean;           // 필살기 자동 사용
 }
 
 const KEY = 'party-rpg-save';

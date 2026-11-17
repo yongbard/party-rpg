@@ -3,7 +3,10 @@ import type { Unit } from './unit';
 
 const ease = (k: number) => 1 - Math.pow(1 - k, 3);
 
-const VIEWS = {
+export interface View { alpha: number; beta: number; radius: number; target: Vector3 }
+const copy = (v: View): View => ({ ...v, target: v.target.clone() });
+
+const VIEWS: Record<string, View> = {
   battle: { alpha: -Math.PI / 2, beta: 0.84, radius: 23, target: new Vector3(0, 0, 5.2) },
   lobby: { alpha: -Math.PI / 2, beta: 1.36, radius: 12.5, target: new Vector3(0, 0.3, 3.2) },
 };
@@ -11,7 +14,8 @@ const VIEWS = {
 export class CameraRig {
   main: ArcRotateCamera;
   cut: UniversalCamera;
-  private base = VIEWS.battle;
+  private base: View = VIEWS.battle;
+  private cur: View = copy(VIEWS.battle);   // base 를 부드럽게 따라간다
   private shakeAmp = 0;
   private t = 0;
   private anim: ((now: number) => void) | null = null;
@@ -33,19 +37,32 @@ export class CameraRig {
 
   shake(a: number) { this.shakeAmp = Math.max(this.shakeAmp, a); }
 
-  setView(v: keyof typeof VIEWS) {
-    this.base = VIEWS[v];
-    this.main.radius = this.base.radius;
+  /** 'battle' · 'lobby' 또는 직접 만든 시점. instant 면 바로 옮기고, 아니면 부드럽게 따라간다 */
+  setView(v: 'battle' | 'lobby' | View, instant = false) {
+    this.base = typeof v === 'string' ? VIEWS[v] : v;
+    if (instant) this.cur = copy(this.base);
     this.shakeAmp = 0;
     this.scene.activeCamera = this.main;
+  }
+
+  /** 로비에 선 유닛을 가까이서 본다 (아래쪽 패널을 피해 화면 위쪽에 오게) */
+  focus(u: Unit) {
+    this.setView({ alpha: -Math.PI / 2, beta: 1.4, radius: 7.6, target: new Vector3(u.pos.x, -1.1, u.pos.z) });
   }
 
   update(dt: number) {
     this.t += dt;
     this.anim?.(performance.now());
-    const b = this.base;
+    const k = 1 - Math.exp(-dt * 5);
+    const c = this.cur, b0 = this.base;
+    c.alpha += (b0.alpha - c.alpha) * k;
+    c.beta += (b0.beta - c.beta) * k;
+    c.radius += (b0.radius - c.radius) * k;
+    c.target = Vector3.Lerp(c.target, b0.target, k);
+    const b = c;
     this.main.alpha = b.alpha + Math.sin(this.t * 0.23) * 0.035;
     this.main.beta = b.beta + Math.sin(this.t * 0.17) * 0.012;
+    this.main.radius = b.radius;
     const a = this.shakeAmp;
     this.main.target.set(
       b.target.x + (Math.random() - 0.5) * a,

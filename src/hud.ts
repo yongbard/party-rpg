@@ -14,6 +14,7 @@ export class Hud {
   onUlt: (i: number) => void = () => {};
   onSpeed: () => void = () => {};
   onPause: () => void = () => {};
+  onAuto: () => void = () => {};
   private root: HTMLElement;
   private world: HTMLElement;
   private cards: { box: HTMLElement; hp: HTMLElement; sh: HTMLElement; g: HTMLElement; hpTxt: HTMLElement }[] = [];
@@ -22,6 +23,7 @@ export class Hud {
   private bossEl: HTMLElement;
   private speedBtn: HTMLButtonElement;
   private pauseBtn: HTMLButtonElement;
+  private autoBtn: HTMLButtonElement;
   private hintEl: HTMLElement;
   private bannerEl: HTMLElement;
   private cutEl: HTMLElement;
@@ -40,7 +42,9 @@ export class Hud {
     this.pauseBtn = el('button', 'btn', '❚❚') as HTMLButtonElement;
     this.speedBtn.onclick = () => this.onSpeed();
     this.pauseBtn.onclick = () => this.onPause();
-    btns.append(this.speedBtn, this.pauseBtn);
+    this.autoBtn = el('button', 'btn auto', 'AUTO') as HTMLButtonElement;
+    this.autoBtn.onclick = () => this.onAuto();
+    btns.append(this.autoBtn, this.speedBtn, this.pauseBtn);
     this.bossEl = el('div', 'boss hide', '<div class="bn"></div><div class="bb"><i class="lag"></i><i class="fill"></i></div>');
     top.append(this.waveEl, btns);
     this.hintEl = el('div', 'hint hide', '대상으로 삼을 적을 탭하세요');
@@ -97,6 +101,7 @@ export class Hud {
     });
   }
 
+  setAuto(on: boolean) { this.autoBtn.classList.toggle('on', on); }
   setSpeed(s: number) { this.speedBtn.textContent = `${s}×`; }
   setPaused(p: boolean) { this.pauseBtn.textContent = p ? '▶' : '❚❚'; this.root.classList.toggle('paused', p); }
 

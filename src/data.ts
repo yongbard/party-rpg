@@ -16,7 +16,7 @@ export interface Anims {
 }
 
 export interface SkillDef {
-  name: string; cd: number; anim: string; hitAt: number;
+  name: string; desc?: string; cd: number; anim: string; hitAt: number;
   melee?: boolean;                               // 대상이 사거리 안일 때만
   can?: (b: Battle, u: Unit) => boolean;
   run: (b: Battle, u: Unit) => void;
@@ -71,7 +71,7 @@ export const HEROES: UnitDef[] = [
     hitAt: 0.38, targeting: 'nearest', rage: 0.4,
     skills: [
       {
-        name: '방패 강타', cd: 7, anim: 'Block_Attack', hitAt: 0.3, melee: true,
+        name: '방패 강타', desc: '공격력 140% 피해, 1.2초 기절, 위협 크게 증가', cd: 7, anim: 'Block_Attack', hitAt: 0.3, melee: true,
         run: (b, u) => {
           const t = u.target; if (!t) return;
           b.damage(u, t, 1.4);
@@ -81,7 +81,7 @@ export const HEROES: UnitDef[] = [
         },
       },
       {
-        name: '굳건한 의지', cd: 12, anim: 'Block', hitAt: 0.2,
+        name: '굳건한 의지', desc: 'HP 80% 아래일 때 6초간 받는 피해 35% 감소, 최대 HP 8% 보호막', cd: 12, anim: 'Block', hitAt: 0.2,
         can: (_b, u) => u.hp / u.maxHp < 0.8,
         run: (b, u) => {
           b.addDr(u, 0.35, 6);
@@ -118,7 +118,7 @@ export const HEROES: UnitDef[] = [
     hitAt: 0.45, targeting: 'nearest',
     skills: [
       {
-        name: '대지 가르기', cd: 8, anim: '2H_Melee_Attack_Spin', hitAt: 0.5, melee: true,
+        name: '대지 가르기', desc: '대상에게 공격력 220%, 주변 적에게 90% 피해', cd: 8, anim: '2H_Melee_Attack_Spin', hitAt: 0.5, melee: true,
         run: (b, u) => {
           const t = u.target; if (!t) return;
           b.damage(u, t, 2.2);
@@ -153,7 +153,7 @@ export const HEROES: UnitDef[] = [
     hitAt: 0.35, projectile: 'magic', targeting: 'nearest',
     skills: [
       {
-        name: '치유의 빛', cd: 4.5, anim: 'Spellcast_Raise', hitAt: 0.45,
+        name: '치유의 빛', desc: 'HP 비율이 가장 낮은 아군을 공격력 190% 만큼 치유', cd: 4.5, anim: 'Spellcast_Raise', hitAt: 0.45,
         can: (b, u) => b.alliesOf(u).some(a => a.hp / a.maxHp < 0.72),
         run: (b, u) => {
           const t = lowestHpRatio(b.alliesOf(u)); if (!t) return;
@@ -186,7 +186,7 @@ export const HEROES: UnitDef[] = [
     hitAt: 0.25, projectile: 'bolt', targeting: 'nearest',
     skills: [
       {
-        name: '약점 사격', cd: 7, anim: '2H_Ranged_Shoot', hitAt: 0.25,
+        name: '약점 사격', desc: 'HP 비율이 가장 낮은 적에게 확정 치명 220% 피해', cd: 7, anim: '2H_Ranged_Shoot', hitAt: 0.25,
         run: (b, u) => {
           const t = lowestHpRatio(b.foesOf(u)); if (!t) return;
           u.faceNow(t.pos);
@@ -301,13 +301,23 @@ export interface Stage {
 export const CHAPTER = '1장 · 해골 군주의 무덤';
 export const STAGES: Stage[] = [
   { id: '1-1', name: '무너진 입구', level: 1, waves: [W_SKEL], reward: { gold: 300, gems: 150 } },
-  { id: '1-2', name: '뼈의 회랑', level: 1, waves: [W_SKEL, W_GUARD], reward: { gold: 500, gems: 150 } },
-  { id: '1-3', name: '군주의 방', level: 1, waves: [W_SKEL, W_GUARD, W_BOSS], reward: { gold: 900, gems: 300 } },
+  { id: '1-2', name: '뼈의 회랑', level: 2, waves: [W_SKEL, W_GUARD], reward: { gold: 500, gems: 150 } },
+  { id: '1-3', name: '군주의 방', level: 4, waves: [W_SKEL, W_GUARD, W_BOSS], reward: { gold: 900, gems: 300 } },
 ];
 
 // 레벨에 따른 능력치 배율 (HP·공격·방어에 곱한다)
 export const heroMul = (lv: number) => 1 + 0.08 * (lv - 1);
 export const enemyMul = (lv: number) => 1 + 0.1 * (lv - 1);
+
+// 레벨업: 골드만 쓴다. 등급별 최대 레벨은 뽑기 단계에서 붙인다
+export const MAX_LEVEL = 40;
+export const levelCost = (lv: number) => Math.round(100 * Math.pow(1.15, lv - 1));   // lv → lv+1
+
+/** 전투력: 화면에 보여 주는 대략의 세기 */
+export const power = (d: UnitDef, lv: number) => {
+  const st = d.stats, m = heroMul(lv);
+  return Math.round((st.hp * 0.1 + st.atk * 2 * (1 + st.crit * (st.critDmg - 1)) + st.def * 1.5) * m * (st.spd / 100));
+};
 
 // 영웅 진형 (z+ 가 적 쪽). 카메라에서 보면 +x 가 왼쪽이다
 export const FORMATION = [

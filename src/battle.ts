@@ -58,6 +58,8 @@ export class Battle {
   state: State = 'load';
   wave = -1;
   targeting: Unit | null = null;
+  /** 필살기 자동 사용 */
+  auto = false;
   /** 전투가 끝나면 부른다 (승패) */
   onEnd: (win: boolean) => void = () => {};
   private timers: { at: number; fn: () => void }[] = [];
@@ -136,6 +138,7 @@ export class Battle {
       this.updateProjs(dt);
       this.fx.update(dt);
       if (this.state === 'fight') this.checkEnd();
+      if (this.auto && this.state === 'fight' && !this.frozen && !this.targeting) this.autoUlt();
     }
     this.hud.update(this);
   }
@@ -387,6 +390,16 @@ export class Battle {
     if (this.targeting === u) { this.targeting = null; this.hud.hint(false); return; }
     if (u.def.ult!.targeted) { this.targeting = u; this.hud.hint(true); return; }
     void this.castUlt(u);
+  }
+
+  /** 게이지가 찬 영웅의 필살기를 쓴다. 대상이 필요하면 보스, 없으면 HP 가 가장 많은 적 */
+  private autoUlt() {
+    const h = this.heroes.find(x => x.alive && x.gauge >= 100);
+    if (!h) return;
+    if (!h.def.ult!.targeted) { void this.castUlt(h); return; }
+    const foes = this.foesOf(h);
+    const t = foes.find(f => f.def.boss) ?? foes.reduce<Unit | null>((m, f) => (!m || f.hp > m.hp ? f : m), null);
+    if (t) void this.castUlt(h, t);
   }
 
   /** 조준 중일 때 화면 탭: 가장 가까운 적을 고른다 */
