@@ -61,9 +61,10 @@ party_rpg_261116/
 │   ├── fx.ts             이펙트(파티클, 링, 빛기둥, 베기, 보호막, 투사체, 불꽃)
 │   ├── hud.ts            DOM UI(카드, HP 바, 피해 숫자, 배너, 컷인, 결과)
 │   ├── style.css
-│   └── tools/optimize-assets.mjs   원본 모델 → 게임용 모델 (애니메이션 고르기, meshopt 압축)
+│   ├── tools/optimize-assets.mjs   원본 모델 → 게임용 모델 (애니메이션 고르기, meshopt 압축)
+│   └── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (Standard 파일만)
 ├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/), dungeon/
-├── data/quaternius/      zips/(받은 원본), base/, outfits/, ual/ (풀어 둔 것)
+├── data/quaternius/      zips/(받은 원본), base/, outfits/, ual/ (풀어 둔 것). 899MB 라 git 제외. 다시 받기: node src/tools/fetch-itch.mjs {itch 팩 URL} 뒤 zips 를 각 폴더에 unzip
 ├── poc.html, src/poc.ts  기술 검증 페이지: /poc.html?outfit=Ranger|Peasant&anim=Sword_Idle&n=8&fps (public/poc 는 git 제외)
 ├── public/assets/        게임용 압축 모델 (npm run assets 결과)
 ├── public/meshopt_decoder.js   모델 압축 해제기 (npm run assets 가 복사)
