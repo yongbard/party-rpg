@@ -24,7 +24,8 @@
 - 2026-11-17: 필살기 자동 사용(전투 화면 AUTO, 저장됨). v1 2단계 — 로비 아래 탭 [모험]/[영웅]. 영웅 탭은 카메라가 영웅에게 다가가고 레벨·전투력·능력치(다음 레벨 증가분)·필살기·스킬 설명, 골드 레벨업(+1, +5, 최대 Lv.40). 스테이지 적 레벨 1·2·4.
 - 2026-11-17: 3단계(뽑기) 설계. 영웅·무기·장비 전부 뽑기, 색만 바꾸지 않고 수백 개를 만들려고 Quaternius 조합형 체계(체형 18 × 헤어 20 × 의상 파츠 62, 공용 애니메이션 250+, 무기 팩 160+)를 조사해 docs/content-design.md 에 정리. 사용자 결정 반영(영웅은 유니크 + 등급별 성장 스토리·외형 4형, 무료 우선·부족하면 AI, 망토·방패 추가·방패는 한손 무기만, 뽑기 재화 보석 하나). 남은 결정: 잠재 등급 모델(제안 A).
 - 2026-11-17: 3-1 PoC 성공. Quaternius 베이스 몸 + 머리카락 + 의상 파츠 6개를 한 스켈레톤으로 런타임 조립하고 UAL 애니메이션 재생(poc.html). 8명 동시 100fps(헤드리스 Chrome). 무료 Standard 는 몸 2·헤어 8·의상 2벌·애니메이션 43개뿐이라 수량은 유료 Source 나 추가 팩이 필요.
-- 다음: 추가 에셋 확보 결정 → 3-2 영웅 체계 → 3-3 장비 → 3-4 뽑기 → 3-5 확장 → 특성 트리.
+- 2026-11-17: 무료 추가 팩(Fantasy Races, Bestiary, UAL2), 무기 팩(Binbun 70, KayKit Fantasy Weapons 31) 확보. 3-2 영웅 체계: 레온(인간 기사, 최대 초월)·브란(오크 전사, 최대 전설)·세라(인간 마법사, 최대 신화)·카일(엘프 사수, 최대 불멸)을 조합형 모델로 옮김. 등급 8단계·칭호·등급별 외형(6겹), 영웅 탭 등급 사다리 미리보기. 적은 아직 KayKit 해골(화풍 차이 있음, 3-5 에서 교체).
+- 다음: 3-3 장비(무기·방패·투구·갑옷·망토가 몸에 보임, 가방) → 3-4 뽑기(조각·승격 실제 동작) → 3-5 확장(영웅 15~20명, 적 교체, AI 변신형) → 특성 트리.
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
 
@@ -55,18 +56,21 @@ party_rpg_261116/
 │   ├── lobby.ts          로비: 3D 파티 줄 세우기, 재화, [모험] 스테이지 선택·출전, [영웅] 능력치·스킬·레벨업
 │   ├── battle.ts         전투 로직: 대상 선택(위협), 이동, 공격, 피해·치유, 투사체, 컷인, 웨이브
 │   ├── unit.ts           유닛 상태와 애니메이션 재생
-│   ├── assets.ts         glb 불러오기, 모델 복제(쓰는 애니메이션만 남김)
+│   ├── assets.ts         glb 불러오기(필요할 때 받는 ensure), 모델 복제
+│   ├── heroModel.ts      조합형 영웅 조립: 몸 + 의상 파츠 + 헤어를 한 뼈대로, 무기·방패를 손 뼈에, 오라·발광, 공용 애니메이션 연결
 │   ├── arena.ts          던전 배치(thin instance), 조명·그림자·횃불·안개, 후처리
 │   ├── camera.ts         카메라 시점(전투·로비·영웅 확대, 부드럽게 전환), 흔들기, 컷인·초상화
 │   ├── fx.ts             이펙트(파티클, 링, 빛기둥, 베기, 보호막, 투사체, 불꽃)
 │   ├── hud.ts            DOM UI(카드, HP 바, 피해 숫자, 배너, 컷인, 결과)
 │   ├── style.css
 │   ├── tools/optimize-assets.mjs   원본 모델 → 게임용 모델 (애니메이션 고르기, meshopt 압축)
-│   └── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (Standard 파일만)
+│   ├── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (PICK·OUT 환경 변수)
+│   └── tools/import-quaternius.mjs Quaternius·무기 원본 → public/assets/q (텍스처 webp 1024, 인간 머리만 자르기, 애니메이션 고르기)
 ├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/), dungeon/
-├── data/quaternius/      zips/(받은 원본), base/, outfits/, ual/ (풀어 둔 것). 899MB 라 git 제외. 다시 받기: node src/tools/fetch-itch.mjs {itch 팩 URL} 뒤 zips 를 각 폴더에 unzip
-├── poc.html, src/poc.ts  기술 검증 페이지: /poc.html?outfit=Ranger|Peasant&anim=Sword_Idle&n=8&fps (public/poc 는 git 제외)
-├── public/assets/        게임용 압축 모델 (npm run assets 결과)
+├── data/quaternius/      zips/(받은 원본), base/, outfits/, races/, bestiary/, ual/, ual2/ (풀어 둔 것). git 제외. 다시 받기: node src/tools/fetch-itch.mjs {itch 팩 URL} 뒤 각 폴더에 unzip
+├── data/weapons/         rpg-weapons/, fantasy-weapons-bits/ (git 제외, PICK=. OUT=data/weapons/zips 로 받음)
+├── poc.html, src/poc.ts  외형 확인 페이지: /poc.html?hero=leon (등급별 외형 한 줄), &i=2 (한 등급만), &anim=, &grip=종류:rx,ry,rz:px,py,pz (무기 각도 맞춤)
+├── public/assets/        게임용 모델: characters·enemies·dungeon (npm run assets, KayKit), q/ (npm run import-q, Quaternius·무기)
 ├── public/meshopt_decoder.js   모델 압축 해제기 (npm run assets 가 복사)
 ├── docs/
 │   ├── design.md         설계 문서
@@ -83,7 +87,8 @@ Node 24 (conda 아님). 처음 한 번 npm install.
 ```
 npm run dev       개발 서버 (http://localhost:5173, 같은 네트워크 폰은 http://{PC IP}:5173)
 npm run build     dist/ 에 배포용 빌드
-npm run assets    data/kaykit 원본 → public/assets 게임용 모델 (모델·애니메이션을 바꿨을 때)
+npm run assets    data/kaykit 원본 → public/assets/{characters,enemies,dungeon}
+npm run import-q  data/quaternius·data/weapons 원본 → public/assets/q (npm run import-q -- part 처럼 종류 하나만도 됨)
 ```
 
 주소 뒤 옵션: ?fps (FPS 표시), ?gpu=webgpu (WebGPU 시험)

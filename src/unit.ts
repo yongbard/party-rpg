@@ -21,6 +21,7 @@ export class Unit {
   scale: number; radius: number;
   dmgDone = 0; healDone = 0; dmgTaken = 0;
   curAnim: AnimationGroup | null = null;
+  title?: string;            // 지금 등급의 칭호
 
   /** mul: 레벨에 따른 HP·공격·방어 배율 (data.ts 의 heroMul, enemyMul) */
   constructor(public def: UnitDef, public side: Side, public model: ModelInstance, pos: Vector3, yaw: number, public mul = 1) {
@@ -41,7 +42,7 @@ export class Unit {
   get pos() { return this.root.position; }
   get forward() { return new Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
   chest() { return this.pos.add(new Vector3(0, 1.0 * this.scale, 0)); }
-  head() { return this.pos.add(new Vector3(0, 2.35 * this.scale, 0)); }
+  head() { return this.pos.add(new Vector3(0, (this.def.model === 'q' ? 1.9 : 2.35) * this.scale, 0)); }
   muzzle() { return this.chest().add(this.forward.scale(0.5)).addInPlaceFromFloats(0, 0.2, 0); }
 
   animDur(name: string, speed = 1) {

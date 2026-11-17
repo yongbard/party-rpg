@@ -8,6 +8,13 @@
 | 해골 모델·애니메이션 (Minion, Warrior, Rogue, Mage) | data/kaykit/enemies/ | KayKit Skeletons Character Pack 1.0, Kay Lousberg (github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) | CC0 |
 | 해골 무기 (Axe, Blade, Staff, Crossbow, Shield) | data/kaykit/enemies/weapons/ | 위와 같은 팩 | CC0 |
 | 던전 바닥·벽·소품 20종 | data/kaykit/dungeon/ | KayKit Dungeon Remastered 1.0, Kay Lousberg (github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0) | CC0 |
+| 조합형 캐릭터 몸·머리·헤어 | public/assets/q/head, body/Human_*, hair (원본 data/quaternius/base) | Quaternius Universal Base Characters [Standard] | CC0 |
+| 의상 파츠 (농부·레인저) | public/assets/q/part (원본 data/quaternius/outfits) | Quaternius Modular Character Outfits - Fantasy [Standard] | CC0 |
+| 엘프·오크 몸 | public/assets/q/body/Elf_*, Orc_* (원본 data/quaternius/races) | Quaternius Characters - Fantasy Races [Standard] | QAL (게임 안 사용 가능, 에셋 단독 재배포 금지) |
+| 임프·퍼글린 몸 | public/assets/q/body/Imp, Puglin (원본 data/quaternius/bestiary) | Quaternius Bestiary - Dungeon Monsters [Standard] | QAL |
+| 공용 애니메이션 | public/assets/q/anim/UAL1, UAL2 (원본 data/quaternius/ual, ual2) | Quaternius Universal Animation Library 1·2 [Standard] | CC0 |
+| 무기 70종 (도끼·단검·망치·장검·철퇴·곡괭이·세이버·단검·삽·창) | public/assets/q/weapon/*_0N (원본 data/weapons/rpg-weapons) | Binbun RPG Weapons (Free) | CC0 |
+| 무기 31종 (활·지팡이·완드·방패·검 등) | public/assets/q/weapon/kk_* (원본 data/weapons/fantasy-weapons-bits) | KayKit Fantasy Weapons Bits 1.0 (Free), Kay Lousberg | CC0 |
 | 글꼴 Black Han Sans, Noto Sans KR | Google Fonts 에서 불러옴 | Google Fonts | SIL OFL 1.1 |
 | meshopt 디코더 | public/meshopt_decoder.js | meshoptimizer, Arseny Kapoulkine | MIT |
 | 이펙트 텍스처 (불꽃, 링, 베기, 빛기둥) | 코드로 그림 (src/fx.ts) | 직접 제작 | — |
@@ -15,3 +22,5 @@
 CC0 는 표기 의무가 없지만 KayKit 제작자가 표기를 권하므로 크레딧 화면에 Kay Lousberg (www.kaylousberg.com) 를 넣는다.
 
 게임에는 원본(data/kaykit)을 줄인 판(public/assets, npm run assets)을 쓴다.
+
+QAL 원본(data/quaternius/races, bestiary)은 git 에 올리지 않는다. 게임용으로 줄이고 바꾼 파일만 public/ 에 둔다.

@@ -1,9 +1,9 @@
 // 로비: 파티가 카메라를 보고 서 있다. 아래 탭으로 [모험](스테이지 선택) / [영웅](능력치·레벨업)
-import { ShadowGenerator, Vector3 } from '@babylonjs/core';
+import { Scene, ShadowGenerator, Vector3 } from '@babylonjs/core';
 import type { Assets } from './assets';
-import { makeModel } from './battle';
 import type { CameraRig } from './camera';
-import { CHAPTER, COL, HEROES, MAX_LEVEL, STAGES, heroMul, levelCost, power, type UnitDef } from './data';
+import { CHAPTER, COL, GRADES, GRADE_COLORS, HEROES, MAX_LEVEL, STAGES, gradeMul, heroMul, levelCost, lookOf, power, type UnitDef } from './data';
+import { lookKeys, makeHeroModel } from './heroModel';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
 import { writeSave, type SaveData } from './save';
@@ -25,8 +25,9 @@ export class Lobby {
   private tab: Tab = 'adventure';
   private heroIdx = 0;
   private save!: SaveData;
+  private preview: number | null = null;   // 영웅 탭에서 미리 보는 등급 (null = 지금 등급)
 
-  constructor(private assets: Assets, private shadow: ShadowGenerator, private rig: CameraRig, private hud: Hud, private fx: Fx) {
+  constructor(private scene: Scene, private assets: Assets, private shadow: ShadowGenerator, private rig: CameraRig, private hud: Hud, private fx: Fx) {
     this.el = document.createElement('div');
     this.el.id = 'lobby';
     document.getElementById('app')!.append(this.el);
@@ -35,18 +36,37 @@ export class Lobby {
   show(save: SaveData) {
     this.save = save;
     this.rig.setView('lobby', true);
-    this.units = save.party.map((id, i) => {
-      const def = HEROES.find(h => h.id === id)!;
-      const u = new Unit(def, 'hero', makeModel(this.assets, def, this.shadow), new Vector3(LINEUP[i], 0, 3 + Math.abs(LINEUP[i]) * 0.25), Math.PI, heroMul(save.heroes[id].level));
-      u.play(def.anims.idle);
-      return u;
-    });
+    this.units = save.party.map((id, i) => this.makeUnit(HEROES.find(h => h.id === id)!, i, save.heroes[id].grade));
     // 처음 열리는 스테이지(안 깬 것 중 첫째)를 고른다
     const open = STAGES.filter((_s, i) => i === 0 || save.cleared.includes(STAGES[i - 1].id));
     this.selected = (open.find(s => !save.cleared.includes(s.id)) ?? open[open.length - 1]).id;
     this.tab = 'adventure';
     this.render();
     this.el.style.display = '';
+  }
+
+  /** 줄의 i 번째 자리에 그 등급 외형으로 영웅을 세운다 (외형 파일은 미리 받아 둬야 한다) */
+  private makeUnit(def: UnitDef, i: number, grade: number) {
+    const lv = this.save.heroes[def.id].level;
+    const model = makeHeroModel(this.assets, this.scene, lookOf(def, grade)!, this.shadow, this.fx);
+    const u = new Unit(def, 'hero', model, new Vector3(LINEUP[i], 0, 3 + Math.abs(LINEUP[i]) * 0.25), Math.PI, heroMul(lv) * gradeMul(grade));
+    u.title = def.titles?.[grade];
+    u.play(def.anims.idle);
+    return u;
+  }
+
+  /** 영웅 탭: 다른 등급의 외형을 3D 로 바꿔 보여 준다 */
+  private async showGrade(grade: number | null) {
+    const i = this.heroIdx;
+    const def = this.units[i].def;
+    const g = grade ?? this.save.heroes[def.id].grade;
+    this.preview = grade;
+    await this.assets.ensure(lookKeys(lookOf(def, g)!));
+    if (this.units[i]?.def !== def) return;   // 기다리는 사이 다른 영웅을 골랐다
+    this.units[i].model.dispose();
+    this.units[i] = this.makeUnit(def, i, g);
+    this.fx.ring(this.units[i].pos, COL.gold, 1.6, 0.5);
+    this.render();
   }
 
   hide() {
@@ -66,6 +86,7 @@ export class Lobby {
   }
 
   private setTab(t: Tab) {
+    if (this.preview !== null) void this.showGrade(null);
     this.tab = t;
     if (t === 'hero') this.rig.focus(this.units[this.heroIdx]);
     else this.rig.setView('lobby');
@@ -96,7 +117,18 @@ export class Lobby {
       this.el.querySelector<HTMLButtonElement>('.lb-go')!.onclick = () => this.onStart(this.selected);
     } else {
       this.el.querySelectorAll<HTMLButtonElement>('.chip').forEach(b => {
-        b.onclick = () => { this.heroIdx = Number(b.dataset.i); this.rig.focus(this.units[this.heroIdx]); this.render(); };
+        b.onclick = () => {
+          if (this.preview !== null) void this.showGrade(null);
+          this.heroIdx = Number(b.dataset.i);
+          this.rig.focus(this.units[this.heroIdx]);
+          this.render();
+        };
+      });
+      this.el.querySelectorAll<HTMLButtonElement>('.rung').forEach(b => {
+        b.onclick = () => {
+          const g = Number(b.dataset.g);
+          void this.showGrade(g === this.save.heroes[this.units[this.heroIdx].def.id].grade ? null : g);
+        };
       });
       this.el.querySelectorAll<HTMLButtonElement>('.lvup').forEach(b => { b.onclick = () => this.levelUp(Number(b.dataset.n)); });
     }
@@ -105,7 +137,7 @@ export class Lobby {
   private adventureHtml() {
     const s = this.save;
     const isOpen = (i: number) => i === 0 || s.cleared.includes(STAGES[i - 1].id);
-    const partyPower = this.units.reduce((sum, u) => sum + power(u.def, s.heroes[u.def.id].level), 0);
+    const partyPower = this.units.reduce((sum, u) => sum + power(u.def, s.heroes[u.def.id].level, s.heroes[u.def.id].grade), 0);
     return `
       <div class="lb-panel">
         <div class="lb-ch">${CHAPTER}<span class="pp">파티 전투력 <b>${fmt(partyPower)}</b></span></div>
@@ -128,7 +160,15 @@ export class Lobby {
     const u = this.units[this.heroIdx];
     const d: UnitDef = u.def;
     const lv = s.heroes[d.id].level;
-    const m = heroMul(lv), m2 = heroMul(lv + 1);
+    const grade = s.heroes[d.id].grade;
+    const shown = this.preview ?? grade;
+    const gm = gradeMul(grade);
+    const m = heroMul(lv) * gm, m2 = heroMul(lv + 1) * gm;
+    const max = d.maxGrade ?? 2;
+    const ladder = Array.from({ length: max + 1 }, (_, g) => `
+      <button class="rung ${g === shown ? 'on' : ''} ${g === grade ? 'cur' : ''} ${g > grade ? 'future' : ''}" data-g="${g}" style="--gc:${GRADE_COLORS[g]}">
+        <i>${GRADES[g]}</i><span>${d.titles?.[g] ?? ''}</span>
+      </button>`).join('');
     const st = d.stats;
     const grow = (base: number) => (lv < MAX_LEVEL ? `<em>+${fmt(base * m2 - base * m)}</em>` : '');
     const costOf = (n: number) => { let c = 0; for (let i = 0; i < n; i++) c += levelCost(lv + i); return c; };
@@ -144,9 +184,11 @@ export class Lobby {
           <button class="chip ${i === this.heroIdx ? 'on' : ''}" data-i="${i}" style="--accent:${x.def.color}"><img src="${this.portraits[x.def.id] ?? ''}" alt=""><span>Lv.${s.heroes[x.def.id].level}</span></button>`).join('')}
         </div>
         <div class="hd-head">
-          <div><div class="hd-title">${d.title ?? ''}</div><div class="hd-name">${d.name}<span>Lv.${lv}<small>/${MAX_LEVEL}</small></span></div></div>
-          <div class="hd-power"><small>전투력</small><b>${fmt(power(d, lv))}</b></div>
+          <div><div class="hd-title" style="color:${GRADE_COLORS[grade]}">${GRADES[grade]} · ${d.titles?.[grade] ?? ''}</div><div class="hd-name">${d.name}<span>Lv.${lv}<small>/${MAX_LEVEL}</small></span></div></div>
+          <div class="hd-power"><small>전투력</small><b>${fmt(power(d, lv, grade))}</b></div>
         </div>
+        <div class="ladder">${ladder}</div>
+        ${shown !== grade ? `<div class="ladder-note">${GRADES[shown]} 「${d.titles?.[shown] ?? ''}」 외형 미리보기 · ${shown > grade ? '같은 영웅 조각으로 승격하면 이 모습이 된다' : '지나온 모습'}</div>` : `<div class="ladder-note">최대 ${GRADES[max]}까지 성장 · 칭호를 누르면 그 등급 외형을 미리 본다</div>`}
         <div class="hd-stats">
           <div><small>체력</small><b>${fmt(st.hp * m)}</b>${grow(st.hp)}</div>
           <div><small>공격력</small><b>${fmt(st.atk * m)}</b>${grow(st.atk)}</div>
@@ -174,7 +216,7 @@ export class Lobby {
     }
     if (!done) return;
     writeSave(s);
-    u.mul = heroMul(h.level);
+    u.mul = heroMul(h.level) * gradeMul(h.grade);
     // 연출: 환호, 금빛 링과 불꽃, 레벨 표시
     u.play(u.def.anims.victory ?? u.def.anims.idle, false);
     u.curAnim?.onAnimationGroupEndObservable.addOnce(() => u.play(u.def.anims.idle));

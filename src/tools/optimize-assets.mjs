@@ -19,7 +19,8 @@ const keep = animsByModel();
 await MeshoptEncoder.ready;
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.encoder': MeshoptEncoder });
 
-fs.rmSync(OUT, { recursive: true, force: true });
+// public/assets/q (조합형, npm run import-q) 는 건드리지 않고 이 스크립트가 만드는 폴더만 지운다
+for (const d of ['characters', 'enemies', 'dungeon']) fs.rmSync(`${OUT}/${d}`, { recursive: true, force: true });
 const files = fs.readdirSync(SRC, { recursive: true }).filter(f => /\.(glb|gltf)$/.test(f));
 const sizeOf = f => fs.statSync(f).size;
 let before = 0, after = 0;

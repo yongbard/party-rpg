@@ -47,7 +47,8 @@ export class CameraRig {
 
   /** 로비에 선 유닛을 가까이서 본다 (아래쪽 패널을 피해 화면 위쪽에 오게) */
   focus(u: Unit) {
-    this.setView({ alpha: -Math.PI / 2, beta: 1.4, radius: 7.6, target: new Vector3(u.pos.x, -1.1, u.pos.z) });
+    // 카메라는 바닥 위(약 1.3)에서 살짝 내려다본다. 시선 끝을 바닥 아래에 둬서 영웅이 화면 위쪽(패널 위)에 오게 한다
+    this.setView({ alpha: -Math.PI / 2, beta: 1.25, radius: 9.5, target: new Vector3(u.pos.x, -1.6, u.pos.z) });
   }
 
   update(dt: number) {
@@ -75,12 +76,12 @@ export class CameraRig {
 
   /** 얼굴 정면 초상화 구도 */
   portrait(u: Unit) {
-    const head = u.pos.add(new Vector3(0, 1.75 * u.scale, 0));
+    const head = u.pos.add(new Vector3(0, (u.def.model === 'q' ? 1.6 : 1.75) * u.scale, 0));
     const f = u.forward;
     const r = new Vector3(f.z, 0, -f.x);
     this.cut.fov = 0.5;
-    this.cut.position = head.add(f.scale(2.9)).add(r.scale(0.5)).addInPlaceFromFloats(0, -0.25, 0);
-    this.cut.setTarget(head.add(new Vector3(0, -0.3, 0)));
+    this.cut.position = head.add(f.scale(u.def.model === 'q' ? 2.0 : 2.9)).add(r.scale(0.35)).addInPlaceFromFloats(0, -0.1, 0);
+    this.cut.setTarget(head.add(new Vector3(0, -0.2, 0)));
     this.scene.activeCamera = this.cut;
   }
 

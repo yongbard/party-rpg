@@ -239,3 +239,14 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .lvup:active:not(:disabled) { transform: scale(.96); }
 .lvpop { position: absolute; left: 0; right: 0; top: 26%; text-align: center; font: 400 30px var(--title); color: var(--gold); letter-spacing: .06em; text-shadow: 0 0 20px rgba(241,200,106,.7), 0 3px 8px #000; pointer-events: none; animation: lvpop 1.3s ease-out forwards; }
 @keyframes lvpop { 0% { opacity: 0; transform: translateY(10px) scale(.7); } 15% { opacity: 1; transform: scale(1.12); } 30% { transform: scale(1); } 100% { opacity: 0; transform: translateY(-30px); } }
+
+/* 영웅 탭: 등급 사다리 */
+.ladder { display: flex; gap: 4px; overflow-x: auto; margin: 0 -2px 4px; padding: 2px; scrollbar-width: none; }
+.ladder::-webkit-scrollbar { display: none; }
+.rung { flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px; min-width: 58px; padding: 5px 6px; border-radius: 9px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.04); color: var(--text); }
+.rung i { font: 900 9px var(--body); font-style: normal; color: var(--gc); }
+.rung span { font: 700 10px var(--body); white-space: nowrap; }
+.rung.future { opacity: .55; }
+.rung.cur { border-color: var(--gc); box-shadow: inset 0 0 0 1px var(--gc); opacity: 1; }
+.rung.on { background: color-mix(in srgb, var(--gc) 22%, transparent); opacity: 1; }
+.ladder-note { margin-bottom: 8px; font-size: 10px; color: var(--muted); }

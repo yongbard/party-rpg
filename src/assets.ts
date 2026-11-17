@@ -30,6 +30,23 @@ export class Assets {
     }));
   }
 
+  has(key: string) { return this.containers.has(key); }
+  container(key: string) {
+    const c = this.containers.get(key);
+    if (!c) throw new Error(`asset not loaded: ${key}`);
+    return c;
+  }
+
+  /** 아직 안 받은 키만 받는다. 키 'q/part/X' → assets/q/part/X.glb */
+  async ensure(keys: string[]) {
+    const need = [...new Set(keys)].filter(k => !this.containers.has(k));
+    await Promise.all(need.map(async k => {
+      const c = await LoadAssetContainerAsync(`assets/${k}.glb`, this.scene);
+      c.animationGroups.forEach(g => g.stop());
+      this.containers.set(k, c);
+    }));
+  }
+
   spawn(key: string, cloneMaterials = false): ModelInstance {
     const c = this.containers.get(key);
     if (!c) throw new Error(`asset not loaded: ${key}`);

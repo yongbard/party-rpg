@@ -2,7 +2,8 @@
 import { AnimationGroup, Mesh, PBRMaterial, Color3, Scene, ShadowGenerator, TrailMesh, Vector3 } from '@babylonjs/core';
 import type { Assets, ModelInstance } from './assets';
 import type { CameraRig } from './camera';
-import { COL, ENEMIES, FORMATION, enemyMul, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
+import { COL, ENEMIES, FORMATION, enemyMul, type Look, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
+import { makeHeroModel } from './heroModel';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
 import { Unit, type Side } from './unit';
@@ -68,7 +69,7 @@ export class Battle {
   constructor(
     public scene: Scene, private assets: Assets, public fx: Fx, private rig: CameraRig,
     public hud: Hud, private shadow: ShadowGenerator,
-    public stage: Stage, private party: { def: UnitDef; mul: number }[],
+    public stage: Stage, private party: { def: UnitDef; mul: number; look?: Look; title?: string }[],
   ) {}
 
   get heroes() { return this.units.filter(u => u.side === 'hero'); }
@@ -83,8 +84,8 @@ export class Battle {
 
   // ───────── 생성 ─────────
 
-  spawn(def: UnitDef, side: Side, pos: Vector3, yaw: number, mul = 1): Unit {
-    const m = makeModel(this.assets, def, this.shadow);
+  spawn(def: UnitDef, side: Side, pos: Vector3, yaw: number, mul = 1, look?: Look): Unit {
+    const m = look ? makeHeroModel(this.assets, this.scene, look, this.shadow, this.fx) : makeModel(this.assets, def, this.shadow);
     const u = new Unit(def, side, m, pos, yaw, mul);
     this.units.push(u);
     this.hud.addBar(u);
@@ -93,7 +94,8 @@ export class Battle {
 
   spawnHeroes() {
     this.party.forEach((p, i) => {
-      const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul);
+      const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul, p.look);
+      u.title = p.title;
       u.play(p.def.anims.idle);
     });
   }

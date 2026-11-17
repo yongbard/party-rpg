@@ -30,10 +30,35 @@ export interface UltDef {
 
 export type ProjKind = 'bolt' | 'gold' | 'magic' | 'dark' | 'bone';
 
+// ───────── 등급과 외형 ─────────
+
+export const GRADES = ['일반', '고급', '희귀', '영웅', '전설', '신화', '불멸', '초월'];
+export const GRADE_COLORS = ['#b9b4a8', '#7ad27a', '#5aa9ff', '#c07cff', '#ffb43c', '#ff5a5a', '#ff7ae0', '#fff3a0'];
+// 능력치 배율. 데이터의 stats 는 희귀(2) 기준이다
+const GRADE_MUL = [0.75, 0.87, 1, 1.18, 1.48, 1.85, 2.37, 2.96];
+export const gradeMul = (g: number) => GRADE_MUL[g];
+/** 영웅의 그 등급 외형 (없으면 가장 가까운 아래 등급) */
+export const lookOf = (d: UnitDef, g: number) => d.looks?.[Math.min(g, d.looks.length - 1)];
+
+/** 한 등급의 외형. 6겹: 몸(얼굴) · 의상 파츠 · 헤어 · (장식) · 무기·보조 · 재질·이펙트 (docs/content-design.md 9장) */
+export interface Look {
+  body: string;               // q/head/… (옷을 입힐 인간 머리) 또는 q/body/… (옷 포함 몸)
+  parts?: string[];           // q/part/…
+  hair?: string[];            // q/hair/…
+  weapon?: string;            // q/weapon/… 오른손
+  offhand?: string;           // q/weapon/… 왼손 (방패는 한손 무기일 때만)
+  tint?: [number, number, number];   // 의상 색 곱
+  glow?: [number, number, number];   // 무기 발광
+  aura?: [number, number, number];   // 발밑 오라
+  scale?: number;
+}
+
 export interface UnitDef {
   id: string; name: string; title?: string;
   archetype?: string;                            // 설계 의도 (화면에는 안 보인다)
-  model: string; scale?: number; boss?: boolean;
+  model: string; scale?: number; boss?: boolean;    // model 'q' = 조합형(looks 사용)
+  maxGrade?: number; startGrade?: number;            // 영웅: 오를 수 있는 최대 등급, 처음 등급
+  titles?: string[]; looks?: Look[];                 // 등급별 칭호·외형 (0 ~ maxGrade)
   keep?: string[];                               // 모델에 붙은 무기 중 남길 것
   attach?: { mesh: string; slot: string }[];     // 따로 붙일 무기
   stats: Stats; anims: Anims;
@@ -58,20 +83,33 @@ export const COL = {
 const lowestHpRatio = (list: Unit[]) =>
   list.reduce<Unit | null>((m, x) => (!m || x.hp / x.maxHp < m.hp / m.maxHp ? x : m), null);
 
+const QS = 1.25;   // 조합형 사람 키(약 1.8)를 KayKit 적(약 2.3)과 맞춘다
+
 export const HEROES: UnitDef[] = [
   {
     id: 'leon', name: '레온', title: '서약의 기사', archetype: '딜탱 유도형', color: '#e8b64c',
-    model: 'Knight', keep: ['1H_Sword', 'Badge_Shield'],
+    model: 'q', scale: QS, maxGrade: 7, startGrade: 2,
+    titles: ['종자', '견습 기사', '기사', '정예 기사', '기사단장', '성기사', '수호성', '용기사'],
+    looks: [
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Peasant_Body', 'q/part/Male_Peasant_Arms', 'q/part/Male_Peasant_Legs', 'q/part/Male_Peasant_Feet'], weapon: 'q/weapon/Short_Sword_01', offhand: 'q/weapon/kk_shield_A' },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Peasant_Body', 'q/part/Male_Peasant_Arms', 'q/part/Male_Peasant_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_01', offhand: 'q/weapon/kk_shield_A' },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_03', offhand: 'q/weapon/kk_shield_B', tint: [0.75, 0.8, 0.95] },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_05', offhand: 'q/weapon/kk_shield_B', tint: [0.55, 0.6, 0.85] },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_07', offhand: 'q/weapon/kk_shield_C', tint: [1, 0.85, 0.5], glow: [1, 0.75, 0.3], scale: 1.03 },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_07', offhand: 'q/weapon/kk_shield_C', tint: [1, 0.95, 0.8], glow: [1, 0.85, 0.4], aura: [1, 0.8, 0.35], scale: 1.05 },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_sword_E', offhand: 'q/weapon/kk_shield_C', tint: [1.1, 1.05, 0.9], glow: [1, 0.95, 0.6], aura: [1, 0.95, 0.6], scale: 1.07 },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_sword_E', offhand: 'q/weapon/kk_shield_C', tint: [0.9, 0.5, 0.45], glow: [1, 0.45, 0.2], aura: [1, 0.4, 0.2], scale: 1.08 },
+    ],
     stats: { hp: 1500, atk: 92, def: 60, spd: 100, crit: 0.08, critDmg: 1.6, healPow: 1, threat: 2.6, range: 1.6, move: 3.6 },
     anims: {
-      idle: 'Idle', run: 'Running_A', hit: 'Block_Hit', death: 'Death_A', victory: 'Cheer',
-      attack: ['1H_Melee_Attack_Slice_Diagonal', '1H_Melee_Attack_Slice_Horizontal', '1H_Melee_Attack_Chop'],
-      extra: ['Block_Attack', 'Block', 'Blocking'],
+      idle: 'Idle_Shield_Loop', run: 'Jog_Fwd_Loop', hit: 'Hit_Chest', death: 'Death01', victory: 'Yes',
+      attack: ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C'],
+      extra: ['Shield_OneShot', 'Sword_Block'],
     },
     hitAt: 0.38, targeting: 'nearest', rage: 0.4,
     skills: [
       {
-        name: '방패 강타', desc: '공격력 140% 피해, 1.2초 기절, 위협 크게 증가', cd: 7, anim: 'Block_Attack', hitAt: 0.3, melee: true,
+        name: '방패 강타', desc: '공격력 140% 피해, 1.2초 기절, 위협 크게 증가', cd: 7, anim: 'Shield_OneShot', hitAt: 0.35, melee: true,
         run: (b, u) => {
           const t = u.target; if (!t) return;
           b.damage(u, t, 1.4);
@@ -81,7 +119,7 @@ export const HEROES: UnitDef[] = [
         },
       },
       {
-        name: '굳건한 의지', desc: 'HP 80% 아래일 때 6초간 받는 피해 35% 감소, 최대 HP 8% 보호막', cd: 12, anim: 'Block', hitAt: 0.2,
+        name: '굳건한 의지', desc: 'HP 80% 아래일 때 6초간 받는 피해 35% 감소, 최대 HP 8% 보호막', cd: 12, anim: 'Sword_Block', hitAt: 0.2,
         can: (_b, u) => u.hp / u.maxHp < 0.8,
         run: (b, u) => {
           b.addDr(u, 0.35, 6);
@@ -91,9 +129,9 @@ export const HEROES: UnitDef[] = [
       },
     ],
     ult: {
-      name: '수호의 맹세', desc: '적 전체 도발 6초 · 아군 전체 보호막', cutAnim: 'Block',
+      name: '수호의 맹세', desc: '적 전체 도발 6초 · 아군 전체 보호막', cutAnim: 'Sword_Block',
       run: (b, u) => {
-        u.play('Blocking', true);
+        u.play('Idle_Shield_Loop', true);
         u.busyUntil = b.time + 1.2;
         b.fx.ring(u.pos, COL.gold, 9, 0.9);
         b.shake(0.25);
@@ -108,17 +146,25 @@ export const HEROES: UnitDef[] = [
   },
   {
     id: 'bran', name: '브란', title: '북방의 도끼', archetype: '퓨어딜러', color: '#e0583a',
-    model: 'Barbarian', keep: ['2H_Axe'],
+    model: 'q', scale: QS, maxGrade: 4, startGrade: 1,
+    titles: ['떠돌이 전사', '투사', '광전사', '전쟁 군주', '피의 군주'],
+    looks: [
+      { body: 'q/body/Orc_Male', weapon: 'q/weapon/Axe_01' },
+      { body: 'q/body/Orc_Male', weapon: 'q/weapon/Axe_03' },
+      { body: 'q/body/Orc_Male', parts: ['q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Axe_05', tint: [0.85, 0.75, 0.7] },
+      { body: 'q/body/Orc_Male', parts: ['q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Hammer_07', tint: [0.7, 0.55, 0.5], scale: 1.04 },
+      { body: 'q/body/Orc_Male', parts: ['q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_axe_C', tint: [0.8, 0.45, 0.4], glow: [1, 0.25, 0.15], aura: [1, 0.2, 0.1], scale: 1.08 },
+    ],
     stats: { hp: 1200, atk: 150, def: 35, spd: 95, crit: 0.25, critDmg: 1.8, healPow: 0.8, threat: 1.2, range: 1.8, move: 3.8 },
     anims: {
-      idle: '2H_Melee_Idle', run: 'Running_A', hit: 'Hit_A', death: 'Death_B', victory: 'Cheer',
-      attack: ['2H_Melee_Attack_Slice', '2H_Melee_Attack_Chop'],
-      extra: ['2H_Melee_Attack_Spin', '2H_Melee_Attack_Spinning'],
+      idle: 'Sword_Idle', run: 'Jog_Fwd_Loop', hit: 'Hit_Knockback', death: 'Death01', victory: 'Yes',
+      attack: ['Sword_Attack', 'Sword_Regular_C'],
+      extra: ['Sword_Heavy_Combo', 'Sword_Regular_Combo'],
     },
     hitAt: 0.45, targeting: 'nearest',
     skills: [
       {
-        name: '대지 가르기', desc: '대상에게 공격력 220%, 주변 적에게 90% 피해', cd: 8, anim: '2H_Melee_Attack_Spin', hitAt: 0.5, melee: true,
+        name: '대지 가르기', desc: '대상에게 공격력 220%, 주변 적에게 90% 피해', cd: 8, anim: 'Sword_Heavy_Combo', hitAt: 0.6, melee: true,
         run: (b, u) => {
           const t = u.target; if (!t) return;
           b.damage(u, t, 2.2);
@@ -128,9 +174,9 @@ export const HEROES: UnitDef[] = [
       },
     ],
     ult: {
-      name: '피의 회오리', desc: '2.4초 동안 주변 적에게 6연타 · 피해의 30% 흡혈', cutAnim: 'Cheer',
+      name: '피의 회오리', desc: '2.4초 동안 주변 적에게 6연타 · 피해의 30% 흡혈', cutAnim: 'Sword_Heavy_Combo',
       run: (b, u) => {
-        u.play('2H_Melee_Attack_Spinning', true, 1.2);
+        u.play('Sword_Regular_Combo', true, 1.3);
         u.busyUntil = b.time + 2.4;
         for (let i = 0; i < 6; i++) {
           b.after(0.2 + i * 0.4, () => {
@@ -144,16 +190,25 @@ export const HEROES: UnitDef[] = [
   },
   {
     id: 'sera', name: '세라', title: '새벽의 사제', archetype: '딜힐', color: '#7fb8ff',
-    model: 'Mage', keep: ['2H_Staff'],
+    model: 'q', scale: QS, maxGrade: 5, startGrade: 2,
+    titles: ['견습 마법사', '수습 마법사', '마법사', '상급 마법사', '대마법사', '현자'],
+    looks: [
+      { body: 'q/head/Human_Female', hair: ['q/hair/Hair_Buns', 'q/hair/Eyebrows_Female'], parts: ['q/part/Female_Peasant_Body', 'q/part/Female_Peasant_Arms', 'q/part/Female_Peasant_Legs', 'q/part/Female_Peasant_Feet'], weapon: 'q/weapon/kk_wand_A' },
+      { body: 'q/head/Human_Female', hair: ['q/hair/Hair_Buns', 'q/hair/Eyebrows_Female'], parts: ['q/part/Female_Peasant_Body', 'q/part/Female_Peasant_Arms', 'q/part/Female_Peasant_Legs', 'q/part/Female_Ranger_Feet'], weapon: 'q/weapon/kk_staff_A', tint: [0.75, 0.8, 1] },
+      { body: 'q/head/Human_Female', hair: ['q/hair/Hair_Long', 'q/hair/Eyebrows_Female'], parts: ['q/part/Female_Ranger_Body', 'q/part/Female_Ranger_Arms', 'q/part/Female_Peasant_Legs', 'q/part/Female_Ranger_Feet', 'q/part/Female_Ranger_Head_Hood'], weapon: 'q/weapon/kk_staff_A', tint: [0.6, 0.65, 1] },
+      { body: 'q/head/Human_Female', hair: ['q/hair/Hair_Long', 'q/hair/Eyebrows_Female'], parts: ['q/part/Female_Ranger_Body', 'q/part/Female_Ranger_Arms', 'q/part/Female_Ranger_Legs', 'q/part/Female_Ranger_Feet', 'q/part/Female_Ranger_Acc_Pauldrons', 'q/part/Female_Ranger_Head_Hood'], weapon: 'q/weapon/kk_staff_B', tint: [0.55, 0.5, 0.95] },
+      { body: 'q/head/Human_Female', hair: ['q/hair/Hair_Long', 'q/hair/Eyebrows_Female'], parts: ['q/part/Female_Ranger_Body', 'q/part/Female_Ranger_Arms', 'q/part/Female_Ranger_Legs', 'q/part/Female_Ranger_Feet', 'q/part/Female_Ranger_Acc_Pauldrons'], weapon: 'q/weapon/kk_staff_B', tint: [0.95, 0.95, 1.1], glow: [0.5, 0.75, 1], scale: 1.03 },
+      { body: 'q/head/Human_Female', hair: ['q/hair/Hair_Long', 'q/hair/Eyebrows_Female'], parts: ['q/part/Female_Ranger_Body', 'q/part/Female_Ranger_Arms', 'q/part/Female_Ranger_Legs', 'q/part/Female_Ranger_Feet', 'q/part/Female_Ranger_Acc_Pauldrons'], weapon: 'q/weapon/kk_staff_B', tint: [1.1, 1.05, 0.85], glow: [1, 0.9, 0.5], aura: [0.6, 0.85, 1], scale: 1.05 },
+    ],
     stats: { hp: 900, atk: 120, def: 25, spd: 105, crit: 0.1, critDmg: 1.6, healPow: 1.25, threat: 0.8, range: 9, move: 3.2 },
     anims: {
-      idle: 'Idle', run: 'Running_B', hit: 'Hit_B', death: 'Death_A', victory: 'Cheer',
-      attack: ['Spellcast_Shoot'], extra: ['Spellcast_Raise', 'Spellcast_Long'],
+      idle: 'Spell_Simple_Idle_Loop', run: 'Jog_Fwd_Loop', hit: 'Hit_Head', death: 'Death01', victory: 'Yes',
+      attack: ['Spell_Simple_Shoot'], extra: ['Spell_Simple_Enter'],
     },
     hitAt: 0.35, projectile: 'magic', targeting: 'nearest',
     skills: [
       {
-        name: '치유의 빛', desc: 'HP 비율이 가장 낮은 아군을 공격력 190% 만큼 치유', cd: 4.5, anim: 'Spellcast_Raise', hitAt: 0.45,
+        name: '치유의 빛', desc: 'HP 비율이 가장 낮은 아군을 공격력 190% 만큼 치유', cd: 4.5, anim: 'Spell_Simple_Enter', hitAt: 0.45,
         can: (b, u) => b.alliesOf(u).some(a => a.hp / a.maxHp < 0.72),
         run: (b, u) => {
           const t = lowestHpRatio(b.alliesOf(u)); if (!t) return;
@@ -162,9 +217,9 @@ export const HEROES: UnitDef[] = [
       },
     ],
     ult: {
-      name: '성광 폭발', desc: '적 전체 피해 · 아군 전체 치유', cutAnim: 'Spellcast_Long',
+      name: '성광 폭발', desc: '적 전체 피해 · 아군 전체 치유', cutAnim: 'Spell_Simple_Idle_Loop',
       run: (b, u) => {
-        u.play('Spellcast_Raise', false);
+        u.play('Spell_Simple_Shoot', false);
         u.busyUntil = b.time + 0.9;
         for (const e of b.foesOf(u)) {
           b.fx.pillar(e.pos, COL.gold, 0.9);
@@ -177,16 +232,26 @@ export const HEROES: UnitDef[] = [
   },
   {
     id: 'kyle', name: '카일', title: '그림자 사수', archetype: '원거리 퓨어딜러', color: '#9be27a',
-    model: 'Rogue_Hooded', keep: ['2H_Crossbow'],
+    model: 'q', scale: QS, maxGrade: 6, startGrade: 2,
+    titles: ['사냥꾼 견습', '사냥꾼', '정찰병', '명사수', '그림자 사수', '바람의 사수', '별빛 사수'],
+    looks: [
+      { body: 'q/body/Elf_Male', weapon: 'q/weapon/kk_bow_A_withString' },
+      { body: 'q/body/Elf_Male', parts: ['q/part/Male_Ranger_Feet_Boots'], weapon: 'q/weapon/kk_bow_A_withString' },
+      { body: 'q/body/Elf_Male', parts: ['q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Head_Hood'], weapon: 'q/weapon/kk_bow_B_withString', tint: [0.75, 0.9, 0.75] },
+      { body: 'q/body/Elf_Male', parts: ['q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Head_Hood', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_bow_B_withString', tint: [0.55, 0.75, 0.55] },
+      { body: 'q/body/Elf_Male', parts: ['q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Head_Hood', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_bow_B_withString', tint: [0.4, 0.42, 0.5], glow: [0.6, 0.4, 1], scale: 1.03 },
+      { body: 'q/body/Elf_Male', parts: ['q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_bow_B_withString', tint: [0.75, 0.95, 0.85], glow: [0.5, 1, 0.8], aura: [0.5, 1, 0.8], scale: 1.05 },
+      { body: 'q/body/Elf_Male', parts: ['q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_bow_B_withString', tint: [0.85, 0.85, 1.15], glow: [0.75, 0.8, 1], aura: [0.7, 0.75, 1], scale: 1.07 },
+    ],
     stats: { hp: 950, atk: 140, def: 28, spd: 120, crit: 0.3, critDmg: 2.0, healPow: 1, threat: 0.7, range: 10, move: 3.6 },
     anims: {
-      idle: 'Idle', run: 'Running_A', hit: 'Hit_A', death: 'Death_B', victory: 'Cheer',
-      attack: ['2H_Ranged_Shoot'], extra: ['2H_Ranged_Aiming'],
+      idle: 'Pistol_Idle_Loop', run: 'Jog_Fwd_Loop', hit: 'Hit_Chest', death: 'Death01', victory: 'Yes',
+      attack: ['Pistol_Shoot'], extra: ['Pistol_Aim_Neutral'],
     },
     hitAt: 0.25, projectile: 'bolt', targeting: 'nearest',
     skills: [
       {
-        name: '약점 사격', desc: 'HP 비율이 가장 낮은 적에게 확정 치명 220% 피해', cd: 7, anim: '2H_Ranged_Shoot', hitAt: 0.25,
+        name: '약점 사격', desc: 'HP 비율이 가장 낮은 적에게 확정 치명 220% 피해', cd: 7, anim: 'Pistol_Shoot', hitAt: 0.25,
         run: (b, u) => {
           const t = lowestHpRatio(b.foesOf(u)); if (!t) return;
           u.faceNow(t.pos);
@@ -195,11 +260,11 @@ export const HEROES: UnitDef[] = [
       },
     ],
     ult: {
-      name: '사신의 표식', desc: '고른 적 하나에게 확정 치명 6.5배 · 처치하면 게이지 50% 반환', cutAnim: '2H_Ranged_Aiming', targeted: true,
+      name: '사신의 표식', desc: '고른 적 하나에게 확정 치명 6.5배 · 처치하면 게이지 50% 반환', cutAnim: 'Pistol_Aim_Neutral', targeted: true,
       run: (b, u, t) => {
         if (!t || !t.alive) return;
         u.faceNow(t.pos);
-        u.play('2H_Ranged_Shoot', false);
+        u.play('Pistol_Shoot', false);
         u.busyUntil = b.time + 0.7;
         b.fx.ring(t.pos, COL.red, 2.2, 0.5);
         b.after(0.2, () => b.shoot(u, t, 'gold', () => {
@@ -314,8 +379,8 @@ export const MAX_LEVEL = 40;
 export const levelCost = (lv: number) => Math.round(100 * Math.pow(1.15, lv - 1));   // lv → lv+1
 
 /** 전투력: 화면에 보여 주는 대략의 세기 */
-export const power = (d: UnitDef, lv: number) => {
-  const st = d.stats, m = heroMul(lv);
+export const power = (d: UnitDef, lv: number, grade = 2) => {
+  const st = d.stats, m = heroMul(lv) * gradeMul(grade);
   return Math.round((st.hp * 0.1 + st.atk * 2 * (1 + st.crit * (st.critDmg - 1)) + st.def * 1.5) * m * (st.spd / 100));
 };
 

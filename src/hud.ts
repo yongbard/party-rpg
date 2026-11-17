@@ -149,7 +149,7 @@ export class Hud {
     const ult = u.def.ult!;
     this.cutEl.style.setProperty('--accent', u.def.color);
     this.cutEl.style.setProperty('--dur', `${ms}ms`);
-    this.cutEl.innerHTML = `<div class="lines"></div><div class="cbox"><div class="cn">${u.def.name}<small>${u.def.title ?? ''}</small></div><div class="cu">${ult.name}</div><div class="cd">${ult.desc}</div></div>`;
+    this.cutEl.innerHTML = `<div class="lines"></div><div class="cbox"><div class="cn">${u.def.name}<small>${u.title ?? u.def.title ?? ''}</small></div><div class="cu">${ult.name}</div><div class="cd">${ult.desc}</div></div>`;
     this.cutEl.className = 'cutin';
     void this.cutEl.offsetWidth;
     this.cutEl.classList.add('show');

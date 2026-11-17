@@ -80,3 +80,17 @@
 - 한 일: 사용자 결정 "무조건 무료, 무료 팩 → AI 생성 순". Characters - Fantasy Races[Standard] 93MB, Bestiary - Dungeon Monsters[Standard] 45MB, Universal Animation Library 2[Standard] 18MB 를 src/tools/fetch-itch.mjs 로 받아 data/quaternius/races, bestiary, ual2 에 풀었다.
 - 확인: 엘프·오크 남녀 4종(65관절), 임프·퍼글린 2종(55관절, 손가락 없음), UAL2 애니메이션 43개(검 콤보·방패·던지기 등). Races·Bestiary 는 QAL(게임 안 사용 가능, 에셋 단독 재배포 금지) → 원본은 git 제외 유지.
 - 결과: docs/content-design.md 8장(무료 재고와 한계). 무료만으로는 영웅 8~10명·외형 2~3개 수준이라 AI 생성이 주력.
+
+## 2026-11-17 — 3-2 영웅 체계: 조합형 영웅과 등급 사다리
+
+- 한 일:
+  - 무기 팩 받기(사용자 승인, 무료 CC0): Binbun RPG Weapons Free 11MB(무기 70), KayKit Fantasy Weapons Bits Free 3MB(31). fetch-itch.mjs 에 PICK·OUT 환경 변수, 파일 이름 앞에 팩 이름(둘 다 "Free" 라 겹쳐 저장된 것을 고침).
+  - src/tools/import-quaternius.mjs (npm run import-q): 텍스처 4096 png → 1024 webp, 인간 몸은 머리·목 뼈 가중치 0.5 넘는 삼각형만 남긴 "머리" 판(옷을 입힐 때), 애니메이션은 data.ts 에 나오는 22개만, 무기·애니메이션만 meshopt.
+  - 함정: 뼈대 있는 메시를 meshopt(좌표 양자화)로 압축하면 배율이 각 파일의 뼈대 행렬에 들어가, 파츠를 다른 몸의 뼈대로 옮기면 옷이 거대하게 늘어난다 → 몸·헤어·파츠는 압축하지 않음.
+  - src/heroModel.ts: 몸 인스턴스의 스켈레톤에 파츠·헤어 메시를 붙이고(파츠 자기 스켈레톤 폐기), 무기는 hand_r, 방패는 hand_l 아래 회전 피벗에. 손 뼈는 손가락 쪽 +Y. 확정 각도: 검·도끼·지팡이 (0,0,-90°), 활 (90°,90°,0), 방패 (-90°,0,90°). KayKit 무기는 0.6배. tint 는 의상 파츠에만, glow 는 무기 발광, aura 는 발밑 파티클.
+  - data.ts: 등급 8단계(GRADES, 색, 능력치 배율 희귀=1 기준), Look 타입(6겹), 영웅마다 maxGrade·startGrade·titles·looks. 레온 인간 남·초월(8 외형), 브란 오크 남·전설(5), 세라 인간 여·신화(6), 카일 엘프 남·불멸(7). 애니메이션을 UAL 이름으로(검 콤보, 방패, 단순 마법, 권총 동작을 활에).
+  - 저장에 영웅 grade(이전 저장은 startGrade 로 채움). 능력치 = 레벨 배율 × 등급 배율. 로비·전투가 조합형 모델 사용, 영웅 탭에 등급 사다리(칭호 누르면 그 등급 외형을 3D 로 미리보기), 컷인·로비에 지금 등급 칭호.
+  - 기존 npm run assets 가 public/assets 전체를 지우던 것을 자기 폴더(characters, enemies, dungeon)만 지우게 고침.
+- 확인: 헤드리스 Chrome. 4명 × 등급별 외형(poc.html), 옷·무기·방패·활·지팡이 쥐는 모습, 로비 → 영웅 탭 미리보기 → 1-2 AUTO 3배속 승리, 97fps, 첫 로딩 약 9초(로컬).
+- 용량: public/assets/q 약 19MB (몸 6.3, 파츠 8.0, 헤어 1.7, 무기 1.7, 애니 1.2, 머리 0.9). 파츠마다 같은 의상 텍스처가 따로 들어 있어 나중에 텍스처 공유로 줄일 수 있음.
+- 남은 것: 적은 KayKit 치비 해골이라 화풍이 다름(3-5 교체). public/assets/characters 의 KayKit 영웅은 더 안 씀.

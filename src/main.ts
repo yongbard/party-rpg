@@ -3,7 +3,8 @@ import { buildArena, setupPost } from './arena';
 import { Assets, type AssetEntry } from './assets';
 import { Battle } from './battle';
 import { CameraRig } from './camera';
-import { animsByModel, HEROES, heroMul, STAGES } from './data';
+import { animsByModel, gradeMul, HEROES, heroMul, lookOf, STAGES } from './data';
+import { ANIM_KEYS, lookKeys } from './heroModel';
 import { Fx } from './fx';
 import { Hud } from './hud';
 import { Lobby } from './lobby';
@@ -32,11 +33,10 @@ async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> 
 
 const ASSETS: AssetEntry[] = (() => {
   const anims = animsByModel();
-  const chars = ['Knight', 'Barbarian', 'Mage', 'Rogue_Hooded'].map(k => ({ key: k, url: `assets/characters/${k}.glb`, keepAnims: anims.get(k) }));
   const enemies = ['Skeleton_Minion', 'Skeleton_Warrior', 'Skeleton_Rogue', 'Skeleton_Mage'].map(k => ({ key: k, url: `assets/enemies/${k}.glb`, keepAnims: anims.get(k) }));
   const weapons = ['Skeleton_Blade', 'Skeleton_Axe', 'Skeleton_Crossbow', 'Skeleton_Staff', 'Skeleton_Shield_Small_A', 'Skeleton_Shield_Large_A']
     .map(k => ({ key: k, url: `assets/enemies/weapons/${k}.glb` }));
-  return [...chars, ...enemies, ...weapons];
+  return [...enemies, ...weapons];
 })();
 
 /** 지금 캔버스를 정사각형으로 잘라 이미지로 만든다 (render 직후 같은 작업 안에서 불러야 한다) */
@@ -67,7 +67,10 @@ async function main() {
   setupPost(scene, [rig.main, rig.cut], mobile);
 
   const save = loadSave();
-  const lobby = new Lobby(assets, arena.shadow, rig, hud, fx);
+  // 조합형 영웅: 공용 애니메이션 + 파티의 지금 등급 외형 파츠
+  hud.loading(0.9, '영웅을 조립하는 중');
+  await assets.ensure([...ANIM_KEYS, ...save.party.flatMap(id => lookKeys(lookOf(HEROES.find(h => h.id === id)!, save.heroes[id].grade)!))]);
+  const lobby = new Lobby(scene, assets, arena.shadow, rig, hud, fx);
   lobby.show(save);
 
   // 초상화: 로비에 선 영웅 얼굴을 정면에서 한 명씩 찍는다
@@ -94,7 +97,11 @@ async function main() {
     const stage = STAGES.find(s => s.id === stageId)!;
     lobby.hide();
     rig.setView('battle', true);
-    const party = save.party.map(id => ({ def: HEROES.find(h => h.id === id)!, mul: heroMul(save.heroes[id].level) }));
+    const party = save.party.map(id => {
+      const def = HEROES.find(h => h.id === id)!;
+      const { level, grade } = save.heroes[id];
+      return { def, mul: heroMul(level) * gradeMul(grade), look: lookOf(def, grade), title: def.titles?.[grade] };
+    });
     const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party);
     battle = b;
     b.spawnHeroes();
