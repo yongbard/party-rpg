@@ -1,7 +1,7 @@
 // Quaternius 조합형 캐릭터·애니메이션과 무기 팩 원본(data/)을 게임용 glb(public/assets/q/)로 바꾼다.
 // - 텍스처는 webp 로, 캐릭터 1024 / 무기 512 로 줄인다 (원본 4096)
 // - 인간 몸(Superhero)은 옷을 입히면 머리만 필요하므로 머리·목 삼각형만 남긴 판을 만든다
-// - 애니메이션은 src/data.ts 에 이름이 나오는 것만 남기고 마네킹 메시는 뺀다
+// - 애니메이션은 src/data.ts·heroes.ts 에 이름이 나오는 것만 남기고 마네킹 메시는 뺀다
 // - 무기·애니메이션은 meshopt 압축 (Babylon 디코더: public/meshopt_decoder.js). 뼈대 있는 메시는 압축하지 않는다(아래 설명)
 // 실행: npm run import-q
 import { NodeIO } from '@gltf-transform/core';
@@ -23,7 +23,7 @@ const UAL2 = `${Q}/ual2/Universal Animation Library 2[Standard]/Unreal-Godot/UAL
 const BINBUN = 'data/weapons/rpg-weapons/Free/GLTF';
 const KAYKIT_W = 'data/weapons/fantasy-weapons-bits/KayKit_FantasyWeaponsBits_1.0_FREE/Assets/gltf';
 
-const usedNames = new Set([...fs.readFileSync('src/data.ts', 'utf8').matchAll(/'([A-Za-z0-9_]+)'/g)].map(m => m[1]));
+const usedNames = new Set([...['src/data.ts', 'src/heroes.ts'].map(f => fs.readFileSync(f, 'utf8')).join('\n').matchAll(/'([A-Za-z0-9_]+)'/g)].map(m => m[1]));
 const only = process.argv[2];   // 예: npm run import-q -- weapon  (한 종류만 다시 만들 때)
 
 await MeshoptEncoder.ready;

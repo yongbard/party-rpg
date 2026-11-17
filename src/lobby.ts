@@ -1,9 +1,9 @@
-// 로비: 파티가 카메라를 보고 서 있다. 아래 탭으로 [모험](스테이지 선택) / [영웅](능력치·레벨업·승격·장비) / [소환] / [가방]
+// 로비: 파티가 카메라를 보고 서 있다. 아래 탭으로 [모험](스테이지 선택·파티 편성) / [영웅](가진 영웅 전부: 능력치·레벨업·승격·장비) / [소환] / [가방]
 import { Color3, Scene, ShadowGenerator, Vector3 } from '@babylonjs/core';
 import type { Assets } from './assets';
 import type { CameraRig } from './camera';
 import { CHAPTER, COL, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, type UnitDef } from './data';
-import { BANNERS, canPromote, heroRates, hiFrom, promote, PROMOTE, RATES, salvage, SALVAGE_GOLD, summon, type BannerId } from './gacha';
+import { BANNERS, canPromote, heroRates, hiFrom, pickupHero, promote, PROMOTE, RATES, salvage, SALVAGE_GOLD, summon, type BannerId } from './gacha';
 import { showSummon } from './summonView';
 import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, SLOT_NAMES, STAT_NAMES, type EquipSlot, type Item, type Slot } from './items';
 import { loadout, wearerOf } from './loadout';
@@ -15,6 +15,9 @@ import { Unit } from './unit';
 
 // 카메라에서 보면 +x 가 왼쪽이다 (오른손 좌표계, 카메라가 +z 를 본다)
 const LINEUP = [2.4, 0.8, -0.8, -2.4];
+const slotPos = (i: number) => new Vector3(LINEUP[i], 0, 3 + Math.abs(LINEUP[i]) * 0.25);
+const GUEST_POS = new Vector3(0, 0, 2.6);   // 파티 밖 영웅을 볼 때 혼자 서는 자리
+const SLOT_NAMES_KO = ['앞줄 왼쪽', '앞줄 오른쪽', '뒷줄 왼쪽', '뒷줄 오른쪽'];
 
 type Tab = 'adventure' | 'hero' | 'summon' | 'bag';
 const fmt = (n: number) => Math.round(n).toLocaleString();
@@ -28,7 +31,9 @@ export class Lobby {
   private plates: HTMLElement[] = [];
   private selected = STAGES[0].id;
   private tab: Tab = 'adventure';
-  private heroIdx = 0;
+  private heroId = '';                 // 영웅 탭에서 고른 영웅
+  private guest: Unit | null = null;   // 파티 밖 영웅을 고르면 가운데에 혼자 세운다
+  private forming = false;             // 모험 탭: 파티 편성 화면
   private save!: SaveData;
   private preview: number | null = null;   // 영웅 탭에서 미리 보는 등급 (null = 지금 등급)
   private heroView: 'info' | 'gear' = 'info';
@@ -47,7 +52,9 @@ export class Lobby {
   show(save: SaveData) {
     this.save = save;
     this.rig.setView('lobby', true);
-    this.units = save.party.map((id, i) => this.makeUnit(HEROES.find(h => h.id === id)!, i, save.heroes[id].grade));
+    this.units = save.party.map((id, i) => this.makeUnit(HEROES.find(h => h.id === id)!, slotPos(i), save.heroes[id].grade));
+    if (!save.heroes[this.heroId]) this.heroId = save.party[0];
+    this.forming = false;
     // 처음 열리는 스테이지(안 깬 것 중 첫째)를 고른다
     const open = STAGES.filter((_s, i) => i === 0 || save.cleared.includes(STAGES[i - 1].id));
     this.selected = (open.find(s => !save.cleared.includes(s.id)) ?? open[open.length - 1]).id;
@@ -56,44 +63,93 @@ export class Lobby {
     this.el.style.display = '';
   }
 
-  /** 줄의 i 번째 자리에 그 등급 외형으로 영웅을 세운다 (외형 파일은 미리 받아 둬야 한다) */
-  private makeUnit(def: UnitDef, i: number, grade: number) {
+  /** pos 에 그 등급 외형으로 영웅을 세운다 (외형 파일은 미리 받아 둬야 한다) */
+  private makeUnit(def: UnitDef, pos: Vector3, grade: number) {
     const lo = loadout(this.save, def.id, grade);
     const model = makeHeroModel(this.assets, this.scene, lo.look, this.shadow, this.fx);
-    const u = new Unit(def, 'hero', model, new Vector3(LINEUP[i], 0, 3 + Math.abs(LINEUP[i]) * 0.25), Math.PI, lo.mul, lo.bonus);
+    const u = new Unit(def, 'hero', model, pos.clone(), Math.PI, lo.mul, lo.bonus);
     u.title = lo.title;
     u.play(def.anims.idle);
     return u;
   }
 
+  /** 지금 서 있는 영웅들 (파티 + 혼자 선 영웅). 초상화 촬영용 */
+  shown() { return this.guest ? [...this.units, this.guest] : this.units; }
+  private unitOf(id: string) { return this.shown().find(u => u.def.id === id) ?? null; }
+  private cur() { return this.unitOf(this.heroId)!; }
+  /** 가진 영웅: 파티 먼저, 그다음 잠재 등급 높은 순 */
+  private owned() {
+    const s = this.save;
+    const inP = (id: string) => (s.party.includes(id) ? 1 : 0);
+    return HEROES.filter(h => s.heroes[h.id]).sort((a, b) => inP(b.id) - inP(a.id) || (b.maxGrade ?? 2) - (a.maxGrade ?? 2));
+  }
+  private applyVisibility() { this.units.forEach(u => u.root.setEnabled(!this.guest)); }
+
+  /** 영웅 탭에서 파티 밖 영웅을 고르면 가운데에 혼자 세우고, 아니면 치운다 */
+  private async syncGuest() {
+    const id = this.heroId;
+    if (this.tab !== 'hero' || this.save.party.includes(id)) {
+      this.guest?.model.dispose();
+      this.guest = null;
+    } else if (this.guest?.def.id !== id) {
+      await this.assets.ensure(lookKeys(loadout(this.save, id).look));
+      if (this.heroId !== id || this.tab !== 'hero') return;   // 기다리는 사이 바뀌었다
+      this.guest?.model.dispose();
+      this.guest = this.makeUnit(HEROES.find(h => h.id === id)!, GUEST_POS, this.save.heroes[id].grade);
+    }
+    this.applyVisibility();
+    if (this.guest && !this.portraits[id]) await this.takePortraits([id]);
+  }
+
+  private async takePortraits(ids: string[]) {
+    await this.scene.whenReadyAsync();
+    this.snap(ids);
+    this.applyVisibility();
+    this.rig.usemain();
+  }
+
   /** 영웅 탭: 다른 등급의 외형을 3D 로 바꿔 보여 준다 */
   private async showGrade(grade: number | null) {
-    const i = this.heroIdx;
-    const def = this.units[i].def;
-    const g = grade ?? this.save.heroes[def.id].grade;
+    const id = this.heroId;
     this.preview = grade;
-    await this.assets.ensure(lookKeys(loadout(this.save, def.id, g).look));
-    if (this.units[i]?.def !== def) return;   // 기다리는 사이 다른 영웅을 골랐다
-    this.units[i].model.dispose();
-    this.units[i] = this.makeUnit(def, i, g);
-    this.fx.ring(this.units[i].pos, COL.gold, 1.6, 0.5);
+    await this.rebuild(id);
+    if (this.heroId !== id) return;
+    this.fx.ring(this.cur().pos, COL.gold, 1.6, 0.5);
     this.render();
   }
 
-  /** 장비를 바꾼 영웅을 다시 세운다 (줄에 있으면) */
+  /** 외형이 바뀐 영웅을 그 자리에 다시 세운다 (서 있으면) */
   private async rebuild(heroId: string) {
-    const i = this.units.findIndex(u => u.def.id === heroId);
-    if (i < 0) return;
-    const def = this.units[i].def;
-    const g = i === this.heroIdx && this.preview !== null ? this.preview : this.save.heroes[heroId].grade;
+    if (!this.unitOf(heroId)) return;
+    const g = heroId === this.heroId && this.preview !== null ? this.preview : this.save.heroes[heroId].grade;
     await this.assets.ensure(lookKeys(loadout(this.save, heroId, g).look));
-    this.units[i].model.dispose();
-    this.units[i] = this.makeUnit(def, i, g);
+    const old = this.unitOf(heroId);
+    if (!old) return;   // 기다리는 사이 치웠다
+    const u = this.makeUnit(old.def, old.home, g);
+    old.model.dispose();
+    if (this.guest === old) this.guest = u;
+    else this.units[this.units.indexOf(old)] = u;
+    this.applyVisibility();
+  }
+
+  /** 모험 탭 편성: 누르면 파티에 넣거나 뺀다 (최소 1명, 최대 4명) */
+  private async toggleMember(id: string) {
+    const p = this.save.party;
+    if (p.includes(id)) { if (p.length <= 1) return; p.splice(p.indexOf(id), 1); }
+    else { if (p.length >= 4) return; p.push(id); }
+    writeSave(this.save);
+    const s = this.save;
+    await this.assets.ensure(s.party.flatMap(h => lookKeys(loadout(s, h).look)));
+    this.units.forEach(u => u.model.dispose());
+    this.units = s.party.map((h, i) => this.makeUnit(HEROES.find(d => d.id === h)!, slotPos(i), s.heroes[h].grade));
+    const missing = s.party.filter(h => !this.portraits[h]);
+    if (missing.length) await this.takePortraits(missing);
+    this.render();
   }
 
   private async equip(slot: EquipSlot, uid: number | null) {
     const s = this.save;
-    const id = this.units[this.heroIdx].def.id;
+    const id = this.heroId;
     const eq = (s.heroes[id].equip ??= {});
     const touched = new Set([id]);
     if (uid === null) delete eq[slot];
@@ -111,7 +167,7 @@ export class Lobby {
     writeSave(s);
     this.gearSlot = null;
     await Promise.all([...touched].map(h => this.rebuild(h)));
-    const u = this.units[this.heroIdx];
+    const u = this.cur();
     this.fx.ring(u.pos, COL.gold, 1.8, 0.5);
     this.fx.burst(u.chest(), COL.gold, 18, 3, 0.2);
     this.render();
@@ -120,6 +176,8 @@ export class Lobby {
   hide() {
     this.units.forEach(u => u.model.dispose());
     this.units = [];
+    this.guest?.model.dispose();
+    this.guest = null;
     this.plates = [];
     this.el.style.display = 'none';
   }
@@ -133,11 +191,26 @@ export class Lobby {
     });
   }
 
-  private setTab(t: Tab) {
+  private async setTab(t: Tab) {
     if (this.preview !== null) void this.showGrade(null);
     this.tab = t;
-    if (t === 'hero') this.rig.focus(this.units[this.heroIdx]);
+    this.forming = false;
+    this.render();
+    await this.syncGuest();
+    if (this.tab !== t) return;
+    if (t === 'hero') this.rig.focus(this.cur());
     else this.rig.setView('lobby');
+    this.render();
+  }
+
+  private async pickHero(id: string) {
+    if (this.preview !== null) void this.showGrade(null);
+    this.heroId = id;
+    this.gearSlot = null;
+    this.render();
+    await this.syncGuest();
+    if (this.heroId !== id) return;
+    this.rig.focus(this.cur());
     this.render();
   }
 
@@ -161,11 +234,13 @@ export class Lobby {
         </div>
       </div>`;
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
-    this.el.querySelectorAll<HTMLButtonElement>('.lb-tabs button').forEach(b => { b.onclick = () => this.setTab(b.dataset.tab as Tab); });
+    this.el.querySelectorAll<HTMLButtonElement>('.lb-tabs button').forEach(b => { b.onclick = () => void this.setTab(b.dataset.tab as Tab); });
     const on = (sel: string, fn: (b: HTMLButtonElement) => void) => this.el.querySelectorAll<HTMLButtonElement>(sel).forEach(b => { b.onclick = () => fn(b); });
     if (this.tab === 'adventure') {
       on('.stage', b => { this.selected = b.dataset.id!; this.render(); });
-      on('.lb-go', () => this.onStart(this.selected));
+      on('.lb-go.start', () => this.onStart(this.selected));
+      on('.form-t', () => { this.forming = !this.forming; this.render(); });
+      on('.fr', b => void this.toggleMember(b.dataset.id!));
     } else if (this.tab === 'summon') {
       on('.ban', b => { this.banner = b.dataset.b as BannerId; this.render(); });
       on('.pull', b => this.pull(Number(b.dataset.n) as 1 | 10));
@@ -179,19 +254,11 @@ export class Lobby {
       on('.eslot', b => { const sl = b.dataset.slot as EquipSlot; this.gearSlot = this.gearSlot === sl ? null : sl; this.render(); });
       on('.cand', b => void this.equip(this.gearSlot!, Number(b.dataset.uid)));
       on('.unequip', () => void this.equip(this.gearSlot!, null));
-      this.el.querySelectorAll<HTMLButtonElement>('.chip').forEach(b => {
-        b.onclick = () => {
-          if (this.preview !== null) void this.showGrade(null);
-          this.heroIdx = Number(b.dataset.i);
-          this.gearSlot = null;
-          this.rig.focus(this.units[this.heroIdx]);
-          this.render();
-        };
-      });
+      on('.chip', b => void this.pickHero(b.dataset.id!));
       this.el.querySelectorAll<HTMLButtonElement>('.rung').forEach(b => {
         b.onclick = () => {
           const g = Number(b.dataset.g);
-          void this.showGrade(g === this.save.heroes[this.units[this.heroIdx].def.id].grade ? null : g);
+          void this.showGrade(g === this.save.heroes[this.heroId].grade ? null : g);
         };
       });
       this.el.querySelectorAll<HTMLButtonElement>('.lvup').forEach(b => { b.onclick = () => this.levelUp(Number(b.dataset.n)); });
@@ -201,6 +268,7 @@ export class Lobby {
 
   private adventureHtml() {
     const s = this.save;
+    if (this.forming) return this.formHtml();
     const isOpen = (i: number) => i === 0 || s.cleared.includes(STAGES[i - 1].id);
     const partyPower = this.units.reduce((sum, u) => sum + loadout(s, u.def.id).power, 0);
     return `
@@ -216,14 +284,38 @@ export class Lobby {
           </button>`;
         }).join('')}
         </div>
-        <button class="lb-go">출전</button>
+        <div class="go-row"><button class="form-t">편성</button><button class="lb-go start">출전</button></div>
+      </div>`;
+  }
+
+  private face(id: string) {
+    const d = HEROES.find(h => h.id === id)!;
+    return this.portraits[id] ? `<img src="${this.portraits[id]}" alt="">` : `<b class="ini" style="color:${d.color}">${d.name[0]}</b>`;
+  }
+
+  private formHtml() {
+    const s = this.save;
+    return `
+      <div class="lb-panel form">
+        <div class="lb-ch">파티 편성<span class="pp">파티 <b>${s.party.length} / 4</b></span></div>
+        <div class="fslots">${SLOT_NAMES_KO.map((n, i) => {
+          const id = s.party[i];
+          const d = id ? HEROES.find(h => h.id === id)! : null;
+          return `<div class="fslot ${d ? '' : 'empty'}" style="--accent:${d?.color ?? '#555'}">${d ? `${this.face(d.id)}<b>${d.name}</b>` : '<b>비어 있음</b>'}<small>${n}</small></div>`;
+        }).join('')}</div>
+        <div class="froster">${this.owned().map(d => {
+          const h = s.heroes[d.id];
+          const k = s.party.indexOf(d.id);
+          return `<button class="fr ${k >= 0 ? 'in' : ''}" data-id="${d.id}" style="--gc:${GRADE_COLORS[h.grade]}">${this.face(d.id)}${k >= 0 ? `<em>${k + 1}</em>` : ''}<span>${d.name}</span><small>Lv.${h.level}</small></button>`;
+        }).join('')}</div>
+        <div class="empty-note">누르면 넣고 뺀다 · 넣은 순서대로 앞줄 왼쪽부터 선다 · 1 ~ 4명</div>
+        <button class="lb-go form-t">완료</button>
       </div>`;
   }
 
   private heroHtml() {
     const s = this.save;
-    const u = this.units[this.heroIdx];
-    const d: UnitDef = u.def;
+    const d: UnitDef = HEROES.find(h => h.id === this.heroId)!;
     const lv = s.heroes[d.id].level;
     const grade = s.heroes[d.id].grade;
     const shown = this.preview ?? grade;
@@ -248,8 +340,8 @@ export class Lobby {
     const skills = d.skills.map(k => `<li><b>${k.name}</b><small>재사용 ${k.cd}초</small><p>${k.desc ?? ''}</p></li>`).join('');
     return `
       <div class="lb-panel hero" style="--accent:${d.color}">
-        <div class="chips">${this.units.map((x, i) => `
-          <button class="chip ${i === this.heroIdx ? 'on' : ''}" data-i="${i}" style="--accent:${x.def.color}"><img src="${this.portraits[x.def.id] ?? ''}" alt=""><span>Lv.${s.heroes[x.def.id].level}</span></button>`).join('')}
+        <div class="chips">${this.owned().map(x => `
+          <button class="chip ${x.id === this.heroId ? 'on' : ''} ${s.party.includes(x.id) ? 'party' : ''}" data-id="${x.id}" style="--accent:${x.color}">${this.face(x.id)}<span>Lv.${s.heroes[x.id].level}</span></button>`).join('')}
         </div>
         <div class="hd-head">
           <div><div class="hd-title" style="color:${GRADE_COLORS[grade]}">${GRADES[grade]} · ${d.titles?.[grade] ?? ''}</div><div class="hd-name">${d.name}<span>Lv.${lv}<small>/${MAXL}</small></span></div></div>
@@ -292,17 +384,14 @@ export class Lobby {
 
   private async promoteHero() {
     const s = this.save;
-    const i = this.heroIdx;
-    const d = this.units[i].def;
+    const d = this.cur().def;
     const from = s.heroes[d.id].grade;
     if (!promote(s, d.id)) return;
     this.preview = null;
     await this.rebuild(d.id);
-    const u = this.units[i];
+    const u = this.cur();
     // 외형이 바뀌었으니 초상화를 다시 찍는다 (빛 효과가 얼굴을 덮기 전에)
-    await this.scene.whenReadyAsync();
-    this.snap([d.id]);
-    this.rig.usemain();
+    await this.takePortraits([d.id]);
     // 연출: 등급 색 빛기둥과 링, 환호, 칭호가 바뀌는 글
     const c = Color3.FromHexString(GRADE_COLORS[from + 1]);
     this.fx.pillar(u.pos, c, 1.2);
@@ -322,10 +411,11 @@ export class Lobby {
   private summonHtml() {
     const s = this.save;
     const bn = BANNERS.find(b => b.id === this.banner)!;
-    const p = s.pity ?? { hero: 0, hero5: 0, gear: 0 };
-    const pity = bn.pity.map(x => `${GRADES[x.min]} 이상까지 <b>${x.n - p[x.key]}</b>회`).join(' · ');
-    const rates = this.banner === 'hero'
-      ? heroRates().map(r => `<li style="--gc:${GRADE_COLORS[r.grade]}"><i>${GRADES[r.grade]}</i>${r.name}<b>${r.pct.toFixed(r.pct < 1 ? 2 : 1)}%</b></li>`).join('')
+    const p = s.pity ?? { hero: 0, hero5: 0, gear: 0, pick: 0 };
+    const pick = this.banner === 'pickup' ? pickupHero() : null;
+    const pity = bn.pity.map(x => `${x.key === 'pick' ? '픽업 영웅' : `${GRADES[x.min]} 이상`}까지 <b>${x.n - (p[x.key] ?? 0)}</b>회`).join(' · ');
+    const rates = this.banner === 'hero' || pick
+      ? heroRates(pick?.def.id).map(r => `<li style="--gc:${GRADE_COLORS[r.grade]}"><i>${GRADES[r.grade]}</i>${r.name}<b>${r.pct.toFixed(r.pct < 1 ? 2 : 1)}%</b></li>`).join('')
       : RATES.map((r, g) => `<li style="--gc:${GRADE_COLORS[g]}"><i>${GRADES[g]}</i><b>${r}%</b></li>`).join('');
     const btn = (n: 1 | 10) => {
       const c = n === 10 ? bn.cost10 : bn.cost;
@@ -336,6 +426,7 @@ export class Lobby {
         <div class="lb-ch">소환<span class="pp">보석<b>${fmt(s.gems)}</b></span></div>
         <div class="bans">${BANNERS.map(b => `<button class="ban ${b.id === this.banner ? 'on' : ''}" data-b="${b.id}">${b.name}</button>`).join('')}</div>
         <div class="sm-info">
+          ${pick ? `<div class="pick" style="--accent:${pick.def.color}">${this.face(pick.def.id)}<div><small>이번 주 픽업 · ${pick.left}일 남음</small><b>${pick.def.name}</b><span style="color:${GRADE_COLORS[pick.def.maxGrade ?? 2]}">잠재 ${GRADES[pick.def.maxGrade ?? 2]} · ${pick.def.title ?? ''}</span></div></div>` : ''}
           <p>${bn.desc}</p>
           <div class="sm-pity">10회에 ${GRADES[bn.ten]} 이상 1개 보장${pity ? ` · ${pity}` : ''}</div>
         </div>
@@ -435,7 +526,7 @@ export class Lobby {
 
   private levelUp(n: number) {
     const s = this.save;
-    const u = this.units[this.heroIdx];
+    const u = this.cur();
     const h = s.heroes[u.def.id];
     let done = 0;
     while (done < n && h.level < maxLevel(h.grade) && s.gold >= levelCost(h.level)) {

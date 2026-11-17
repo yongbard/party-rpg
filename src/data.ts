@@ -1,5 +1,7 @@
 // 캐릭터·적·웨이브 정의. v0 는 코드 안에 두고, v1 부터 data/ JSON 으로 옮긴다.
-import { Color3, Vector3 } from '@babylonjs/core';
+import { Vector3 } from '@babylonjs/core';
+import { COL, lowestHpRatio, QS } from './common';
+import { MORE_HEROES } from './heroes';
 import type { Battle } from './battle';
 import type { Unit } from './unit';
 
@@ -72,21 +74,9 @@ export interface UnitDef {
   color: string;
 }
 
-export const COL = {
-  gold: new Color3(1, 0.78, 0.32),
-  red: new Color3(1, 0.22, 0.12),
-  green: new Color3(0.35, 1, 0.5),
-  blue: new Color3(0.45, 0.72, 1),
-  purple: new Color3(0.72, 0.35, 1),
-  white: new Color3(1, 1, 1),
-  bone: new Color3(0.95, 0.88, 0.7),
-};
+export { COL };
 
-const lowestHpRatio = (list: Unit[]) =>
-  list.reduce<Unit | null>((m, x) => (!m || x.hp / x.maxHp < m.hp / m.maxHp ? x : m), null);
-
-const QS = 1.25;   // 조합형 사람 키(약 1.8)를 KayKit 적(약 2.3)과 맞춘다
-
+// 처음 4명은 여기, 3-5 에서 늘린 영웅은 heroes.ts
 export const HEROES: UnitDef[] = [
   {
     id: 'leon', name: '레온', title: '서약의 기사', archetype: '딜탱 유도형', color: '#e8b64c',
@@ -278,6 +268,7 @@ export const HEROES: UnitDef[] = [
       },
     },
   },
+  ...MORE_HEROES,
 ];
 
 const SKEL_ANIMS = (attack: string[], idle = 'Idle_Combat'): Anims => ({

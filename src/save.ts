@@ -8,7 +8,7 @@ export interface SaveData {
   gems: number;
   heroes: Record<string, { level: number; grade: number; equip?: Partial<Record<EquipSlot, number>> }>;   // 가진 영웅만
   shards?: Record<string, number>;                  // 영웅 조각 (중복 소환)
-  pity?: { hero: number; hero5: number; gear: number };   // 천장 카운터 (전설+, 신화+, 장비 전설+)
+  pity?: { hero: number; hero5: number; gear: number; pick?: number };   // 천장 카운터 (전설+, 신화+, 장비 전설+, 픽업 영웅)
   items?: Item[];           // 가방
   nextUid?: number;
   party: string[];          // 진형 순서: 앞줄 왼쪽, 앞줄 오른쪽, 뒷줄 왼쪽, 뒷줄 오른쪽

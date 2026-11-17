@@ -16,6 +16,7 @@ export class Unit {
   target: Unit | null = null; retargetAt = 0;
   threat: number; tauntBy: Unit | null = null; tauntUntil = 0;
   drs: { v: number; until: number }[] = [];
+  buffAtk = 0; buffSpd = 0;   // 잠깐 걸리는 공격력 배율(+0.2 = 20%)·공격 속도 (battle.buff)
   moveTo: Vector3 | null = null;
   home: Vector3;
   yaw: number; yawGoal: number;
@@ -81,9 +82,9 @@ export class Unit {
     return Math.min(0.8, this.drs.reduce((s, d) => s + d.v, 0));
   }
 
-  atk() { return (this.def.stats.atk * this.mul + this.bonus.atk) * (1 + this.bonus.atkPct) * (1 + (this.def.rage ?? 0) * (1 - this.hp / this.maxHp)); }
+  atk() { return (this.def.stats.atk * this.mul + this.bonus.atk) * (1 + this.bonus.atkPct + this.buffAtk) * (1 + (this.def.rage ?? 0) * (1 - this.hp / this.maxHp)); }
   defense() { return this.def.stats.def * this.mul + this.bonus.def; }
   critRate() { return this.def.stats.crit + this.bonus.crit; }
   critDmg() { return this.def.stats.critDmg + this.bonus.critDmg; }
-  spd() { return this.def.stats.spd + this.bonus.spd; }
+  spd() { return this.def.stats.spd + this.bonus.spd + this.buffSpd; }
 }

@@ -7,7 +7,7 @@ export const EQUIP_SLOTS: EquipSlot[] = ['weapon', 'offhand', 'helmet', 'armor',
 export const SLOT_NAMES: Record<EquipSlot, string> = { weapon: '무기', offhand: '방패', helmet: '투구', armor: '갑옷', cloak: '망토', acc1: '장신구', acc2: '장신구', emblem: '문장' };
 export const slotOf = (s: EquipSlot): Slot => (s === 'acc1' || s === 'acc2' ? 'acc' : s);
 
-export type WClass = 'sword' | 'axe' | 'hammer' | 'mace' | 'dagger' | 'spear' | 'staff' | 'wand' | 'bow';
+export type WClass = 'sword' | 'axe' | 'hammer' | 'mace' | 'dagger' | 'spear' | 'staff' | 'wand' | 'bow' | 'fist';
 export type Stat = 'atk' | 'hp' | 'def' | 'crit' | 'critDmg' | 'spd' | 'atkPct';
 export const STAT_NAMES: Record<Stat, string> = { atk: '공격력', hp: '체력', def: '방어력', crit: '치명타', critDmg: '치명 피해', spd: '공격 속도', atkPct: '공격력%' };
 const PCT: Stat[] = ['crit', 'critDmg', 'atkPct'];
@@ -51,6 +51,7 @@ const KK: [string, string, WClass | 'shield', 1 | 2, number, string][] = [
   ['staff_A', '수정 지팡이', 'staff', 2, 2, 'wizard-staff'], ['staff_B', '별의 지팡이', 'staff', 2, 4, 'wizard-staff'],
   ['wand_A', '마법 완드', 'wand', 1, 0, 'crystal-wand'],
   ['bow_A_withString', '사냥 활', 'bow', 2, 0, 'pocket-bow'], ['bow_B_withString', '정령 활', 'bow', 2, 3, 'pocket-bow'],
+  ['fistweapon_A', '철권 장갑', 'fist', 1, 2, 'spiked-mace'], ['fistweapon_B', '용조 장갑', 'fist', 1, 4, 'spiked-mace'],
   ['shield_A', '나무 방패', 'shield', 1, 0, 'round-shield'], ['shield_B', '기사 방패', 'shield', 1, 2, 'round-shield'], ['shield_C', '가시 방패', 'shield', 1, 4, 'round-shield'],
 ];
 for (const [file, name, wclass, hands, minGrade, icon] of KK) {
@@ -136,6 +137,9 @@ export const HERO_WEAPONS: Record<string, WClass[]> = {
   bran: ['axe', 'hammer', 'spear'],
   sera: ['staff', 'wand'],
   kyle: ['bow', 'dagger'],
+  dorin: ['mace', 'sword'], mia: ['wand', 'staff'], pug: ['dagger'],
+  hagen: ['hammer', 'axe'], lia: ['sword', 'dagger'], gorga: ['staff', 'wand'], kix: ['wand', 'staff'],
+  jin: ['fist'], nora: ['spear'], ella: ['wand'], morgan: ['staff', 'wand'], garsh: ['mace', 'axe'],
 };
 
 const handsOfModel = (key?: string) => (key && /Hammer|Spear|Pickaxe|kk_hammer|kk_halberd|kk_spear|kk_staff|kk_bow|kk_axe_C/.test(key) ? 2 : 1);

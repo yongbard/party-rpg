@@ -89,14 +89,14 @@ async function main() {
   const portraits: Record<string, string> = {};
   // 한 명만 남기고 숨긴 채 찍는다 (다른 영웅이 카메라 앞을 가리지 않게). 승격으로 외형이 바뀌면 로비가 다시 부른다
   const snap = (ids: string[]) => {
-    for (const h of lobby.units.filter(u => ids.includes(u.def.id))) {
-      lobby.units.forEach(o => o.root.setEnabled(o === h));
+    for (const h of lobby.shown().filter(u => ids.includes(u.def.id))) {
+      lobby.shown().forEach(o => o.root.setEnabled(o === h));
       rig.portrait(h);
-      scene.render();
-      scene.render();
+      // 막 세운 영웅은 기본 자세(T자)에서 대기 동작으로 섞여 들어가는 중이다. 섞임이 끝나게 몇 장 더 그린다 (blendingSpeed 0.12 → 약 9장)
+      for (let k = 0; k < 10; k++) scene.render();
       portraits[h.def.id] = grabSquare(canvas);
     }
-    lobby.units.forEach(o => o.root.setEnabled(true));
+    lobby.shown().forEach(o => o.root.setEnabled(true));
   };
   snap(lobby.units.map(u => u.def.id));
   lobby.portraits = portraits;

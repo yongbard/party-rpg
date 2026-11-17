@@ -144,3 +144,16 @@
 
 - 한 일: 커밋 3b6ca89, 1da2ff1 push (사용자 승인). Actions 배포 성공(1da2ff1).
 - 확인: 공개 주소에서 헤드리스 Chrome 으로 새 저장 보석 3,000, 장비 10회(건너뛰기, 천 옷 아이콘 표시), 영웅 10회 연출. 404·오류 없음.
+
+## 2026-11-18 — 3-5 확장 1부: 영웅 12명, 편성, 픽업
+
+- 한 일:
+  - 영웅 12명 추가(src/heroes.ts): 도린·미아·푸그(잠재 희귀), 하겐·리아·고르가·킥스(영웅), 진·노라·엘라(전설), 모르간(신화), 가르쉬(불멸). 등급별 칭호·외형(모두 53형), 스킬 1~2개 + 필살기. 전투에 공격력·공격 속도 강화(battle.buff), 지속 피해(battle.dot) 추가.
+  - 체형 재료: Quaternius 엘프 여자·오크 여자·사람 전신·임프·퍼글린을 처음 씀. 맨몸에 가까운 체형은 의상 파츠를 입힘. 임프·퍼글린 몸에 붙은 무기(Imp_Mace, Puglin_Stick) 숨김, 퍼글린 투구 맞춤(크기 0.55).
+  - 애니메이션 재생성(npm run import-q -- anim): 주먹·훅·구르기·춤·대시 등 UAL1 17개, UAL2 13개. 도구가 heroes.ts 의 이름도 읽게 함.
+  - 새 무기군 권갑(KayKit fistweapon A·B, 진 전용).
+  - 처음 가진 영웅은 4명, 나머지는 소환으로. 모험 탭 [편성](1~4명), 영웅 탭은 가진 영웅 전부(파티 밖이면 가운데 혼자), 초상화는 처음 볼 때 찍음(섞임이 끝나게 10장 그린 뒤).
+  - 픽업 소환(주마다, 같은 등급 2배, 80회 확정·이월).
+  - 공통 값 src/common.ts 로 분리(data.ts ↔ heroes.ts 순환 방지).
+- 확인: 헤드리스 Chrome. poc.html 로 12명 등급 외형 확인. 영웅 소환 2만 회: 희귀 영웅 각 21% 안팎, 레온 0.26%(표 0.2%). 픽업 2만 회: 엘라 3.2%(표 2.88% + 천장), 픽업 사이 최대 79회. 소환 → 새 영웅 보기 → 편성에서 카일 빼고 진 넣기 → 1-1 승리. npm run build 통과.
+- 결과: src/heroes.ts, src/common.ts 새로. data.ts, gacha.ts, lobby.ts, heroModel.ts, items.ts, unit.ts, battle.ts, save.ts, main.ts, style.css, tools/import-quaternius.mjs 수정. public/assets/q/anim 재생성.

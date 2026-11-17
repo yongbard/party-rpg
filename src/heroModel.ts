@@ -33,6 +33,12 @@ function gripOf(key: string): Grip {
   return GRIPS.blade;
 }
 export function setGrip(name: string, g: Grip) { GRIPS[name] = g; }   // 맞춤 확인용 (poc)
+// 머리가 큰 체형은 투구를 따로 맞춘다 (poc.html?hero=pug&grip=head:... 로 확인)
+const HEAD_FIT: Record<string, Grip> = {
+  'q/body/Puglin': { rot: [0, 0, 0], pos: [0, -0.04, 0.03], scale: 0.55 },
+};
+// 몸 파일에 붙어 나오는 무기 (Bestiary). 무기는 look 이 정하므로 숨긴다
+const BUILTIN_WEAPON = /^(Puglin_Stick|Imp_Mace)$/;
 
 const tintMat = (m: AbstractMesh, c: [number, number, number]) => {
   const mat = m.material;
@@ -50,7 +56,11 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
   body.rootNodes.forEach(r => (r.parent = holder));
   const skel = body.skeletons[0];
   const bodyRoot = body.rootNodes[0] as TransformNode;
-  const meshes: AbstractMesh[] = holder.getChildMeshes(false);
+  const meshes: AbstractMesh[] = holder.getChildMeshes(false).filter(m => {
+    if (!BUILTIN_WEAPON.test(m.name)) return true;
+    m.setEnabled(false);
+    return false;
+  });
 
   // 2. 의상 파츠·헤어: 자기 스켈레톤을 버리고 몸 스켈레톤으로 움직인다 (같은 65관절 이름)
   // 투구를 쓰면 머리카락은 눈썹만 남긴다 (뚫고 나오지 않게)
@@ -91,7 +101,7 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
   };
   attach(look.weapon, 'hand_r');
   attach(look.offhand, 'hand_l');
-  attach(look.helmet, 'Head', GRIPS.head);
+  attach(look.helmet, 'Head', HEAD_FIT[look.body] ?? GRIPS.head);
   attach(look.cloak, 'spine_03', GRIPS.back);
 
   // 4. 이펙트: 발밑 오라

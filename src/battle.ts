@@ -290,6 +290,10 @@ export class Battle {
   addShield(u: Unit, v: number) { u.shield = Math.min(u.maxHp * 0.6, u.shield + v); }
   addDr(u: Unit, v: number, sec: number) { u.drs.push({ v, until: this.time + sec }); }
   taunt(e: Unit, by: Unit, sec: number) { e.tauntBy = by; e.tauntUntil = this.time + sec; e.target = by; }
+  /** sec 초 동안 공격력 배율·공격 속도를 올린다 */
+  buff(u: Unit, atk: number, spd: number, sec: number) { u.buffAtk += atk; u.buffSpd += spd; this.after(sec, () => { u.buffAtk -= atk; u.buffSpd -= spd; }); }
+  /** n 번, every 초마다 mult 피해 (불·독) */
+  dot(src: Unit, tgt: Unit, mult: number, n: number, every = 1) { for (let i = 1; i <= n; i++) this.after(i * every, () => { if (src.alive) this.damage(src, tgt, mult, { noGauge: true }); }); }
 
   stun(t: Unit, sec: number) {
     if (!t.alive || t.def.boss) return;

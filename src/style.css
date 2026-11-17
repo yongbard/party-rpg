@@ -376,3 +376,38 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .sm-again { border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text); }
 .sm-again:disabled { opacity: .35; }
 .sm-ok { border: 0; color: #2a1a00; background: linear-gradient(180deg, #fff1b8, var(--gold)); }
+
+/* 3-5: 영웅이 많아짐 — 영웅 탭 칩 가로 넘김, 초상화 없을 때 첫 글자 */
+.chips { overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; }
+.chip.party::before { content: ''; position: absolute; left: 3px; top: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 4px var(--gold); z-index: 1; }
+.chip .ini, .fr .ini, .fslot .ini, .pick .ini { display: grid; place-items: center; width: 100%; height: 100%; font: 400 22px var(--title); background: #1b1724; }
+
+/* 모험 탭: 편성 버튼 · 편성 화면 */
+.go-row { display: grid; grid-template-columns: 84px 1fr; gap: 8px; margin-top: 12px; }
+.go-row .lb-go { margin-top: 0; }
+.form-t:not(.lb-go) { border-radius: 13px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text); font: 400 18px var(--title); letter-spacing: .06em; }
+.fslots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+.fslot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 5px; border-radius: 11px; border: 1.5px solid var(--accent); background: rgba(255,255,255,.04); overflow: hidden; }
+.fslot img, .fslot .ini { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }
+.fslot b { font: 700 11px var(--body); }
+.fslot small { font: 700 9px var(--body); color: var(--muted); }
+.fslot.empty { border-style: dashed; opacity: .5; }
+.fslot.empty b { padding: 22px 0; color: var(--muted); }
+.froster { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; max-height: 196px; overflow-y: auto; margin-bottom: 2px; }
+.fr { position: relative; display: flex; flex-direction: column; align-items: center; padding: 3px 2px 4px; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--gc) 60%, transparent); background: rgba(255,255,255,.04); color: var(--text); opacity: .7; }
+.fr img, .fr .ini { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 7px; }
+.fr span { font: 700 10px var(--body); }
+.fr small { font: 700 8px var(--body); color: var(--muted); }
+.fr em { position: absolute; right: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; font: 900 10px/16px var(--body); font-style: normal; text-align: center; color: #2a1a00; background: var(--gold); }
+.fr.in { opacity: 1; box-shadow: 0 0 0 1.5px var(--gold); }
+
+/* 소환: 배너 4개, 픽업 영웅 */
+.bans { grid-template-columns: repeat(4, 1fr); }
+.ban { font-size: 13px; }
+.pick { display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: center; margin-bottom: 6px; }
+.pick img, .pick .ini { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; border: 2px solid var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 50%, transparent); }
+.pick small { display: block; font: 700 10px var(--body); color: var(--gold); }
+.pick b { display: block; font: 400 20px var(--title); line-height: 1.1; }
+.pick span { font: 700 10px var(--body); }

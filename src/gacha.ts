@@ -6,8 +6,8 @@ import { addItem, writeSave, type SaveData } from './save';
 /** 등급(영웅은 잠재 등급) 확률 % — design.md 3.3 */
 export const RATES = [45, 30, 16, 6.5, 1.8, 0.5, 0.15, 0.05];
 
-export type BannerId = 'hero' | 'gear' | 'weapon';
-interface Pity { key: 'hero' | 'hero5' | 'gear'; n: number; min: number }
+export type BannerId = 'hero' | 'pickup' | 'gear' | 'weapon';
+interface Pity { key: 'hero' | 'hero5' | 'gear' | 'pick'; n: number; min: number }
 export interface Banner {
   id: BannerId; name: string; desc: string; cost: number; cost10: number;
   ten: number;            // 10연에 이 등급 이상 1개 보장
@@ -15,6 +15,7 @@ export interface Banner {
 }
 export const BANNERS: Banner[] = [
   { id: 'hero', name: '영웅 소환', desc: '영웅을 부른다. 이미 있는 영웅이면 그 영웅의 조각이 된다 · 조각을 모아 등급을 올린다', cost: 150, cost10: 1350, ten: 2, pity: [{ key: 'hero', n: 80, min: 4 }, { key: 'hero5', n: 300, min: 5 }] },
+  { id: 'pickup', name: '픽업 소환', desc: '이번 주 픽업 영웅이 같은 등급 안에서 2배로 나온다 · 80회 안에 픽업 영웅 확정 (남은 횟수는 다음 주 픽업으로 이어진다)', cost: 150, cost10: 1350, ten: 2, pity: [{ key: 'pick', n: 80, min: 4 }] },
   { id: 'gear', name: '장비 소환', desc: '무기·방패·투구·갑옷·망토·장신구·문장 중 하나', cost: 100, cost10: 900, ten: 3, pity: [{ key: 'gear', n: 60, min: 4 }] },
   { id: 'weapon', name: '무기 소환', desc: '무기만 나온다', cost: 100, cost10: 900, ten: 3, pity: [] },
 ];
@@ -42,18 +43,30 @@ function rollIn(min: number, max: number, allowed: (g: number) => boolean) {
 }
 
 const heroPotentials = () => new Set(HEROES.map(h => h.maxGrade ?? 2));
+const isHeroBanner = (id: BannerId) => id === 'hero' || id === 'pickup';
+
+/** 이번 주 픽업 영웅: 잠재 전설·신화 영웅을 월요일마다 돌아가며 (천장으로 확정할 수 있는 등급만) */
+export function pickupHero(now = Date.now()) {
+  const pool = HEROES.filter(h => h.maxGrade === 4 || h.maxGrade === 5);
+  const day = Math.floor((now - new Date(now).getTimezoneOffset() * 60000) / 864e5);   // 이 기기 시간대의 날짜
+  const week = Math.floor((day + 3) / 7);   // 1970-01-01 은 목요일 → +3 이면 월요일에 바뀐다
+  return { def: pool[week % pool.length], left: 7 - ((day + 3) % 7) };
+}
+const pickWeight = (h: { id: string }, pickId?: string) => (h.id === pickId ? 2 : 1);
 
 /** 연출에서 멈칫하며 뒤집을 등급: 전설 이상, 단 그 소환에서 가장 흔한 등급보다는 높아야 한다 (영웅이 전부 전설 잠재일 때 매 장 멈추지 않게) */
-export const hiFrom = (id: BannerId) => (id === 'hero' ? Math.max(4, Math.min(...heroPotentials()) + 1) : 4);
+export const hiFrom = (id: BannerId) => (isHeroBanner(id) ? Math.max(4, Math.min(...heroPotentials()) + 1) : 4);
 
-/** 영웅 소환 확률표: 영웅마다 % (잠재 등급이 없는 칸은 빼고 다시 나눈다) */
-export function heroRates() {
+/** 영웅 소환 확률표: 영웅마다 % (잠재 등급이 없는 칸은 빼고 다시 나눈다). 픽업 영웅은 같은 등급 안에서 2배 */
+export function heroRates(pickId?: string) {
   const P = heroPotentials();
   const sum = [...P].reduce((a, g) => a + RATES[g], 0);
   return HEROES.map(h => {
     const g = h.maxGrade ?? 2;
-    return { id: h.id, name: h.name, grade: g, pct: (RATES[g] / sum) * 100 / HEROES.filter(x => (x.maxGrade ?? 2) === g).length };
-  }).sort((a, b) => b.grade - a.grade);
+    const same = HEROES.filter(x => (x.maxGrade ?? 2) === g);
+    const w = same.reduce((a, x) => a + pickWeight(x, pickId), 0);
+    return { id: h.id, name: h.name, grade: g, pct: (RATES[g] / sum) * 100 * pickWeight(h, pickId) / w };
+  }).sort((a, b) => b.grade - a.grade || b.pct - a.pct);
 }
 
 /** 장비 칸: 그 등급에 나올 기본형이 있는 칸 중에서 고른다 */
@@ -72,21 +85,24 @@ export function summon(save: SaveData, id: BannerId, count: 1 | 10): Pull[] | nu
   const cost = count === 10 ? bn.cost10 : bn.cost;
   if (save.gems < cost) return null;
   save.gems -= cost;
-  const pity = (save.pity ??= { hero: 0, hero5: 0, gear: 0 });
+  const pity = (save.pity ??= { hero: 0, hero5: 0, gear: 0, pick: 0 });
   const P = heroPotentials();
-  const allowed = id === 'hero' ? (g: number) => P.has(g) : (g: number) => id !== 'weapon' || slotHas('weapon', g);
+  const allowed = isHeroBanner(id) ? (g: number) => P.has(g) : (g: number) => id !== 'weapon' || slotHas('weapon', g);
+  const pick = id === 'pickup' ? pickupHero().def : null;
   const out: Pull[] = [];
   for (let i = 0; i < count; i++) {
     // 천장: 카운터가 다 찼으면 그 등급 이상 (가장 높은 천장부터)
-    let min = 0;
-    for (const p of bn.pity) if (pity[p.key] + 1 >= p.n) min = Math.max(min, p.min);
+    let min = 0, forcePick = false;
+    for (const p of bn.pity) if ((pity[p.key] ?? 0) + 1 >= p.n) { min = Math.max(min, p.min); if (p.key === 'pick') forcePick = true; }
     // 10연 보장: 마지막 한 장까지 보장 등급이 안 나왔으면
     if (count === 10 && i === 9 && !out.some(o => o.grade >= bn.ten)) min = Math.max(min, bn.ten);
-    const g = rollIn(min, min >= 4 ? PITY_MAX : 7, allowed);
-    for (const p of bn.pity) pity[p.key] = g >= p.min ? 0 : pity[p.key] + 1;
-    if (id === 'hero') {
+    const g = forcePick && pick ? pick.maxGrade! : rollIn(min, min >= 4 ? PITY_MAX : 7, allowed);
+    if (isHeroBanner(id)) {
       const pool = HEROES.filter(h => (h.maxGrade ?? 2) === g);
-      const h = pool[Math.floor(Math.random() * pool.length)];
+      let r = Math.random() * pool.reduce((a, h) => a + pickWeight(h, pick?.id), 0);
+      const h = forcePick && pick ? pick : pool.find(x => (r -= pickWeight(x, pick?.id)) < 0) ?? pool[0];
+      // 천장 카운터: 등급 천장은 그 등급 이상이 나오면, 픽업 천장은 픽업 영웅이 나오면 처음부터
+      for (const p of bn.pity) pity[p.key] = (p.key === 'pick' ? h.id === pick?.id : g >= p.min) ? 0 : (pity[p.key] ?? 0) + 1;
       if (!save.heroes[h.id]) {
         save.heroes[h.id] = { level: 1, grade: Math.max(0, g - 3) };   // 잠재보다 3단계 아래에서 시작
         out.push({ kind: 'hero', id: h.id, grade: g, isNew: true, shards: 0 });
@@ -96,6 +112,7 @@ export function summon(save: SaveData, id: BannerId, count: 1 | 10): Pull[] | nu
         out.push({ kind: 'hero', id: h.id, grade: g, isNew: false, shards: n });
       }
     } else {
+      for (const p of bn.pity) pity[p.key] = g >= p.min ? 0 : (pity[p.key] ?? 0) + 1;
       const item = addItem(save, rollItem(0, g, id === 'weapon' ? 'weapon' : pickSlot(g)));
       out.push({ kind: 'item', item, grade: g });
     }
