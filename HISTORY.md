@@ -111,3 +111,8 @@
   - 아이콘: game-icons.net SVG 17개(CC BY 3.0), 배경 사각형을 지워 CSS 마스크로 등급 색 칠함.
 - 확인: 헤드리스 Chrome. 새 저장 → 레온에게 철퇴·두건·망토 장착(모델 반영, 전투력 433 → 482) → 가방 자세히 → 1-1 승리 → 장비 드랍 1개.
 - 결과: src/items.ts, loadout.ts 새로. heroModel.ts, lobby.ts, save.ts, unit.ts, battle.ts, main.ts, hud.ts, style.css, data.ts, tools/import-quaternius.mjs, poc.ts 수정. public/assets/q/gear, public/icons 추가.
+
+## 2026-11-17 — 배포 (3-3 장비)
+
+- 한 일: 커밋 860a618, 9c539e9, 740f7e8 push (사용자 승인). Actions 배포 성공(740f7e8).
+- 확인: 공개 주소에서 헤드리스 Chrome 으로 장착(모델 반영)·가방·1-1 승리 드랍.
