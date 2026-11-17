@@ -47,6 +47,8 @@ export interface Look {
   hair?: string[];            // q/hair/…
   weapon?: string;            // q/weapon/… 오른손
   offhand?: string;           // q/weapon/… 왼손 (방패는 한손 무기일 때만)
+  helmet?: string;            // q/gear/… 머리 뼈에 고정 (쓰면 머리카락은 눈썹만 남긴다)
+  cloak?: string;             // q/gear/… 가슴 뼈에 고정
   tint?: [number, number, number];   // 의상 색 곱
   glow?: [number, number, number];   // 무기 발광
   aura?: [number, number, number];   // 발밑 오라

@@ -8,7 +8,7 @@ import type { Look } from './data';
 import type { Fx } from './fx';
 
 export const ANIM_KEYS = ['q/anim/UAL1', 'q/anim/UAL2'];
-export const lookKeys = (l: Look) => [l.body, ...(l.parts ?? []), ...(l.hair ?? []), l.weapon, l.offhand].filter((k): k is string => !!k);
+export const lookKeys = (l: Look) => [l.body, ...(l.parts ?? []), ...(l.hair ?? []), l.weapon, l.offhand, l.helmet, l.cloak].filter((k): k is string => !!k);
 
 // 무기를 손 뼈에 붙이는 각도·위치 (hand_r / hand_l 좌표계). 팩마다 무기 축이 달라 종류별로 맞춘다
 type Grip = { rot: [number, number, number]; pos: [number, number, number]; scale?: number };
@@ -20,6 +20,9 @@ const GRIPS: Record<string, Grip> = {
   staff: { rot: [0, 0, -90 * D], pos: [0, 0.08, 0] },            // KayKit 지팡이 (가운데가 원점)
   bow: { rot: [90 * D, 90 * D, 0], pos: [0, 0.08, 0] },          // KayKit 활 (X 방향으로 누움) → 세로, 시위가 몸 쪽
   shield: { rot: [-90 * D, 0, 90 * D], pos: [0, 0.05, -0.08] },  // 왼손, 판이 앞을 본다
+  // KayKit 모자·망토: 원래 치비 캐릭터의 head / chest 뼈 기준 위치로 들어 있다. 사람 머리는 훨씬 작다
+  head: { rot: [0, 0, 0], pos: [0, -0.075, 0.01], scale: 0.32 },
+  back: { rot: [0, 0, 0], pos: [0, -0.25, 0], scale: 0.7 },
 };
 function gripOf(key: string): Grip {
   const n = key.split('/').pop()!;
@@ -50,7 +53,9 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
   const meshes: AbstractMesh[] = holder.getChildMeshes(false);
 
   // 2. 의상 파츠·헤어: 자기 스켈레톤을 버리고 몸 스켈레톤으로 움직인다 (같은 65관절 이름)
-  for (const key of [...(look.parts ?? []), ...(look.hair ?? [])]) {
+  // 투구를 쓰면 머리카락은 눈썹만 남긴다 (뚫고 나오지 않게)
+  const hair = look.helmet ? (look.hair ?? []).filter(h => /Eyebrows/.test(h)) : (look.hair ?? []);
+  for (const key of [...(look.parts ?? []), ...hair]) {
     const isPart = key.startsWith('q/part/');
     const e = assets.container(key).instantiateModelsToScene(n => n, isPart && !!look.tint, { doNotInstantiate: true });
     const ms = e.rootNodes.flatMap(r => (r as TransformNode).getChildMeshes(false)).filter(m => m.getTotalVertices() > 0);
@@ -66,11 +71,11 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
 
   // 3. 무기·보조: 손 뼈 노드에 붙인다
   const boneNode = (name: string) => skel.bones.find(b => b.name === name)?.getTransformNode() ?? null;
-  const attach = (key: string | undefined, hand: string) => {
+  const attach = (key: string | undefined, hand: string, grip?: Grip) => {
     if (!key) return;
     const e = assets.container(key).instantiateModelsToScene(n => n, !!look.glow, { doNotInstantiate: true });
     owned.push(e);
-    const g = gripOf(key);
+    const g = grip ?? gripOf(key);
     const pivot = new TransformNode(`grip_${hand}`, scene);
     pivot.parent = boneNode(hand) ?? bodyRoot;
     pivot.position.set(...g.pos);
@@ -86,6 +91,8 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
   };
   attach(look.weapon, 'hand_r');
   attach(look.offhand, 'hand_l');
+  attach(look.helmet, 'Head', GRIPS.head);
+  attach(look.cloak, 'spine_03', GRIPS.back);
 
   // 4. 이펙트: 발밑 오라
   if (look.aura && fx) {

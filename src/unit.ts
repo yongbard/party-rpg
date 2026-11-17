@@ -1,6 +1,7 @@
 import { AnimationGroup, TransformNode, Vector3 } from '@babylonjs/core';
 import type { ModelInstance } from './assets';
 import type { UnitDef } from './data';
+import { zeroBonus, type Bonus } from './items';
 
 export type Side = 'hero' | 'enemy';
 
@@ -24,7 +25,7 @@ export class Unit {
   title?: string;            // 지금 등급의 칭호
 
   /** mul: 레벨에 따른 HP·공격·방어 배율 (data.ts 의 heroMul, enemyMul) */
-  constructor(public def: UnitDef, public side: Side, public model: ModelInstance, pos: Vector3, yaw: number, public mul = 1) {
+  constructor(public def: UnitDef, public side: Side, public model: ModelInstance, pos: Vector3, yaw: number, public mul = 1, public bonus: Bonus = zeroBonus()) {
     this.root = model.root;
     this.scale = def.scale ?? 1;
     this.radius = 0.55 * this.scale;
@@ -33,7 +34,7 @@ export class Unit {
     this.home = pos.clone();
     this.yaw = this.yawGoal = yaw;
     this.root.rotation.y = yaw;
-    this.maxHp = this.hp = Math.round(def.stats.hp * mul);
+    this.maxHp = this.hp = Math.round(def.stats.hp * mul + bonus.hp);
     this.cds = def.skills.map(s => s.cd * 0.5);
     this.threat = def.stats.threat * 150;
     model.anims.forEach(g => { g.enableBlending = true; g.blendingSpeed = 0.12; });
@@ -80,6 +81,9 @@ export class Unit {
     return Math.min(0.8, this.drs.reduce((s, d) => s + d.v, 0));
   }
 
-  atk() { return this.def.stats.atk * this.mul * (1 + (this.def.rage ?? 0) * (1 - this.hp / this.maxHp)); }
-  defense() { return this.def.stats.def * this.mul; }
+  atk() { return (this.def.stats.atk * this.mul + this.bonus.atk) * (1 + this.bonus.atkPct) * (1 + (this.def.rage ?? 0) * (1 - this.hp / this.maxHp)); }
+  defense() { return this.def.stats.def * this.mul + this.bonus.def; }
+  critRate() { return this.def.stats.crit + this.bonus.crit; }
+  critDmg() { return this.def.stats.critDmg + this.bonus.critDmg; }
+  spd() { return this.def.stats.spd + this.bonus.spd; }
 }

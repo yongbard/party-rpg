@@ -4,6 +4,7 @@ import type { Assets, ModelInstance } from './assets';
 import type { CameraRig } from './camera';
 import { COL, ENEMIES, FORMATION, enemyMul, type Look, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
 import { makeHeroModel } from './heroModel';
+import type { Bonus } from './items';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
 import { Unit, type Side } from './unit';
@@ -69,7 +70,7 @@ export class Battle {
   constructor(
     public scene: Scene, private assets: Assets, public fx: Fx, private rig: CameraRig,
     public hud: Hud, private shadow: ShadowGenerator,
-    public stage: Stage, private party: { def: UnitDef; mul: number; look?: Look; title?: string }[],
+    public stage: Stage, private party: { def: UnitDef; mul: number; look?: Look; title?: string; bonus?: Bonus }[],
   ) {}
 
   get heroes() { return this.units.filter(u => u.side === 'hero'); }
@@ -84,9 +85,9 @@ export class Battle {
 
   // ───────── 생성 ─────────
 
-  spawn(def: UnitDef, side: Side, pos: Vector3, yaw: number, mul = 1, look?: Look): Unit {
+  spawn(def: UnitDef, side: Side, pos: Vector3, yaw: number, mul = 1, look?: Look, bonus?: Bonus): Unit {
     const m = look ? makeHeroModel(this.assets, this.scene, look, this.shadow, this.fx) : makeModel(this.assets, def, this.shadow);
-    const u = new Unit(def, side, m, pos, yaw, mul);
+    const u = new Unit(def, side, m, pos, yaw, mul, bonus);
     this.units.push(u);
     this.hud.addBar(u);
     return u;
@@ -94,7 +95,7 @@ export class Battle {
 
   spawnHeroes() {
     this.party.forEach((p, i) => {
-      const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul, p.look);
+      const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul, p.look, p.bonus);
       u.title = p.title;
       u.play(p.def.anims.idle);
     });
@@ -216,7 +217,7 @@ export class Battle {
   }
 
   private basicAttack(u: Unit, t: Unit) {
-    const interval = 1.7 * (100 / u.def.stats.spd);
+    const interval = 1.7 * (100 / u.spd());
     const anim = u.def.anims.attack[Math.floor(Math.random() * u.def.anims.attack.length)];
     const dur = u.play(anim, false, ATK_ANIM_SPEED);
     u.atkCd = interval;
@@ -246,8 +247,8 @@ export class Battle {
     const s = src.def.stats;
     const atk = src.atk();
     let raw = Math.max(atk * mult * 0.15, atk * mult - tgt.defense() * 0.5);
-    const crit = o.crit ?? Math.random() < s.crit;
-    if (crit) raw *= s.critDmg;
+    const crit = o.crit ?? Math.random() < src.critRate();
+    if (crit) raw *= src.critDmg();
     raw *= (1 - tgt.dr(this.time)) * (0.92 + Math.random() * 0.16);
     const dmg = Math.max(1, Math.round(raw));
     const absorbed = Math.min(tgt.shield, dmg);

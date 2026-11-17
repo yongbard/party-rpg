@@ -3,12 +3,21 @@ import { buildArena, setupPost } from './arena';
 import { Assets, type AssetEntry } from './assets';
 import { Battle } from './battle';
 import { CameraRig } from './camera';
-import { animsByModel, gradeMul, HEROES, heroMul, lookOf, STAGES } from './data';
+import { animsByModel, STAGES } from './data';
+import { rollGrade, rollItem, type Item } from './items';
+import { loadout } from './loadout';
 import { ANIM_KEYS, lookKeys } from './heroModel';
 import { Fx } from './fx';
 import { Hud } from './hud';
 import { Lobby } from './lobby';
-import { loadSave, writeSave } from './save';
+import { addItem, loadSave, writeSave } from './save';
+
+// 스테이지 적 레벨별 드랍 등급 확률 (일반 ~ 초월)
+const DROP_WEIGHTS: Record<number, number[]> = {
+  1: [60, 30, 9, 1, 0, 0, 0, 0],
+  2: [45, 35, 15, 4, 1, 0, 0, 0],
+  4: [25, 35, 25, 11, 3.5, 0.5, 0, 0],
+};
 import './style.css';
 
 const params = new URLSearchParams(location.search);
@@ -69,7 +78,7 @@ async function main() {
   const save = loadSave();
   // 조합형 영웅: 공용 애니메이션 + 파티의 지금 등급 외형 파츠
   hud.loading(0.9, '영웅을 조립하는 중');
-  await assets.ensure([...ANIM_KEYS, ...save.party.flatMap(id => lookKeys(lookOf(HEROES.find(h => h.id === id)!, save.heroes[id].grade)!))]);
+  await assets.ensure([...ANIM_KEYS, ...save.party.flatMap(id => lookKeys(loadout(save, id).look))]);
   const lobby = new Lobby(scene, assets, arena.shadow, rig, hud, fx);
   lobby.show(save);
 
@@ -93,15 +102,12 @@ async function main() {
   let speed = 1;
   hud.visible(false);
 
-  const startBattle = (stageId: string) => {
+  const startBattle = async (stageId: string) => {
     const stage = STAGES.find(s => s.id === stageId)!;
+    const party = save.party.map(id => loadout(save, id));
+    await assets.ensure(party.flatMap(p => lookKeys(p.look)));
     lobby.hide();
     rig.setView('battle', true);
-    const party = save.party.map(id => {
-      const def = HEROES.find(h => h.id === id)!;
-      const { level, grade } = save.heroes[id];
-      return { def, mul: heroMul(level) * gradeMul(grade), look: lookOf(def, grade), title: def.titles?.[grade] };
-    });
     const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party);
     battle = b;
     b.spawnHeroes();
@@ -112,16 +118,21 @@ async function main() {
     b.auto = !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
-      let reward: { gold: number; gems: number } | null = null;
+      let reward: { gold: number; gems: number; items: Item[] } | null = null;
       if (win) {
         const first = !save.cleared.includes(stage.id);
-        reward = { gold: stage.reward.gold, gems: first ? stage.reward.gems : 0 };
+        reward = { gold: stage.reward.gold, gems: first ? stage.reward.gems : 0, items: [] };
         save.gold += reward.gold;
         save.gems += reward.gems;
+        // 장비 드랍 (뽑기가 생기기 전 임시 경로): 첫 클리어는 1개 확정, 다시 깨면 50%
+        if (first || Math.random() < 0.5) {
+          const it = rollItem(0, rollGrade(DROP_WEIGHTS[stage.level] ?? DROP_WEIGHTS[1]));
+          reward.items.push(addItem(save, it));
+        }
         if (first) save.cleared.push(stage.id);
         writeSave(save);
       }
-      hud.result(win, b.heroes, b.time, reward, () => { endBattle(); startBattle(stage.id); }, () => { endBattle(); lobby.show(save); });
+      hud.result(win, b.heroes, b.time, reward, () => { endBattle(); void startBattle(stage.id); }, () => { endBattle(); lobby.show(save); });
     };
     b.start();
     (window as unknown as { battle: Battle }).battle = b;
@@ -131,7 +142,7 @@ async function main() {
     battle = null;
     hud.visible(false);
   };
-  lobby.onStart = startBattle;
+  lobby.onStart = id => void startBattle(id);
 
   hud.onUlt = i => battle?.requestUlt(i);
   hud.onSpeed = () => {

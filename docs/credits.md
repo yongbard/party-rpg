@@ -15,6 +15,8 @@
 | 공용 애니메이션 | public/assets/q/anim/UAL1, UAL2 (원본 data/quaternius/ual, ual2) | Quaternius Universal Animation Library 1·2 [Standard] | CC0 |
 | 무기 70종 (도끼·단검·망치·장검·철퇴·곡괭이·세이버·단검·삽·창) | public/assets/q/weapon/*_0N (원본 data/weapons/rpg-weapons) | Binbun RPG Weapons (Free) | CC0 |
 | 무기 31종 (활·지팡이·완드·방패·검 등) | public/assets/q/weapon/kk_* (원본 data/weapons/fantasy-weapons-bits) | KayKit Fantasy Weapons Bits 1.0 (Free), Kay Lousberg | CC0 |
+| 투구·모자·망토 11종 | public/assets/q/gear (원본 data/kaykit 캐릭터에서 떼어 냄) | KayKit Adventurers·Skeletons, Kay Lousberg | CC0 |
+| 장비 아이콘 17종 | public/icons/*.svg | game-icons.net (Lorc, Delapouite, Willdabeast) | CC BY 3.0 (표기 의무) |
 | 글꼴 Black Han Sans, Noto Sans KR | Google Fonts 에서 불러옴 | Google Fonts | SIL OFL 1.1 |
 | meshopt 디코더 | public/meshopt_decoder.js | meshoptimizer, Arseny Kapoulkine | MIT |
 | 이펙트 텍스처 (불꽃, 링, 베기, 빛기둥) | 코드로 그림 (src/fx.ts) | 직접 제작 | — |

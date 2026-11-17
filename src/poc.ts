@@ -1,6 +1,6 @@
 // 외형 확인 페이지: 영웅 한 명의 등급별 외형을 한 줄로 세운다
 // 주소: /poc.html?hero=leon&anim=Sword_Block  (anim 생략 시 영웅 대기 동작)
-//       무기 각도 맞춤: &grip=blade:0,0,90:0.03,0.09,0.02  (도, m)
+//       무기 각도 맞춤: &grip=blade:0,0,90:0.03,0.09,0.02[:배율]  (도, m)  장비 시험: &helmet=Knight_Helmet&cloak=Knight_Cape
 import { ArcRotateCamera, Color3, Color4, DirectionalLight, Engine, HemisphericLight, MeshBuilder, MeshoptCompression, Scene, ShadowGenerator, StandardMaterial, Vector3 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { Assets } from './assets';
@@ -13,10 +13,10 @@ const q = new URLSearchParams(location.search);
 const log = (s: string) => { document.getElementById('log')!.textContent += s + '\n'; console.log(s); };
 
 for (const g of q.getAll('grip')) {
-  const [name, r, p] = g.split(':');
+  const [name, r, p, sc] = g.split(':');
   const rot = r.split(',').map(v => Number(v) * Math.PI / 180) as [number, number, number];
   const pos = p.split(',').map(Number) as [number, number, number];
-  setGrip(name, { rot, pos });
+  setGrip(name, { rot, pos, scale: sc ? Number(sc) : undefined });
 }
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -42,13 +42,14 @@ async function main() {
   const looks = only === null ? def.looks! : [def.looks![Number(only)]];
   const assets = new Assets(scene);
   const t0 = performance.now();
-  await assets.ensure([...ANIM_KEYS, ...looks.flatMap(lookKeys)]);
+  await assets.ensure([...ANIM_KEYS, ...looks.flatMap(lookKeys), ...['helmet', 'cloak'].filter(k => q.get(k)).map(k => `q/gear/${q.get(k)}`)]);
   log(`${def.name}: 외형 ${looks.length}개, 받기 ${(performance.now() - t0).toFixed(0)}ms`);
   const gap = 1.1, w = (looks.length - 1) * gap;
   const cam = new ArcRotateCamera('cam', -Math.PI / 2 + Number(q.get('a') ?? 0), 1.38, w * 0.95 + 4, new Vector3(0, 0.95, 0), scene);
   cam.attachControl(canvas, true);
   looks.forEach((look, i) => {
-    const m = makeHeroModel(assets, scene, look, shadow, fx);
+    const gear = { helmet: q.get('helmet') ? `q/gear/${q.get('helmet')}` : look.helmet, cloak: q.get('cloak') ? `q/gear/${q.get('cloak')}` : look.cloak };
+    const m = makeHeroModel(assets, scene, { ...look, ...gear }, shadow, fx);
     m.root.position.x = w / 2 - i * gap;   // 카메라에서 보면 +x 가 왼쪽
     m.root.rotation.y = Math.PI;           // 카메라를 본다
     const name = q.get('anim') ?? def.anims.idle;

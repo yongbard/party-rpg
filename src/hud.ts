@@ -2,6 +2,8 @@
 import { AbstractEngine, Matrix, Scene, Vector3 } from '@babylonjs/core';
 import type { Battle } from './battle';
 import type { Unit } from './unit';
+import { GRADES, GRADE_COLORS } from './data';
+import { baseOf, ITEM_ICON, type Item } from './items';
 
 const el = (tag: string, cls = '', html = '') => {
   const e = document.createElement(tag);
@@ -195,7 +197,7 @@ export class Hud {
     }
   }
 
-  result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number } | null, onRetry: () => void, onLobby: () => void) {
+  result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number; items?: Item[] } | null, onRetry: () => void, onLobby: () => void) {
     const max = Math.max(1, ...heroes.map(h => Math.max(h.dmgDone, h.healDone, h.dmgTaken)));
     const row = (h: Unit) => `
       <div class="rr" style="--accent:${h.def.color}">
@@ -211,6 +213,7 @@ export class Hud {
         <div class="rt">${win ? '승리' : '패배'}</div>
         <div class="rs">전투 시간 ${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}</div>
         ${reward ? `<div class="rw"><span class="gold">${reward.gold.toLocaleString()}</span>${reward.gems ? `<span class="gem">${reward.gems.toLocaleString()}<small>첫 클리어</small></span>` : ''}</div>` : ''}
+        ${reward?.items?.length ? `<div class="rdrop">${reward.items.map(it => `<div class="drop" style="--gc:${GRADE_COLORS[it.grade]}"><i class="ico" style="--ico:url(${ITEM_ICON(it)})"></i><span><small>${GRADES[it.grade]}</small>${baseOf(it).name}</span></div>`).join('')}</div>` : ''}
         ${heroes.map(row).join('')}
         <div class="rbtns"><button class="lobby">로비로</button><button class="retry">다시 하기</button></div>
       </div>`;

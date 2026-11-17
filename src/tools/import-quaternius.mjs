@@ -46,6 +46,18 @@ add('anim', UAL2, 'UAL2');
 for (const d of fs.readdirSync(BINBUN)) for (const f of list(`${BINBUN}/${d}`, /^[A-Za-z_]+_\d\d\.glb$/)) add('weapon', `${BINBUN}/${d}/${f}`, f.replace('.glb', ''));
 for (const f of list(KAYKIT_W, /\.gltf$/)) add('weapon', `${KAYKIT_W}/${f}`, `kk_${f.replace('.gltf', '')}`);
 
+// 장비(투구·모자·망토): KayKit 캐릭터에 뼈로 고정된 메시를 떼어 낸다. 붙일 뼈는 게임이 이름으로 정한다(Head / spine_03)
+const KK = 'data/kaykit';
+const GEAR = [
+  ['characters/Knight', 'Knight_Helmet'], ['characters/Knight', 'Knight_Cape'],
+  ['characters/Mage', 'Mage_Hat'], ['characters/Mage', 'Mage_Cape'],
+  ['characters/Barbarian', 'Barbarian_Hat'], ['characters/Barbarian', 'Barbarian_Cape'],
+  ['characters/Rogue', 'Rogue_Cape'],
+  ['enemies/Skeleton_Warrior', 'Skeleton_Warrior_Helmet'], ['enemies/Skeleton_Mage', 'Skeleton_Mage_Hat'],
+  ['enemies/Skeleton_Rogue', 'Skeleton_Rogue_Hood'], ['enemies/Skeleton_Rogue', 'Skeleton_Rogue_Cape'],
+];
+for (const [file, node] of GEAR) jobs.push({ kind: 'gear', src: `${KK}/${file}.glb`, dst: `${OUT}/gear/${node}.glb`, node });
+
 /** 머리·목 뼈에 주로 붙은 삼각형만 남긴다 (나머지 몸은 옷 파츠가 덮는다) */
 function keepHead(doc) {
   const skin = doc.getRoot().listSkins()[0];
@@ -69,6 +81,22 @@ function keepHead(doc) {
   }
 }
 
+/** 장비: 이름이 node 인 메시 하나만, 부모 뼈 기준 위치 그대로 남긴다 */
+function gearOnly(doc, name) {
+  const root = doc.getRoot();
+  const src = root.listNodes().find(n => n.getName() === name);
+  if (!src) throw new Error(`없는 노드 ${name}`);
+  const parent = src.getParentNode()?.getName();
+  const node = doc.createNode(name).setMesh(src.getMesh()).setTranslation(src.getTranslation()).setRotation(src.getRotation()).setScale(src.getScale());
+  for (const a of root.listAnimations()) { a.listSamplers().forEach(x => x.dispose()); a.listChannels().forEach(x => x.dispose()); a.dispose(); }
+  const scene = root.listScenes()[0];
+  scene.listChildren().forEach(c => scene.removeChild(c));
+  scene.addChild(node);
+  for (const n of root.listNodes()) if (n !== node) n.dispose();
+  root.listSkins().forEach(sk => sk.dispose());
+  return parent;
+}
+
 /** 애니메이션 파일: 마네킹 메시를 빼고, 쓰는 동작만 남긴다 */
 function animOnly(doc) {
   const root = doc.getRoot();
@@ -88,14 +116,15 @@ for (const job of jobs) {
   const doc = await io.read(job.src);
   if (job.kind === 'head') keepHead(doc);
   if (job.kind === 'anim') animOnly(doc);
-  const tex = job.kind === 'weapon' ? 512 : 1024;
+  if (job.kind === 'gear') job.parent = gearOnly(doc, job.node);
+  const tex = ['weapon', 'gear'].includes(job.kind) ? 512 : 1024;
   await doc.transform(
     ...(job.kind === 'anim' ? [resample()] : []),
     dedup(), prune(),
     textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [tex, tex] }),
     // 뼈대가 있는 몸·헤어·파츠는 좌표 압축(quantize)을 하지 않는다. 압축 배율이 각 파일의 뼈대 행렬에 들어가서,
     // 파츠를 다른 몸의 뼈대로 옮겨 붙이면 크기가 어긋난다. 무기·애니메이션만 meshopt 로 압축한다.
-    ...(['weapon', 'anim'].includes(job.kind) ? [meshopt({ encoder: MeshoptEncoder, level: 'medium' })] : []),
+    ...(['weapon', 'anim', 'gear'].includes(job.kind) ? [meshopt({ encoder: MeshoptEncoder, level: 'medium' })] : []),
   );
   fs.mkdirSync(path.dirname(job.dst), { recursive: true });
   await io.write(job.dst, doc);
@@ -105,6 +134,7 @@ for (const job of jobs) {
   before += srcSize;
   after += fs.statSync(job.dst).size;
   n++;
-  if (job.kind !== 'weapon') console.log(`${job.kind.padEnd(6)} ${path.basename(job.dst).padEnd(34)} ${(fs.statSync(job.dst).size / 1024).toFixed(0).padStart(6)}KB  anims ${doc.getRoot().listAnimations().length}`);
+  if (job.kind === 'gear') console.log(`gear   ${job.node} ← 부모 뼈 ${job.parent}`);
+  else if (job.kind !== 'weapon') console.log(`${job.kind.padEnd(6)} ${path.basename(job.dst).padEnd(34)} ${(fs.statSync(job.dst).size / 1024).toFixed(0).padStart(6)}KB  anims ${doc.getRoot().listAnimations().length}`);
 }
 console.log(`${n}개, 메시·애니메이션 원본 ${(before / 1048576).toFixed(1)}MB(텍스처 별도) → ${(after / 1048576).toFixed(1)}MB`);
