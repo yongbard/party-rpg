@@ -23,7 +23,8 @@
 - 2026-11-17: v1 1단계 — 저장(localStorage)과 로비. 로비 → 1장 스테이지 3개(1-1, 1-2, 1-3 보스) 선택 → 전투 → 결과(골드, 첫 클리어 보석) → 로비. 다음 스테이지는 앞 스테이지를 깨야 열린다.
 - 2026-11-17: 필살기 자동 사용(전투 화면 AUTO, 저장됨). v1 2단계 — 로비 아래 탭 [모험]/[영웅]. 영웅 탭은 카메라가 영웅에게 다가가고 레벨·전투력·능력치(다음 레벨 증가분)·필살기·스킬 설명, 골드 레벨업(+1, +5, 최대 Lv.40). 스테이지 적 레벨 1·2·4.
 - 2026-11-17: 3단계(뽑기) 설계. 영웅·무기·장비 전부 뽑기, 색만 바꾸지 않고 수백 개를 만들려고 Quaternius 조합형 체계(체형 18 × 헤어 20 × 의상 파츠 62, 공용 애니메이션 250+, 무기 팩 160+)를 조사해 docs/content-design.md 에 정리. 사용자 결정 반영(영웅은 유니크 + 등급별 성장 스토리·외형 4형, 무료 우선·부족하면 AI, 망토·방패 추가·방패는 한손 무기만, 뽑기 재화 보석 하나). 남은 결정: 잠재 등급 모델(제안 A).
-- 다음: content-design.md 7장 결정 → 3-1 PoC(파츠 런타임 조립) → 3-2 영웅 체계 → 3-3 장비 → 3-4 뽑기 → 3-5 확장 → 특성 트리.
+- 2026-11-17: 3-1 PoC 성공. Quaternius 베이스 몸 + 머리카락 + 의상 파츠 6개를 한 스켈레톤으로 런타임 조립하고 UAL 애니메이션 재생(poc.html). 8명 동시 100fps(헤드리스 Chrome). 무료 Standard 는 몸 2·헤어 8·의상 2벌·애니메이션 43개뿐이라 수량은 유료 Source 나 추가 팩이 필요.
+- 다음: 추가 에셋 확보 결정 → 3-2 영웅 체계 → 3-3 장비 → 3-4 뽑기 → 3-5 확장 → 특성 트리.
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
 
@@ -62,6 +63,8 @@ party_rpg_261116/
 │   ├── style.css
 │   └── tools/optimize-assets.mjs   원본 모델 → 게임용 모델 (애니메이션 고르기, meshopt 압축)
 ├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/), dungeon/
+├── data/quaternius/      zips/(받은 원본), base/, outfits/, ual/ (풀어 둔 것)
+├── poc.html, src/poc.ts  기술 검증 페이지: /poc.html?outfit=Ranger|Peasant&anim=Sword_Idle&n=8&fps (public/poc 는 git 제외)
 ├── public/assets/        게임용 압축 모델 (npm run assets 결과)
 ├── public/meshopt_decoder.js   모델 압축 해제기 (npm run assets 가 복사)
 ├── docs/

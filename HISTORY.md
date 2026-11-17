@@ -67,3 +67,10 @@
 
 - 한 일: 영웅 체계를 "영웅마다 등급 고정" 에서 "영웅은 유니크, 잠재 등급까지 사다리(칭호 8단계·외형 4형)" 로 바꿈. 외형 겹침 금지 규칙(머리·몸통·망토 2개 이상 겹침 금지)을 영웅의 모든 형태에 적용. 방패는 한손 무기군일 때만, 양손 영웅은 장신구 칸 +1. 뽑기 재화는 보석으로 통일(장비 100/900). 목표 영웅 수 60 → 30 (× 4형 = 외형 120).
 - 결과: docs/content-design.md 다시 씀.
+
+## 2026-11-17 — 3-1 PoC: Quaternius 파츠 런타임 조립
+
+- 한 일: itch.io 에서 Universal Animation Library[Standard] 15MB, Universal Base Characters[Standard] 123MB, Modular Character Outfits - Fantasy[Standard] 281MB 를 받아 data/quaternius/ 에 풀었다(사용자 승인, CC0). 다운로드는 puppeteer 로 /purchase → "No thanks" → 다운로드 페이지의 버튼이 부르는 /file/{id} API 응답(JSON url)을 가로채 Node 로 저장(networkidle 대기는 itch 에서 멈춤, domcontentloaded 사용).
+- 확인: 몸(Superhero_Male)·머리카락·의상 파츠·UAL 마네킹이 모두 같은 65관절 릭(UE 마네킹 본 이름: root, pelvis, spine_01…). poc.html 에서 파츠 메시의 skeleton 을 몸 스켈레톤으로 바꿔 붙이고(파츠 자체 스켈레톤은 버림), UAL 애니메이션 그룹을 본 이름으로 몸 노드에 복제해 재생 → 195/195 대상 연결. Ranger(후드·어깨·몸·팔·다리·부츠) / Peasant 교체 성공. 1명 28k 삼각형·13 드로우콜, 8명 224k·97 드로우콜에서 100fps(헤드리스 Chrome). 베이스 gltf 가 가리키는 텍스처 이름 2개가 실제 파일명과 달라(T_Hair_1_Normal_png.png, T_Eye_Normal_png.png) 복사로 맞춤. 의상을 입히면 몸 메시는 숨기고 머리(Face·Eyes·Eyebrows)만 남긴다(Readme 지침).
+- 발견: 무료 Standard 범위가 설명(60~70%)보다 좁다. 몸 2(Superhero 남녀), 헤어 8/20, 의상 2벌(Peasant·Ranger) 파츠 19/62, UAL1 43/120(검·주먹·단순 마법·피격·사망·이동. 활·도끼·지팡이·환호 없음).
+- 결과: poc.html, src/poc.ts, data/quaternius/, public/poc/(git 제외), .gitignore
