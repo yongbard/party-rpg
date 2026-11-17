@@ -57,3 +57,8 @@
 ## 2026-11-17 — 배포 (필살기 자동, v1 2단계)
 
 - 한 일: 커밋 a9a3210, 554c4a2 push (사용자 승인). Actions 배포 성공(554c4a2). 공개 주소에서 영웅 탭 열림 확인.
+
+## 2026-11-17 — 3단계(뽑기) 설계: 콘텐츠 규모 조사
+
+- 한 일: "영웅·무기·장비 다 뽑기, 색만 바꾸지 말고 진짜 많이" 를 위해 무료 3D 에셋을 조사. Quaternius Universal Base Characters(체형 6·헤어 20, CC0), Modular Character Outfits Fantasy(의상 12벌·파츠 62·색 3, CC0), Characters Fantasy Races(12종, QAL), Bestiary(인간형 몬스터 7, QAL), Universal Animation Library 1·2(250+, CC0), Ultimate Monsters(50, CC0). 무기: Binbun RPG Weapons 70, Polyy.AI 50, KayKit Fantasy Weapons 25+, KayKit Adventurers 25 (모두 CC0). 전부 같은 휴머노이드 릭이라 애니메이션 1벌 공용 가능.
+- 결과: docs/content-design.md (목표 수량, 조합형 영웅 정의, 런타임 조립, 장비 부위·출처, 뽑기 표, 데이터·도구, 단계, 결정 사항 4개). design.md 에 참조 추가.
