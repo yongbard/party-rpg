@@ -1,0 +1,142 @@
+// 뽑기: 보석 하나로 영웅·장비·무기를 뽑는다. 결과는 연출 전에 저장한다 (새로고침으로 다시 뽑기 방지)
+import { GRADES, HEROES } from './data';
+import { ITEM_BASES, rollItem, type Item, type Slot } from './items';
+import { addItem, writeSave, type SaveData } from './save';
+
+/** 등급(영웅은 잠재 등급) 확률 % — design.md 3.3 */
+export const RATES = [45, 30, 16, 6.5, 1.8, 0.5, 0.15, 0.05];
+
+export type BannerId = 'hero' | 'gear' | 'weapon';
+interface Pity { key: 'hero' | 'hero5' | 'gear'; n: number; min: number }
+export interface Banner {
+  id: BannerId; name: string; desc: string; cost: number; cost10: number;
+  ten: number;            // 10연에 이 등급 이상 1개 보장
+  pity: Pity[];           // n 회 안에 min 등급 이상 보장 (불멸·초월은 천장 없음: 천장으로는 신화까지만)
+}
+export const BANNERS: Banner[] = [
+  { id: 'hero', name: '영웅 소환', desc: '영웅을 부른다. 이미 있는 영웅이면 그 영웅의 조각이 된다 · 조각을 모아 등급을 올린다', cost: 150, cost10: 1350, ten: 2, pity: [{ key: 'hero', n: 80, min: 4 }, { key: 'hero5', n: 300, min: 5 }] },
+  { id: 'gear', name: '장비 소환', desc: '무기·방패·투구·갑옷·망토·장신구·문장 중 하나', cost: 100, cost10: 900, ten: 3, pity: [{ key: 'gear', n: 60, min: 4 }] },
+  { id: 'weapon', name: '무기 소환', desc: '무기만 나온다', cost: 100, cost10: 900, ten: 3, pity: [] },
+];
+const PITY_MAX = 5;   // 천장으로 정해지는 등급의 위 끝 (신화)
+
+/** 중복 영웅 한 번에 받는 조각 (잠재 등급별) */
+export const DUP_SHARDS = [10, 10, 10, 15, 20, 30, 50, 80];
+/** g → g+1 승격에 드는 조각·골드 */
+export const PROMOTE: [number, number][] = [[20, 1000], [40, 3000], [60, 8000], [100, 20000], [150, 50000], [250, 100000], [400, 200000]];
+/** 분해하면 받는 골드 (등급별) */
+export const SALVAGE_GOLD = [50, 100, 200, 400, 1000, 2500, 6000, 15000];
+
+export type Pull =
+  | { kind: 'hero'; id: string; grade: number; isNew: boolean; shards: number }
+  | { kind: 'item'; item: Item; grade: number };
+
+/** min ~ max 등급 안에서, allowed 에 든 등급만 확률표대로 뽑는다 */
+function rollIn(min: number, max: number, allowed: (g: number) => boolean) {
+  const w = RATES.map((r, g) => (g >= min && g <= max && allowed(g) ? r : 0));
+  let sum = w.reduce((a, b) => a + b, 0);
+  if (!sum) return RATES.findIndex((_r, g) => g >= min && allowed(g));
+  let r = Math.random() * sum;
+  for (let g = 0; g < w.length; g++) { r -= w[g]; if (r < 0) return g; }
+  return max;
+}
+
+const heroPotentials = () => new Set(HEROES.map(h => h.maxGrade ?? 2));
+
+/** 연출에서 멈칫하며 뒤집을 등급: 전설 이상, 단 그 소환에서 가장 흔한 등급보다는 높아야 한다 (영웅이 전부 전설 잠재일 때 매 장 멈추지 않게) */
+export const hiFrom = (id: BannerId) => (id === 'hero' ? Math.max(4, Math.min(...heroPotentials()) + 1) : 4);
+
+/** 영웅 소환 확률표: 영웅마다 % (잠재 등급이 없는 칸은 빼고 다시 나눈다) */
+export function heroRates() {
+  const P = heroPotentials();
+  const sum = [...P].reduce((a, g) => a + RATES[g], 0);
+  return HEROES.map(h => {
+    const g = h.maxGrade ?? 2;
+    return { id: h.id, name: h.name, grade: g, pct: (RATES[g] / sum) * 100 / HEROES.filter(x => (x.maxGrade ?? 2) === g).length };
+  }).sort((a, b) => b.grade - a.grade);
+}
+
+/** 장비 칸: 그 등급에 나올 기본형이 있는 칸 중에서 고른다 */
+const GEAR_SLOTS: [Slot, number][] = [['weapon', 30], ['offhand', 10], ['helmet', 15], ['armor', 10], ['cloak', 15], ['acc', 15], ['emblem', 5]];
+const slotHas = (slot: Slot, g: number) => [...ITEM_BASES.values()].some(b => b.slot === slot && b.minGrade <= g && g - b.minGrade <= 3);
+function pickSlot(g: number): Slot {
+  const ok = GEAR_SLOTS.filter(([s]) => slotHas(s, g));
+  let r = Math.random() * ok.reduce((a, [, w]) => a + w, 0);
+  for (const [s, w] of ok) { r -= w; if (r < 0) return s; }
+  return ok[0][0];
+}
+
+/** 뽑고 저장한다. 보석이 모자라면 null */
+export function summon(save: SaveData, id: BannerId, count: 1 | 10): Pull[] | null {
+  const bn = BANNERS.find(b => b.id === id)!;
+  const cost = count === 10 ? bn.cost10 : bn.cost;
+  if (save.gems < cost) return null;
+  save.gems -= cost;
+  const pity = (save.pity ??= { hero: 0, hero5: 0, gear: 0 });
+  const P = heroPotentials();
+  const allowed = id === 'hero' ? (g: number) => P.has(g) : (g: number) => id !== 'weapon' || slotHas('weapon', g);
+  const out: Pull[] = [];
+  for (let i = 0; i < count; i++) {
+    // 천장: 카운터가 다 찼으면 그 등급 이상 (가장 높은 천장부터)
+    let min = 0;
+    for (const p of bn.pity) if (pity[p.key] + 1 >= p.n) min = Math.max(min, p.min);
+    // 10연 보장: 마지막 한 장까지 보장 등급이 안 나왔으면
+    if (count === 10 && i === 9 && !out.some(o => o.grade >= bn.ten)) min = Math.max(min, bn.ten);
+    const g = rollIn(min, min >= 4 ? PITY_MAX : 7, allowed);
+    for (const p of bn.pity) pity[p.key] = g >= p.min ? 0 : pity[p.key] + 1;
+    if (id === 'hero') {
+      const pool = HEROES.filter(h => (h.maxGrade ?? 2) === g);
+      const h = pool[Math.floor(Math.random() * pool.length)];
+      if (!save.heroes[h.id]) {
+        save.heroes[h.id] = { level: 1, grade: Math.max(0, g - 3) };   // 잠재보다 3단계 아래에서 시작
+        out.push({ kind: 'hero', id: h.id, grade: g, isNew: true, shards: 0 });
+      } else {
+        const n = DUP_SHARDS[g];
+        (save.shards ??= {})[h.id] = (save.shards[h.id] ?? 0) + n;
+        out.push({ kind: 'hero', id: h.id, grade: g, isNew: false, shards: n });
+      }
+    } else {
+      const item = addItem(save, rollItem(0, g, id === 'weapon' ? 'weapon' : pickSlot(g)));
+      out.push({ kind: 'item', item, grade: g });
+    }
+  }
+  writeSave(save);
+  return out;
+}
+
+/** 승격할 수 있나: 이유를 돌려주고, 되면 null */
+export function canPromote(save: SaveData, heroId: string): string | null {
+  const def = HEROES.find(h => h.id === heroId)!;
+  const g = save.heroes[heroId].grade;
+  if (g >= (def.maxGrade ?? 2)) return `${GRADES[g]}이(가) 이 영웅의 끝이다`;
+  const [sh, gold] = PROMOTE[g];
+  if ((save.shards?.[heroId] ?? 0) < sh) return '조각이 모자란다';
+  if (save.gold < gold) return '골드가 모자란다';
+  return null;
+}
+
+export function promote(save: SaveData, heroId: string) {
+  if (canPromote(save, heroId)) return false;
+  const h = save.heroes[heroId];
+  const [sh, gold] = PROMOTE[h.grade];
+  save.shards![heroId] -= sh;
+  save.gold -= gold;
+  h.grade++;
+  writeSave(save);
+  return true;
+}
+
+/** 분해: 끼고 있지 않은 아이템을 골드로 바꾼다 */
+export function salvage(save: SaveData, uids: number[]) {
+  const worn = new Set(Object.values(save.heroes).flatMap(h => Object.values(h.equip ?? {})));
+  let gold = 0, n = 0;
+  save.items = (save.items ?? []).filter(it => {
+    if (!uids.includes(it.uid) || worn.has(it.uid)) return true;
+    gold += SALVAGE_GOLD[it.grade];
+    n++;
+    return false;
+  });
+  save.gold += gold;
+  writeSave(save);
+  return { gold, n };
+}

@@ -3,7 +3,7 @@ import { buildArena, setupPost } from './arena';
 import { Assets, type AssetEntry } from './assets';
 import { Battle } from './battle';
 import { CameraRig } from './camera';
-import { animsByModel, STAGES } from './data';
+import { animsByModel, repeatGems, STAGES } from './data';
 import { rollGrade, rollItem, type Item } from './items';
 import { loadout } from './loadout';
 import { ANIM_KEYS, lookKeys } from './heroModel';
@@ -87,15 +87,20 @@ async function main() {
   rig.portrait(lobby.units[0]);
   await scene.whenReadyAsync();
   const portraits: Record<string, string> = {};
-  for (const h of lobby.units) {
-    lobby.units.forEach(o => o.root.setEnabled(o === h));
-    rig.portrait(h);
-    scene.render();
-    scene.render();
-    portraits[h.def.id] = grabSquare(canvas);
-  }
-  lobby.units.forEach(o => o.root.setEnabled(true));
+  // 한 명만 남기고 숨긴 채 찍는다 (다른 영웅이 카메라 앞을 가리지 않게). 승격으로 외형이 바뀌면 로비가 다시 부른다
+  const snap = (ids: string[]) => {
+    for (const h of lobby.units.filter(u => ids.includes(u.def.id))) {
+      lobby.units.forEach(o => o.root.setEnabled(o === h));
+      rig.portrait(h);
+      scene.render();
+      scene.render();
+      portraits[h.def.id] = grabSquare(canvas);
+    }
+    lobby.units.forEach(o => o.root.setEnabled(true));
+  };
+  snap(lobby.units.map(u => u.def.id));
   lobby.portraits = portraits;
+  lobby.snap = snap;
   rig.setView('lobby', true);
 
   let battle: Battle | null = null;
@@ -118,13 +123,13 @@ async function main() {
     b.auto = !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
-      let reward: { gold: number; gems: number; items: Item[] } | null = null;
+      let reward: { gold: number; gems: number; items: Item[]; first: boolean } | null = null;
       if (win) {
         const first = !save.cleared.includes(stage.id);
-        reward = { gold: stage.reward.gold, gems: first ? stage.reward.gems : 0, items: [] };
+        reward = { gold: stage.reward.gold, gems: first ? stage.reward.gems : repeatGems(stage), items: [], first };
         save.gold += reward.gold;
         save.gems += reward.gems;
-        // 장비 드랍 (뽑기가 생기기 전 임시 경로): 첫 클리어는 1개 확정, 다시 깨면 50%
+        // 장비 드랍: 첫 클리어는 1개 확정, 다시 깨면 50% (장비 소환과 함께 장비를 얻는 길)
         if (first || Math.random() < 0.5) {
           const it = rollItem(0, rollGrade(DROP_WEIGHTS[stage.level] ?? DROP_WEIGHTS[1]));
           reward.items.push(addItem(save, it));

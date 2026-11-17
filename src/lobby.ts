@@ -1,8 +1,10 @@
-// 로비: 파티가 카메라를 보고 서 있다. 아래 탭으로 [모험](스테이지 선택) / [영웅](능력치·레벨업·장비) / [가방]
-import { Scene, ShadowGenerator, Vector3 } from '@babylonjs/core';
+// 로비: 파티가 카메라를 보고 서 있다. 아래 탭으로 [모험](스테이지 선택) / [영웅](능력치·레벨업·승격·장비) / [소환] / [가방]
+import { Color3, Scene, ShadowGenerator, Vector3 } from '@babylonjs/core';
 import type { Assets } from './assets';
 import type { CameraRig } from './camera';
-import { CHAPTER, COL, GRADES, GRADE_COLORS, HEROES, MAX_LEVEL, STAGES, gradeMul, heroMul, levelCost, type UnitDef } from './data';
+import { CHAPTER, COL, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, type UnitDef } from './data';
+import { BANNERS, canPromote, heroRates, hiFrom, promote, PROMOTE, RATES, salvage, SALVAGE_GOLD, summon, type BannerId } from './gacha';
+import { showSummon } from './summonView';
 import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, SLOT_NAMES, STAT_NAMES, type EquipSlot, type Item, type Slot } from './items';
 import { loadout, wearerOf } from './loadout';
 import { lookKeys, makeHeroModel } from './heroModel';
@@ -14,13 +16,14 @@ import { Unit } from './unit';
 // 카메라에서 보면 +x 가 왼쪽이다 (오른손 좌표계, 카메라가 +z 를 본다)
 const LINEUP = [2.4, 0.8, -0.8, -2.4];
 
-type Tab = 'adventure' | 'hero' | 'bag';
+type Tab = 'adventure' | 'hero' | 'summon' | 'bag';
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 export class Lobby {
   onStart: (stageId: string) => void = () => {};
   units: Unit[] = [];
   portraits: Record<string, string> = {};
+  snap: (ids: string[]) => void = () => {};   // 초상화를 다시 찍는다 (main 이 넣어 준다)
   private el: HTMLElement;
   private plates: HTMLElement[] = [];
   private selected = STAGES[0].id;
@@ -32,6 +35,8 @@ export class Lobby {
   private gearSlot: EquipSlot | null = null;   // 장비 탭에서 고른 칸
   private bagFilter: Slot | 'all' = 'all';
   private bagSel: number | null = null;
+  private banner: BannerId = 'hero';
+  private showRates = false;
 
   constructor(private scene: Scene, private assets: Assets, private shadow: ShadowGenerator, private rig: CameraRig, private hud: Hud, private fx: Fx) {
     this.el = document.createElement('div');
@@ -147,10 +152,11 @@ export class Lobby {
         <div class="plate" style="--accent:${u.def.color}"><b>${u.def.name}</b><span>Lv.${s.heroes[u.def.id].level}</span></div>`).join('')}
       </div>
       <div class="lb-bottom">
-        ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'hero' ? this.heroHtml() : this.bagHtml()}
+        ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'hero' ? this.heroHtml() : this.tab === 'summon' ? this.summonHtml() : this.bagHtml()}
         <div class="lb-tabs">
           <button data-tab="adventure" class="${this.tab === 'adventure' ? 'on' : ''}">모험</button>
           <button data-tab="hero" class="${this.tab === 'hero' ? 'on' : ''}">영웅</button>
+          <button data-tab="summon" class="${this.tab === 'summon' ? 'on' : ''}">소환</button>
           <button data-tab="bag" class="${this.tab === 'bag' ? 'on' : ''}">가방</button>
         </div>
       </div>`;
@@ -160,9 +166,14 @@ export class Lobby {
     if (this.tab === 'adventure') {
       on('.stage', b => { this.selected = b.dataset.id!; this.render(); });
       on('.lb-go', () => this.onStart(this.selected));
+    } else if (this.tab === 'summon') {
+      on('.ban', b => { this.banner = b.dataset.b as BannerId; this.render(); });
+      on('.pull', b => this.pull(Number(b.dataset.n) as 1 | 10));
+      on('.rates-t', () => { this.showRates = !this.showRates; this.render(); });
     } else if (this.tab === 'bag') {
       on('.flt', b => { this.bagFilter = b.dataset.f as Slot | 'all'; this.bagSel = null; this.render(); });
       on('.tile', b => { this.bagSel = Number(b.dataset.uid); this.render(); });
+      on('.salv', b => this.salvage(b.dataset.uid ? [Number(b.dataset.uid)] : this.lowItems()));
     } else {
       on('.seg button', b => { this.heroView = b.dataset.v as 'info' | 'gear'; this.gearSlot = null; this.render(); });
       on('.eslot', b => { const sl = b.dataset.slot as EquipSlot; this.gearSlot = this.gearSlot === sl ? null : sl; this.render(); });
@@ -184,6 +195,7 @@ export class Lobby {
         };
       });
       this.el.querySelectorAll<HTMLButtonElement>('.lvup').forEach(b => { b.onclick = () => this.levelUp(Number(b.dataset.n)); });
+      on('.promo-go', () => void this.promoteHero());
     }
   }
 
@@ -200,7 +212,7 @@ export class Lobby {
           <button class="stage ${st.id === this.selected ? 'sel' : ''} ${isOpen(i) ? '' : 'locked'} ${st.waves.some(w => w.boss) ? 'is-boss' : ''}" data-id="${st.id}" ${isOpen(i) ? '' : 'disabled'}>
             <span class="sid">${st.id}</span>
             <span class="snm">${st.name}<em>적 Lv.${st.level}</em>${cleared ? '<i class="ok">클리어</i>' : ''}</span>
-            <span class="srw"><i class="ic-gold"></i>${st.reward.gold}${cleared ? '' : `<i class="ic-gem"></i>${st.reward.gems}`}</span>
+            <span class="srw"><i class="ic-gold"></i>${st.reward.gold}<i class="ic-gem"></i>${cleared ? repeatGems(st) : st.reward.gems}</span>
           </button>`;
         }).join('')}
         </div>
@@ -218,6 +230,7 @@ export class Lobby {
     const gm = gradeMul(grade);
     const m = heroMul(lv) * gm, m2 = heroMul(lv + 1) * gm;
     const max = d.maxGrade ?? 2;
+    const MAXL = maxLevel(grade);
     const ladder = Array.from({ length: max + 1 }, (_, g) => `
       <button class="rung ${g === shown ? 'on' : ''} ${g === grade ? 'cur' : ''} ${g > grade ? 'future' : ''}" data-g="${g}" style="--gc:${GRADE_COLORS[g]}">
         <i>${GRADES[g]}</i><span>${d.titles?.[g] ?? ''}</span>
@@ -225,10 +238,10 @@ export class Lobby {
     const st = d.stats;
     const lo = loadout(s, d.id);
     const bn = lo.bonus;
-    const grow = (base: number) => (lv < MAX_LEVEL ? `<em>+${fmt(base * m2 - base * m)}</em>` : '');
+    const grow = (base: number) => (lv < MAXL ? `<em>+${fmt(base * m2 - base * m)}</em>` : '');
     const costOf = (n: number) => { let c = 0; for (let i = 0; i < n; i++) c += levelCost(lv + i); return c; };
     const btn = (n: number) => {
-      const left = MAX_LEVEL - lv;
+      const left = MAXL - lv;
       const c = costOf(Math.min(n, left));
       return `<button class="lvup" data-n="${n}" ${left > 0 && s.gold >= c ? '' : 'disabled'}><b>Lv +${n}</b><span><i class="ic-gold"></i>${left > 0 ? fmt(c) : '최대'}</span></button>`;
     };
@@ -239,11 +252,12 @@ export class Lobby {
           <button class="chip ${i === this.heroIdx ? 'on' : ''}" data-i="${i}" style="--accent:${x.def.color}"><img src="${this.portraits[x.def.id] ?? ''}" alt=""><span>Lv.${s.heroes[x.def.id].level}</span></button>`).join('')}
         </div>
         <div class="hd-head">
-          <div><div class="hd-title" style="color:${GRADE_COLORS[grade]}">${GRADES[grade]} · ${d.titles?.[grade] ?? ''}</div><div class="hd-name">${d.name}<span>Lv.${lv}<small>/${MAX_LEVEL}</small></span></div></div>
+          <div><div class="hd-title" style="color:${GRADE_COLORS[grade]}">${GRADES[grade]} · ${d.titles?.[grade] ?? ''}</div><div class="hd-name">${d.name}<span>Lv.${lv}<small>/${MAXL}</small></span></div></div>
           <div class="hd-power"><small>전투력</small><b>${fmt(lo.power)}</b></div>
         </div>
         <div class="ladder">${ladder}</div>
         ${shown !== grade ? `<div class="ladder-note">${GRADES[shown]} 「${d.titles?.[shown] ?? ''}」 외형 미리보기 · ${shown > grade ? '같은 영웅 조각으로 승격하면 이 모습이 된다' : '지나온 모습'}</div>` : `<div class="ladder-note">최대 ${GRADES[max]}까지 성장 · 칭호를 누르면 그 등급 외형을 미리 본다</div>`}
+        ${this.promoHtml(d.id)}
         <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치 · 스킬</button><button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}">장비</button></div>
         ${this.heroView === 'gear' ? this.gearHtml(d.id) : `
         <div class="hd-stats">
@@ -259,6 +273,102 @@ export class Lobby {
         </ul>
         <div class="hd-lv">${btn(1)}${btn(5)}</div>`}
       </div>`;
+  }
+
+  /** 등급 승격 줄: 조각·골드와 다음 칭호 */
+  private promoHtml(id: string) {
+    const s = this.save;
+    const d = HEROES.find(h => h.id === id)!;
+    const g = s.heroes[id].grade;
+    const have = s.shards?.[id] ?? 0;
+    if (g >= (d.maxGrade ?? 2)) return `<div class="promo max"><span>조각 <b>${fmt(have)}</b></span><span>최대 등급</span></div>`;
+    const [need, gold] = PROMOTE[g];
+    const why = canPromote(s, id);
+    return `<div class="promo" style="--gc:${GRADE_COLORS[g + 1]}">
+      <span class="pbar"><i style="width:${Math.min(100, (have / need) * 100)}%"></i><b>조각 ${fmt(have)} / ${need}</b></span>
+      <button class="promo-go" ${why ? 'disabled' : ''}><b>승격</b><small>${GRADES[g + 1]} · ${d.titles?.[g + 1] ?? ''}</small><span><i class="ic-gold"></i>${fmt(gold)}</span></button>
+    </div>`;
+  }
+
+  private async promoteHero() {
+    const s = this.save;
+    const i = this.heroIdx;
+    const d = this.units[i].def;
+    const from = s.heroes[d.id].grade;
+    if (!promote(s, d.id)) return;
+    this.preview = null;
+    await this.rebuild(d.id);
+    const u = this.units[i];
+    // 외형이 바뀌었으니 초상화를 다시 찍는다 (빛 효과가 얼굴을 덮기 전에)
+    await this.scene.whenReadyAsync();
+    this.snap([d.id]);
+    this.rig.usemain();
+    // 연출: 등급 색 빛기둥과 링, 환호, 칭호가 바뀌는 글
+    const c = Color3.FromHexString(GRADE_COLORS[from + 1]);
+    this.fx.pillar(u.pos, c, 1.2);
+    this.fx.ring(u.pos, c, 2.6, 0.8);
+    this.fx.burst(u.chest(), c, 60, 6, 0.25);
+    u.play(d.anims.victory ?? d.anims.idle, false);
+    u.curAnim?.onAnimationGroupEndObservable.addOnce(() => u.play(d.anims.idle));
+    this.render();
+    const pop = document.createElement('div');
+    pop.className = 'promopop';
+    pop.style.setProperty('--gc', GRADE_COLORS[from + 1]);
+    pop.innerHTML = `<small>등급 승격</small><b>${GRADES[from + 1]}</b><span>${d.titles?.[from] ?? ''} → ${d.titles?.[from + 1] ?? ''}</span>`;
+    pop.addEventListener('animationend', () => pop.remove());
+    this.el.append(pop);
+  }
+
+  private summonHtml() {
+    const s = this.save;
+    const bn = BANNERS.find(b => b.id === this.banner)!;
+    const p = s.pity ?? { hero: 0, hero5: 0, gear: 0 };
+    const pity = bn.pity.map(x => `${GRADES[x.min]} 이상까지 <b>${x.n - p[x.key]}</b>회`).join(' · ');
+    const rates = this.banner === 'hero'
+      ? heroRates().map(r => `<li style="--gc:${GRADE_COLORS[r.grade]}"><i>${GRADES[r.grade]}</i>${r.name}<b>${r.pct.toFixed(r.pct < 1 ? 2 : 1)}%</b></li>`).join('')
+      : RATES.map((r, g) => `<li style="--gc:${GRADE_COLORS[g]}"><i>${GRADES[g]}</i><b>${r}%</b></li>`).join('');
+    const btn = (n: 1 | 10) => {
+      const c = n === 10 ? bn.cost10 : bn.cost;
+      return `<button class="pull" data-n="${n}" ${s.gems >= c ? '' : 'disabled'}><b>${n}회</b><span><i class="ic-gem"></i>${fmt(c)}</span></button>`;
+    };
+    return `
+      <div class="lb-panel summon">
+        <div class="lb-ch">소환<span class="pp">보석<b>${fmt(s.gems)}</b></span></div>
+        <div class="bans">${BANNERS.map(b => `<button class="ban ${b.id === this.banner ? 'on' : ''}" data-b="${b.id}">${b.name}</button>`).join('')}</div>
+        <div class="sm-info">
+          <p>${bn.desc}</p>
+          <div class="sm-pity">10회에 ${GRADES[bn.ten]} 이상 1개 보장${pity ? ` · ${pity}` : ''}</div>
+        </div>
+        <button class="rates-t">확률표 ${this.showRates ? '닫기' : '보기'}</button>
+        ${this.showRates ? `<ul class="rates">${rates}</ul>` : ''}
+        <div class="hd-lv">${btn(1)}${btn(10)}</div>
+      </div>`;
+  }
+
+  private pull(n: 1 | 10) {
+    const pulls = summon(this.save, this.banner, n);
+    if (!pulls) return;
+    this.render();
+    const bn = BANNERS.find(b => b.id === this.banner)!;
+    const c = n === 10 ? bn.cost10 : bn.cost;
+    showSummon(pulls, this.portraits, hiFrom(this.banner), { label: `한 번 더 · ${fmt(c)}`, ok: this.save.gems >= c }, () => this.pull(n), () => this.render());
+  }
+
+  /** 일괄 분해 대상: 끼지 않은 일반·고급 */
+  private lowItems() {
+    return (this.save.items ?? []).filter(i => i.grade <= 1 && !wearerOf(this.save, i.uid)).map(i => i.uid);
+  }
+
+  private salvage(uids: number[]) {
+    const r = salvage(this.save, uids);
+    if (!r.n) return;
+    this.bagSel = null;
+    this.render();
+    const pop = document.createElement('div');
+    pop.className = 'lvpop';
+    pop.textContent = `분해 ${r.n}개  +${fmt(r.gold)} 골드`;
+    pop.addEventListener('animationend', () => pop.remove());
+    this.el.append(pop);
   }
 
   /** 아이템 한 줄 (아이콘, 등급, 이름, 주옵션) */
@@ -311,11 +421,12 @@ export class Lobby {
         <div><div class="idn"><small>${GRADES[sel.grade]} · ${SLOT_NAMES[(b.slot === 'acc' ? 'acc1' : b.slot) as EquipSlot]}${b.hands === 2 ? ' · 양손' : ''}</small>${b.name}</div>
         <div class="ids"><b>${STAT_NAMES[sel.main[0]]} ${fmtStat(...sel.main)}</b>${sel.subs.map(([k, v]) => `<span>${STAT_NAMES[k]} +${fmtStat(k, v)}</span>`).join('')}</div>
         <div class="idw">${w ? `${HEROES.find(h => h.id === w)!.name} 착용 중` : '착용 안 함'}</div></div>
+        ${w ? '' : `<button class="salv one" data-uid="${sel.uid}">분해<span><i class="ic-gold"></i>${fmt(SALVAGE_GOLD[sel.grade])}</span></button>`}
       </div>`;
     })() : '<div class="empty-note">장비를 누르면 자세히 본다 · 장착은 영웅 탭 → 장비에서</div>';
     return `
       <div class="lb-panel bag">
-        <div class="lb-ch">가방<span class="pp">장비 <b>${s.items?.length ?? 0}</b></span></div>
+        <div class="lb-ch">가방<span class="pp">장비 <b>${s.items?.length ?? 0}</b><button class="salv all" ${this.lowItems().length ? '' : 'disabled'}>일반·고급 분해 ${this.lowItems().length}</button></span></div>
         <div class="flts">${F.map(([k, n]) => `<button class="flt ${this.bagFilter === k ? 'on' : ''}" data-f="${k}">${n}</button>`).join('')}</div>
         ${detail}
         <div class="tiles">${items.map(i => `<button class="tile ${i.uid === this.bagSel ? 'on' : ''} ${wearerOf(s, i.uid) ? 'worn' : ''}" data-uid="${i.uid}" style="--gc:${GRADE_COLORS[i.grade]}"><i class="ico" style="--ico:url(${ITEM_ICON(i)})"></i></button>`).join('') || '<div class="empty-note">비어 있다</div>'}</div>
@@ -327,7 +438,7 @@ export class Lobby {
     const u = this.units[this.heroIdx];
     const h = s.heroes[u.def.id];
     let done = 0;
-    while (done < n && h.level < MAX_LEVEL && s.gold >= levelCost(h.level)) {
+    while (done < n && h.level < maxLevel(h.grade) && s.gold >= levelCost(h.level)) {
       s.gold -= levelCost(h.level);
       h.level++;
       done++;

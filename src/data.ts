@@ -362,7 +362,7 @@ export interface Stage {
   id: string; name: string;
   level: number;                                 // 적 능력치 배율에 쓴다 (enemyMul)
   waves: Wave[];
-  reward: { gold: number; gems: number };        // gems 는 첫 클리어 때만
+  reward: { gold: number; gems: number };        // gems 는 첫 클리어 때 전부, 다시 깨면 1/10 (repeatGems)
 }
 
 export const CHAPTER = '1장 · 해골 군주의 무덤';
@@ -376,8 +376,11 @@ export const STAGES: Stage[] = [
 export const heroMul = (lv: number) => 1 + 0.08 * (lv - 1);
 export const enemyMul = (lv: number) => 1 + 0.1 * (lv - 1);
 
-// 레벨업: 골드만 쓴다. 등급별 최대 레벨은 뽑기 단계에서 붙인다
-export const MAX_LEVEL = 40;
+export const repeatGems = (st: Stage) => Math.round(st.reward.gems / 10);
+
+// 레벨업: 골드만 쓴다. 최대 레벨은 지금 등급이 정한다 (design.md 3.3)
+const MAX_LEVELS = [40, 50, 60, 70, 80, 90, 100, 120];
+export const maxLevel = (grade: number) => MAX_LEVELS[grade];
 export const levelCost = (lv: number) => Math.round(100 * Math.pow(1.15, lv - 1));   // lv → lv+1
 
 /** 전투력: 화면에 보여 주는 대략의 세기 */
