@@ -1,5 +1,5 @@
 // 실시간 자동 전투: 대상 고르기, 이동, 공격·스킬, 필살기 컷인, 웨이브 진행
-import { AnimationGroup, Mesh, PBRMaterial, Color3, Scene, ShadowGenerator, TrailMesh, Vector3 } from '@babylonjs/core';
+import { AnimationGroup, Mesh, PBRMaterial, Color3, Scene, ShadowGenerator, TrailMesh, TransformNode, Vector3 } from '@babylonjs/core';
 import type { Assets, ModelInstance } from './assets';
 import type { CameraRig } from './camera';
 import { COL, ENEMIES, FORMATION, enemyMul, type Look, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
@@ -9,37 +9,19 @@ import type { Fx } from './fx';
 import type { Hud } from './hud';
 import { Unit, type Side } from './unit';
 
-const WEAPONS = new Set([
-  '1H_Sword_Offhand', 'Badge_Shield', 'Rectangle_Shield', 'Round_Shield', 'Spike_Shield', '1H_Sword', '2H_Sword',
-  'Spellbook', 'Spellbook_open', '1H_Wand', '2H_Staff', '1H_Axe_Offhand', 'Barbarian_Round_Shield', '1H_Axe', '2H_Axe',
-  'Mug', 'Knife_Offhand', '1H_Crossbow', '2H_Crossbow', 'Knife', 'Throwable',
-]);
-const isWeapon = (name: string) => [...WEAPONS].find(w => name === w || name.startsWith(`${w}_primitive`));
-
-/** 무기 고르기·붙이기, 그림자, 보스 색까지 마친 모델 (전투와 로비가 같이 쓴다) */
+/** 통짜 모델(um/…): 크기 맞춤, 그림자, 눈 빛내기 */
 export function makeModel(assets: Assets, def: UnitDef, shadow: ShadowGenerator): ModelInstance {
-  const m = assets.spawn(def.model, !!def.boss);
-  if (def.keep) {
-    const keep = new Set(def.keep);
-    for (const mesh of [...m.meshes]) {
-      const w = isWeapon(mesh.name);
-      if (w && !keep.has(w)) { mesh.dispose(); m.meshes.splice(m.meshes.indexOf(mesh), 1); }
-    }
-  }
-  for (const a of def.attach ?? []) {
-    const slot = m.find(a.slot);
-    const w = assets.spawn(a.mesh);
-    w.root.parent = slot ?? m.root;
-    m.meshes.push(...w.meshes);
-  }
+  const m = assets.spawn(def.model, !!def.eyeGlow);
+  if (def.fit) m.root.getChildren().forEach(c => (c as TransformNode).scaling.scaleInPlace(def.fit!));
   for (const mesh of m.meshes) {
     shadow.addShadowCaster(mesh, false);
     mesh.isPickable = false;
     const mat = mesh.material as PBRMaterial | null;
     if (mat && 'maxSimultaneousLights' in mat) mat.maxSimultaneousLights = 8;
-    if (def.boss && mat instanceof PBRMaterial) {
-      if (mat.name === 'Glow') mat.emissiveColor = new Color3(1, 0.12, 0.05);
-      else mat.albedoColor = new Color3(0.8, 0.62, 0.7);
+    // 흰자는 검게, 눈동자는 빛나게: 동글동글한 눈이 귀여워 보이지 않게
+    if (def.eyeGlow && mat instanceof PBRMaterial) {
+      if (mat.name.startsWith('Eye_White')) { mat.albedoColor = new Color3(0.05, 0.02, 0.02); mat.emissiveColor = new Color3(...def.eyeGlow).scale(0.5); }
+      else if (mat.name.startsWith('Eye_Black')) mat.emissiveColor = new Color3(...def.eyeGlow);
     }
   }
   return m;
@@ -93,6 +75,15 @@ export class Battle {
     return u;
   }
 
+  /** 적 하나를 세우고 등장 동작을 튼다 (웨이브 시작, 보스의 부하 부르기) */
+  spawnEnemy(kind: string, x: number, z: number) {
+    const def = ENEMIES[kind];
+    const u = this.spawn(def, 'enemy', new Vector3(x, 0, z), Math.PI, enemyMul(this.stage.level), def.looks?.[0]);
+    const d = u.play(def.anims.spawn ?? def.anims.idle, false, 1.2);
+    u.busyUntil = this.time + d * 0.9;
+    return u;
+  }
+
   spawnHeroes() {
     this.party.forEach((p, i) => {
       const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul, p.look, p.bonus);
@@ -115,11 +106,10 @@ export class Battle {
     // 지난 웨이브의 쓰러진 적 정리
     this.units = this.units.filter(u => u.side === 'hero' || u.alive);
     const w = this.stage.waves[i];
-    this.hud.banner(this.waveTitle, w.boss ? ENEMIES.boss.name : '', !!w.boss);
+    const boss = w.units.map(([k]) => ENEMIES[k]).find(d => d.boss);
+    this.hud.banner(this.waveTitle, boss?.name ?? '', !!w.boss);
     for (const [kind, x, z] of w.units) {
-      const u = this.spawn(ENEMIES[kind], 'enemy', new Vector3(x, 0, z), Math.PI, enemyMul(this.stage.level));
-      const d = u.play(u.def.anims.spawn ?? u.def.anims.idle, false, 1.2);
-      u.busyUntil = this.time + d * 0.9;
+      const u = this.spawnEnemy(kind, x, z);
       this.fx.burst(u.pos.add(new Vector3(0, 0.2, 0)), COL.bone, 18, 3, 0.25);
     }
     if (w.boss) this.shake(0.4);

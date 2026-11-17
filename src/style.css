@@ -411,3 +411,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .pick small { display: block; font: 700 10px var(--body); color: var(--gold); }
 .pick b { display: block; font: 400 20px var(--title); line-height: 1.1; }
 .pick span { font: 700 10px var(--body); }
+
+/* 3-5: 장 넘기기 */
+.lb-ch .chn { display: flex; align-items: center; gap: 6px; }
+.chp { width: 24px; height: 24px; border-radius: 7px; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--gold); font: 700 16px/1 var(--body); padding: 0; }
+.chp:disabled { opacity: .25; }

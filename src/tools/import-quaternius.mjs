@@ -23,7 +23,7 @@ const UAL2 = `${Q}/ual2/Universal Animation Library 2[Standard]/Unreal-Godot/UAL
 const BINBUN = 'data/weapons/rpg-weapons/Free/GLTF';
 const KAYKIT_W = 'data/weapons/fantasy-weapons-bits/KayKit_FantasyWeaponsBits_1.0_FREE/Assets/gltf';
 
-const usedNames = new Set([...['src/data.ts', 'src/heroes.ts'].map(f => fs.readFileSync(f, 'utf8')).join('\n').matchAll(/'([A-Za-z0-9_]+)'/g)].map(m => m[1]));
+const usedNames = new Set([...['src/data.ts', 'src/heroes.ts', 'src/enemies.ts'].map(f => fs.readFileSync(f, 'utf8')).join('\n').matchAll(/'([A-Za-z0-9_]+)'/g)].map(m => m[1]));
 const only = process.argv[2];   // 예: npm run import-q -- weapon  (한 종류만 다시 만들 때)
 
 await MeshoptEncoder.ready;

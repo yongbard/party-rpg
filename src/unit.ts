@@ -44,7 +44,7 @@ export class Unit {
   get pos() { return this.root.position; }
   get forward() { return new Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
   chest() { return this.pos.add(new Vector3(0, 1.0 * this.scale, 0)); }
-  head() { return this.pos.add(new Vector3(0, (this.def.model === 'q' ? 1.9 : 2.35) * this.scale, 0)); }
+  head() { return this.pos.add(new Vector3(0, (this.def.model === 'q' ? 1.9 : 2.1) * this.scale, 0)); }
   muzzle() { return this.chest().add(this.forward.scale(0.5)).addInPlaceFromFloats(0, 0.2, 0); }
 
   animDur(name: string, speed = 1) {

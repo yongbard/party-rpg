@@ -9,26 +9,9 @@ export interface ModelInstance {
   dispose(): void;
 }
 
-export interface AssetEntry { key: string; url: string; keepAnims?: Set<string> }
-
 export class Assets {
   private containers = new Map<string, AssetContainer>();
   constructor(private scene: Scene) {}
-
-  async load(list: AssetEntry[], onProgress: (p: number) => void) {
-    let done = 0;
-    await Promise.all(list.map(async it => {
-      const c = await LoadAssetContainerAsync(it.url, this.scene);
-      if (it.keepAnims) {
-        const keep = it.keepAnims;
-        c.animationGroups.filter(g => !keep.has(g.name)).forEach(g => g.dispose());
-        c.animationGroups = c.animationGroups.filter(g => keep.has(g.name));
-      }
-      c.animationGroups.forEach(g => g.stop());
-      this.containers.set(it.key, c);
-      onProgress(++done / list.length);
-    }));
-  }
 
   has(key: string) { return this.containers.has(key); }
   container(key: string) {
@@ -54,7 +37,8 @@ export class Assets {
     const holder = new TransformNode(key, this.scene);
     e.rootNodes.forEach(r => (r.parent = holder));
     const anims = new Map<string, AnimationGroup>();
-    e.animationGroups.forEach(g => anims.set(g.name.replace(/^Clone of /, ''), g));
+    // Ultimate Monsters 는 'CharacterArmature|Idle' 처럼 뼈대 이름이 앞에 붙는다
+    e.animationGroups.forEach(g => anims.set(g.name.replace(/^Clone of /, '').replace(/^.*\|/, ''), g));
     return {
       root: holder,
       anims,

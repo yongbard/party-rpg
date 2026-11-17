@@ -15,27 +15,27 @@ function grow(base: Look, ...steps: Step[]): Look[] {
   }
   return out;
 }
-const M = (n: string) => `q/part/Male_${n}`;
-const F = (n: string) => `q/part/Female_${n}`;
-const H = (n: string) => `q/hair/${n}`;
-const W = (n: string) => `q/weapon/${n}`;
-const G = (n: string) => `q/gear/${n}`;
-const MALE_PEASANT = ['Peasant_Body', 'Peasant_Arms', 'Peasant_Legs', 'Peasant_Feet'].map(M);
-const FEMALE_PEASANT = ['Peasant_Body', 'Peasant_Arms', 'Peasant_Legs', 'Peasant_Feet'].map(F);
+export const M = (n: string) => `q/part/Male_${n}`;
+export const F = (n: string) => `q/part/Female_${n}`;
+export const H = (n: string) => `q/hair/${n}`;
+export const W = (n: string) => `q/weapon/${n}`;
+export const G = (n: string) => `q/gear/${n}`;
+export const MALE_PEASANT = ['Peasant_Body', 'Peasant_Arms', 'Peasant_Legs', 'Peasant_Feet'].map(M);
+export const FEMALE_PEASANT = ['Peasant_Body', 'Peasant_Arms', 'Peasant_Legs', 'Peasant_Feet'].map(F);
 
-const SHIELD_ANIMS: Anims = {
+export const SHIELD_ANIMS: Anims = {
   idle: 'Idle_Shield_Loop', run: 'Jog_Fwd_Loop', hit: 'Hit_Chest', death: 'Death01', victory: 'Yes',
   attack: ['Sword_Regular_A', 'Sword_Regular_B'], extra: ['Shield_OneShot', 'Shield_Dash', 'Sword_Block'],
 };
-const BLADE_ANIMS: Anims = {
+export const BLADE_ANIMS: Anims = {
   idle: 'Sword_Idle', run: 'Jog_Fwd_Loop', hit: 'Hit_Chest', death: 'Death01', victory: 'Yes',
   attack: ['Sword_Regular_A', 'Sword_Regular_B', 'Sword_Regular_C'], extra: ['Sword_Regular_Combo', 'Sword_Dash'],
 };
-const HEAVY_ANIMS: Anims = {
+export const HEAVY_ANIMS: Anims = {
   idle: 'Sword_Idle', run: 'Jog_Fwd_Loop', hit: 'Hit_Knockback', death: 'Death01', victory: 'Yes',
   attack: ['Sword_Attack', 'Sword_Regular_C'], extra: ['Sword_Heavy_Combo'],
 };
-const SPELL_ANIMS: Anims = {
+export const SPELL_ANIMS: Anims = {
   idle: 'Spell_Simple_Idle_Loop', run: 'Jog_Fwd_Loop', hit: 'Hit_Head', death: 'Death01', victory: 'Yes',
   attack: ['Spell_Simple_Shoot'], extra: ['Spell_Simple_Enter'],
 };

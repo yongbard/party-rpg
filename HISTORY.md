@@ -157,3 +157,18 @@
   - 공통 값 src/common.ts 로 분리(data.ts ↔ heroes.ts 순환 방지).
 - 확인: 헤드리스 Chrome. poc.html 로 12명 등급 외형 확인. 영웅 소환 2만 회: 희귀 영웅 각 21% 안팎, 레온 0.26%(표 0.2%). 픽업 2만 회: 엘라 3.2%(표 2.88% + 천장), 픽업 사이 최대 79회. 소환 → 새 영웅 보기 → 편성에서 카일 빼고 진 넣기 → 1-1 승리. npm run build 통과.
 - 결과: src/heroes.ts, src/common.ts 새로. data.ts, gacha.ts, lobby.ts, heroModel.ts, items.ts, unit.ts, battle.ts, save.ts, main.ts, style.css, tools/import-quaternius.mjs 수정. public/assets/q/anim 재생성.
+
+## 2026-11-18 — 3-5 확장 2부: 적 교체(섞기), 2장
+
+- 한 일:
+  - 3-5 1부 push(bf6bd58, 106afcc → GitHub Pages 배포).
+  - 적 교체: KayKit 해골 4종 + 보스를 모두 빼고 src/enemies.ts 에 적 13종. 일반 11종은 조합형(Quaternius 몸·옷·무기, UAL 좀비·투척·일어나기 동작), 보스 2종은 Ultimate Monsters(Ghost_Skull → 망령 군주 바르크, Demon → 불꽃 악마 아즈라).
+  - Look 에 skin(몸 색 곱), UnitDef 에 fit(통짜 모델 크기 맞춤)·eyeGlow(눈 빛내기) 추가. keep·attach(KayKit 무기 붙이기)는 뺐다.
+  - 전투: spawnEnemy(웨이브·보스 부하 부르기 공용), 보스 배너 이름을 웨이브의 보스에서. assets.spawn 이 'CharacterArmature|Idle' 같은 앞 이름을 뗀다. 시작 로딩의 KayKit 적 일괄 받기를 빼고 전투 시작 때 그 스테이지 적만 받는다.
+  - 2장 불타는 고블린 굴 2-1 ~ 2-3 (적 Lv.9·12·16, 골드 1,200·1,600·2,400). 모험 탭 장 넘기기.
+  - 애니메이션 재생성(npm run import-q -- anim): UAL1 17개, UAL2 18개(LayToIdle, OverhandThrow, Zombie_* 추가). 도구가 enemies.ts 이름도 읽게 함.
+  - optimize-assets.mjs 는 던전만 처리(결과 그대로임을 확인). public/assets/characters·enemies 는 archive/assets 로.
+  - poc.html: ?enemy= 적 줄 세우기, &mon= 몬스터 비교.
+- 데이터: Ultimate Monsters 16종 GLB, data/ultimate_monsters (5.3MB, git 제외, 주소 sources.txt). 게임에는 public/assets/um 에 2개(Ghost_Skull 227KB, Demon 474KB).
+- 확인: 헤드리스 Chrome. 1-3·2-3 각 웨이브·보스 스킬·필살기·부하 부르기·승리. 균형 1-1 Lv.1 승, 1-3 Lv.1 패·Lv.5 승, 2-1 Lv.8 승, 2-2 Lv.12 승, 2-3 Lv.16 패·Lv.22 승. npm run build 통과.
+- 결과: src/enemies.ts, src/tools/fetch-polypizza.sh, public/assets/um 새로. data.ts, heroes.ts(공용 도우미 export), battle.ts, assets.ts, heroModel.ts, unit.ts, main.ts, lobby.ts, poc.ts, style.css, tools 2개, docs/credits.md, .gitignore 수정.

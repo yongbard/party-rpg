@@ -29,16 +29,17 @@
 - 2026-11-17: 3-3 장비. 부위 8칸(무기·방패·투구·갑옷·망토·장신구 2·문장), 기본형 약 110종(무기 85, 방패 3, 투구 6, 망토 5, 갑옷 2, 장신구 5, 문장 3), 등급별 주옵션·부옵션(0~4). 무기·방패·투구·갑옷·망토는 모습에 바로 보임. 방패는 한손 무기일 때만, 양손 무기를 끼면 방패가 빠짐. 영웅 탭 [능력치·스킬]/[장비], 새 [가방] 탭. 임시로 스테이지 클리어 때 장비 드랍(첫 클리어 확정, 이후 50%)과 시작 장비 8개. 고유 효과·세트는 아직 없음.
 - 2026-11-18: 3-4 뽑기. 로비 [소환] 탭: 영웅 소환(150 / 10회 1,350), 장비 소환·무기 소환(100 / 900). 확률표, 10회 보장, 천장(영웅 80회 전설+·300회 신화+, 장비 60회 전설+, 불멸·초월은 천장 없음). 연출: 소환진 → 카드 뒤집기(희귀한 카드는 멈칫 + 빛) → 결과, 누르면 건너뜀. 결과는 연출 전에 저장. 중복 영웅 → 조각 → 영웅 탭에서 조각 + 골드로 등급 승격(외형·칭호 변경, 빛기둥 연출, 초상화 다시 찍기). 최대 레벨이 등급을 따름(일반 40 … 초월 120). 가방에서 분해(골드), 일반·고급 일괄 분해. 시작 보석 3,000(기존 저장에도 한 번), 다시 깬 스테이지도 보석 1/10.
 - 2026-11-18: 3-5 확장 1부. 영웅 12명 추가(모두 16명, 잠재 희귀 3·영웅 4·전설 4·신화 2·불멸 2·초월 1): 도린(경비병)·미아(약초꾼)·푸그(퍼글린 도둑)·하겐(대장장이)·리아(엘프 검사)·고르가(오크 무당)·킥스(임프 화염술사)·진(무승)·노라(창병)·엘라(음유시인)·모르간(강령술사)·가르쉬(오크 족장). 등급마다 칭호·외형·전용 스킬·필살기. 처음엔 4명만 갖고 나머지는 소환으로 얻는다. 모험 탭 [편성](1~4명), 영웅 탭은 가진 영웅 전부(파티 밖 영웅은 가운데 혼자 세워 보여 줌), 픽업 소환(주마다 잠재 전설·신화 영웅 하나, 같은 등급 안 2배, 80회 확정·이월). 새 무기군 권갑(진).
-- 다음: 3-5 2부 적 교체(무료 몬스터 팩) → AI 변신형 → 특성 트리.
+- 2026-11-18: 3-5 확장 2부, 적 교체(사용자 결정: 섞기). KayKit 해골을 모두 뺐다. 일반 적 11종은 영웅과 같은 조합형 재료로 만들고(피부색 곱 skin 추가), 보스 2종은 Quaternius Ultimate Monsters(CC0)에서 골라 눈을 빛나게 바꿨다(귀여운 눈 → 무서운 눈). 1장 망자의 무덤: 굶주린 망자·울부짖는 망자(좀비 동작, 땅에서 일어남)·무덤지기·사교도 칼잡이·사교 술사(아군 치유)·사교 사냥꾼, 보스 망령 군주 바르크(망자 일으키기, 망령의 비명). 새 2장 불타는 고블린 굴(2-1 ~ 2-3, 적 Lv.9·12·16): 고블린 약탈자·고블린 주술사(광역 치유)·불꽃 임프(화상)·오크 도살자(전쟁 함성)·오크 투창병, 보스 불꽃 악마 아즈라(임프 부르기, 지옥불 낙하). 모험 탭에 장 넘기기(‹ ›).
+- 다음: AI 변신형 → 특성 트리.
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
 
 ## 데이터
 
-- 캐릭터·적·스테이지 정의: src/data.ts
+- 캐릭터·스테이지 정의: src/data.ts, src/heroes.ts, 적: src/enemies.ts
 - 플레이 기록: 브라우저 localStorage (기기마다 따로). 지우려면 브라우저 사이트 데이터 삭제
 - 3D 모델 원본: data/kaykit/ (KayKit, CC0, 33MB). 출처는 docs/credits.md
-- 게임이 쓰는 모델: public/assets/ — npm run assets 가 원본에서 만든다(직접 고치지 않는다). 애니메이션을 새로 쓰면 src/data.ts 에 이름을 적고 다시 돌린다.
+- 게임이 쓰는 모델: public/assets/ — npm run assets, npm run import-q 가 원본에서 만든다(직접 고치지 않는다). UAL 애니메이션을 새로 쓰면 src/data.ts·heroes.ts·enemies.ts 에 이름을 적고 npm run import-q -- anim 을 다시 돌린다.
 
 ## 모델(출처)
 
@@ -55,9 +56,10 @@ party_rpg_261116/
 ├── .github/workflows/deploy.yml   main push → 빌드 → GitHub Pages 배포
 ├── src/
 │   ├── main.ts           엔진 생성, 로딩, 초상화 촬영, 로비 ↔ 전투 전환·보상 지급, 렌더 루프
-│   ├── data.ts           처음 영웅 4명·적·스킬·필살기, 스테이지·웨이브, 진형, 레벨 배율
+│   ├── data.ts           처음 영웅 4명·스킬·필살기, 장·스테이지·웨이브, 진형, 레벨 배율
+│   ├── enemies.ts        적 13종 (일반 11 조합형, 보스 2 Ultimate Monsters)
 │   ├── heroes.ts         3-5 에서 늘린 영웅 12명 (등급별 외형은 앞 등급에서 바꾸는 것만 적는다)
-│   ├── common.ts         data.ts·heroes.ts 공용 (색, 키 배율)
+│   ├── common.ts         data.ts·heroes.ts·enemies.ts 공용 (색, 키 배율)
 │   ├── save.ts           저장 (localStorage 키 party-rpg-save): 골드, 보석, 영웅 레벨·등급·장착, 조각, 천장 카운터, 가방, 파티, 클리어
 │   ├── lobby.ts          로비: 3D 파티 줄 세우기, 재화, [모험] 스테이지 선택·출전, [영웅] 능력치·스킬·레벨업·승격·장비, [소환], [가방] 분해
 │   ├── gacha.ts          뽑기: 배너·확률·10회 보장·천장, 중복 → 조각, 승격 비용, 분해
@@ -73,20 +75,23 @@ party_rpg_261116/
 │   ├── fx.ts             이펙트(파티클, 링, 빛기둥, 베기, 보호막, 투사체, 불꽃)
 │   ├── hud.ts            DOM UI(카드, HP 바, 피해 숫자, 배너, 컷인, 결과)
 │   ├── style.css
-│   ├── tools/optimize-assets.mjs   원본 모델 → 게임용 모델 (애니메이션 고르기, meshopt 압축)
+│   ├── tools/optimize-assets.mjs   던전 원본 → 게임용 모델 (meshopt 압축)
+│   ├── tools/fetch-polypizza.sh    Poly Pizza 에서 Quaternius 모델을 이름으로 찾아 GLB 받기 (인자: 출력 폴더, 이름들)
 │   ├── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (PICK·OUT 환경 변수)
 │   └── tools/import-quaternius.mjs Quaternius·무기 원본 → public/assets/q (텍스처 webp 1024, 인간 머리만 자르기, 애니메이션 고르기)
-├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/), dungeon/
+├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/) (3-5 부터 안 씀), dungeon/
+├── data/ultimate_monsters/  Ultimate Monsters 16종 GLB (git 제외), sources.txt 받은 주소. 다시 받기: bash src/tools/fetch-polypizza.sh data/ultimate_monsters Demon "Ghost%20Skull" …
 ├── data/quaternius/      zips/(받은 원본), base/, outfits/, races/, bestiary/, ual/, ual2/ (풀어 둔 것). git 제외. 다시 받기: node src/tools/fetch-itch.mjs {itch 팩 URL} 뒤 각 폴더에 unzip
 ├── data/weapons/         rpg-weapons/, fantasy-weapons-bits/ (git 제외, PICK=. OUT=data/weapons/zips 로 받음)
-├── poc.html, src/poc.ts  외형 확인 페이지: /poc.html?hero=leon (등급별 외형 한 줄), &i=2 (한 등급만), &anim=, &grip=종류:rx,ry,rz:px,py,pz (무기 각도 맞춤)
-├── public/assets/        게임용 모델: characters·enemies·dungeon (npm run assets, KayKit), q/ (npm run import-q, Quaternius·무기)
+├── poc.html, src/poc.ts  외형 확인 페이지: /poc.html?hero=leon (등급별 외형 한 줄), &i=2 (한 등급만), &anim=, &grip=종류:rx,ry,rz:px,py,pz (무기 각도 맞춤), ?enemy=zombie,goblin (적 줄 세우기), &mon=Demon,Yeti:2.4 (public/poc/um 의 몬스터를 영웅 옆에)
+├── public/assets/        게임용 모델: dungeon (npm run assets, KayKit), q/ (npm run import-q, Quaternius·무기), um/ (보스, Ultimate Monsters GLB 그대로 복사)
 ├── public/meshopt_decoder.js   모델 압축 해제기 (npm run assets 가 복사)
 ├── public/icons/        장비 아이콘 SVG (game-icons.net, CC BY 3.0)
 ├── docs/
 │   ├── design.md         설계 문서
 │   ├── content-design.md 콘텐츠 규모·조합형 캐릭터·장비·뽑기 설계 (2026-11-17)
 │   └── credits.md        에셋 출처·라이선스
+├── archive/assets/      예전 게임용 모델 characters·enemies (KayKit 영웅·해골, 3-5 부터 안 씀)
 ├── logs/                 개발 서버 로그
 └── conversations/        대화 기록
 ```
@@ -98,7 +103,7 @@ Node 24 (conda 아님). 처음 한 번 npm install.
 ```
 npm run dev       개발 서버 (http://localhost:5173, 같은 네트워크 폰은 http://{PC IP}:5173)
 npm run build     dist/ 에 배포용 빌드
-npm run assets    data/kaykit 원본 → public/assets/{characters,enemies,dungeon}
+npm run assets    data/kaykit/dungeon 원본 → public/assets/dungeon
 npm run import-q  data/quaternius·data/weapons 원본 → public/assets/q (npm run import-q -- part 처럼 종류 하나만도 됨)
 ```
 

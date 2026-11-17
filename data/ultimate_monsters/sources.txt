@@ -1,0 +1,16 @@
+Dragon_Evolved /m/LlwD0QNUPj CC0 436000 https://static.poly.pizza/90ed3740-d8c4-4910-88ce-ac2ed426022d.glb
+Dragon /m/VBvzjFIYws CC0 268896 https://static.poly.pizza/9714f533-5d2d-4cfd-b8f1-c8dfff64a672.glb
+Demon /m/LnfIziKv4o CC0 485516 https://static.poly.pizza/46b52ba4-5d2a-4fc8-85cc-3e980f199141.glb
+Blue_Demon /m/S7jYW6Amye CC0 439488 https://static.poly.pizza/6fbb8914-bd11-45e1-a906-51ace2ca5d2d.glb
+Yeti /m/ceRHrn8HHE CC0 423024 https://static.poly.pizza/40a831b3-686a-4af8-b189-a13b38a3c26a.glb
+Mushroom_King /m/grnFTziU8u CC0 444228 https://static.poly.pizza/798301fb-b950-460c-9c67-526621ad8500.glb
+NOTFOUND Orc%20Skull
+Ghost_Skull /m/TX8r9WBXpe CC0 232384 https://static.poly.pizza/0716bf8e-1894-4a90-8d10-34868975a239.glb
+Ghost /m/Iip30bDHmu CC0 203360 https://static.poly.pizza/810f60a2-6e45-4c4e-a0d5-da91cd7288bd.glb
+Dino /m/wuerCFCWNR CC0 404176 https://static.poly.pizza/1c1ae302-b948-4de4-961a-44f762b722cf.glb
+Goleling_Evolved /m/iHEuXiH6Aj CC0 310836 https://static.poly.pizza/d6308fbf-fa2e-4cfe-b235-def7ede1ab90.glb
+Goleling /m/71gomWolax CC0 217332 https://static.poly.pizza/51bf31d7-1aee-4a51-acb1-d667843af205.glb
+Orc /m/5vO2YJsPEf CC0 512984 https://static.poly.pizza/52a479b3-a635-4a23-92cb-6697eaa5eed5.glb
+Tribal /m/t91lDHaqRW CC0 330208 https://static.poly.pizza/1b4759ca-2c00-4718-90f6-2f84bc8e44f9.glb
+Ninja /m/xGYmeDpfTu CC0 457204 https://static.poly.pizza/2ed11876-720e-457a-8a69-4a14ba7234dc.glb
+Wizard /m/tabnmuxQBl CC0 297096 https://static.poly.pizza/3df4bc4f-54a7-43e4-a35d-35d05610d0eb.glb

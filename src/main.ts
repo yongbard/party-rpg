@@ -1,9 +1,9 @@
 import { AbstractEngine, Engine, MeshoptCompression, Scene, WebGPUEngine } from '@babylonjs/core';
 import { buildArena, setupPost } from './arena';
-import { Assets, type AssetEntry } from './assets';
+import { Assets } from './assets';
 import { Battle } from './battle';
 import { CameraRig } from './camera';
-import { animsByModel, repeatGems, STAGES } from './data';
+import { repeatGems, stageEnemies, STAGES } from './data';
 import { rollGrade, rollItem, type Item } from './items';
 import { loadout } from './loadout';
 import { ANIM_KEYS, lookKeys } from './heroModel';
@@ -40,14 +40,6 @@ async function createEngine(canvas: HTMLCanvasElement): Promise<AbstractEngine> 
   return new Engine(canvas, false, { stencil: true, powerPreference: 'high-performance' }, false);
 }
 
-const ASSETS: AssetEntry[] = (() => {
-  const anims = animsByModel();
-  const enemies = ['Skeleton_Minion', 'Skeleton_Warrior', 'Skeleton_Rogue', 'Skeleton_Mage'].map(k => ({ key: k, url: `assets/enemies/${k}.glb`, keepAnims: anims.get(k) }));
-  const weapons = ['Skeleton_Blade', 'Skeleton_Axe', 'Skeleton_Crossbow', 'Skeleton_Staff', 'Skeleton_Shield_Small_A', 'Skeleton_Shield_Large_A']
-    .map(k => ({ key: k, url: `assets/enemies/weapons/${k}.glb` }));
-  return [...enemies, ...weapons];
-})();
-
 /** 지금 캔버스를 정사각형으로 잘라 이미지로 만든다 (render 직후 같은 작업 안에서 불러야 한다) */
 function grabSquare(canvas: HTMLCanvasElement, size = 192) {
   const w = canvas.width, h = canvas.height, s = Math.min(w, h);
@@ -71,13 +63,12 @@ async function main() {
 
   hud.loading(0.02, '던전을 짓는 중');
   const arenaP = buildArena(scene, fx, mobile);
-  await assets.load(ASSETS, p => hud.loading(0.05 + p * 0.85, '모험가를 부르는 중'));
   const arena = await arenaP;
   setupPost(scene, [rig.main, rig.cut], mobile);
 
   const save = loadSave();
   // 조합형 영웅: 공용 애니메이션 + 파티의 지금 등급 외형 파츠
-  hud.loading(0.9, '영웅을 조립하는 중');
+  hud.loading(0.5, '영웅을 조립하는 중');
   await assets.ensure([...ANIM_KEYS, ...save.party.flatMap(id => lookKeys(loadout(save, id).look))]);
   const lobby = new Lobby(scene, assets, arena.shadow, rig, hud, fx);
   lobby.show(save);
@@ -110,7 +101,9 @@ async function main() {
   const startBattle = async (stageId: string) => {
     const stage = STAGES.find(s => s.id === stageId)!;
     const party = save.party.map(id => loadout(save, id));
-    await assets.ensure(party.flatMap(p => lookKeys(p.look)));
+    // 적은 조합형이면 외형 파츠를, 통짜 모델(um/)이면 그 파일을 받는다
+    const foes = stageEnemies(stage).flatMap(d => (d.looks ? lookKeys(d.looks[0]) : [d.model]));
+    await assets.ensure([...party.flatMap(p => lookKeys(p.look)), ...foes]);
     lobby.hide();
     rig.setView('battle', true);
     const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party);

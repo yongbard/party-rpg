@@ -51,7 +51,7 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
   const owned: { dispose(): void }[] = [];
 
   // 1. 몸: 스켈레톤과 뼈 노드의 주인
-  const body = assets.container(look.body).instantiateModelsToScene(n => n, false, { doNotInstantiate: true });
+  const body = assets.container(look.body).instantiateModelsToScene(n => n, !!look.skin, { doNotInstantiate: true });
   owned.push(body);
   body.rootNodes.forEach(r => (r.parent = holder));
   const skel = body.skeletons[0];
@@ -61,6 +61,7 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
     m.setEnabled(false);
     return false;
   });
+  if (look.skin) meshes.forEach(m => tintMat(m, look.skin!));
 
   // 2. 의상 파츠·헤어: 자기 스켈레톤을 버리고 몸 스켈레톤으로 움직인다 (같은 65관절 이름)
   // 투구를 쓰면 머리카락은 눈썹만 남긴다 (뚫고 나오지 않게)

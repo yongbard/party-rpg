@@ -2,7 +2,7 @@
 import { Color3, Scene, ShadowGenerator, Vector3 } from '@babylonjs/core';
 import type { Assets } from './assets';
 import type { CameraRig } from './camera';
-import { CHAPTER, COL, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, type UnitDef } from './data';
+import { CHAPTERS, chapterOf, COL, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, type UnitDef } from './data';
 import { BANNERS, canPromote, heroRates, hiFrom, pickupHero, promote, PROMOTE, RATES, salvage, SALVAGE_GOLD, summon, type BannerId } from './gacha';
 import { showSummon } from './summonView';
 import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, SLOT_NAMES, STAT_NAMES, type EquipSlot, type Item, type Slot } from './items';
@@ -55,12 +55,16 @@ export class Lobby {
     this.units = save.party.map((id, i) => this.makeUnit(HEROES.find(h => h.id === id)!, slotPos(i), save.heroes[id].grade));
     if (!save.heroes[this.heroId]) this.heroId = save.party[0];
     this.forming = false;
-    // 처음 열리는 스테이지(안 깬 것 중 첫째)를 고른다
-    const open = STAGES.filter((_s, i) => i === 0 || save.cleared.includes(STAGES[i - 1].id));
-    this.selected = (open.find(s => !save.cleared.includes(s.id)) ?? open[open.length - 1]).id;
+    this.selected = this.frontier(-1);
     this.tab = 'adventure';
     this.render();
     this.el.style.display = '';
+  }
+
+  /** 열린 스테이지 중 안 깬 첫째 (다 깼으면 마지막). ch 를 주면 그 장 안에서 */
+  private frontier(ch: number) {
+    const open = STAGES.filter((st, i) => (i === 0 || this.save.cleared.includes(STAGES[i - 1].id)) && (ch < 0 || chapterOf(st) === ch));
+    return (open.find(s => !this.save.cleared.includes(s.id)) ?? open[open.length - 1]).id;
   }
 
   /** pos 에 그 등급 외형으로 영웅을 세운다 (외형 파일은 미리 받아 둬야 한다) */
@@ -238,6 +242,7 @@ export class Lobby {
     const on = (sel: string, fn: (b: HTMLButtonElement) => void) => this.el.querySelectorAll<HTMLButtonElement>(sel).forEach(b => { b.onclick = () => fn(b); });
     if (this.tab === 'adventure') {
       on('.stage', b => { this.selected = b.dataset.id!; this.render(); });
+      on('.chp', b => { this.selected = this.frontier(chapterOf(STAGES.find(st => st.id === this.selected)!) + Number(b.dataset.d)); this.render(); });
       on('.lb-go.start', () => this.onStart(this.selected));
       on('.form-t', () => { this.forming = !this.forming; this.render(); });
       on('.fr', b => void this.toggleMember(b.dataset.id!));
@@ -271,10 +276,14 @@ export class Lobby {
     if (this.forming) return this.formHtml();
     const isOpen = (i: number) => i === 0 || s.cleared.includes(STAGES[i - 1].id);
     const partyPower = this.units.reduce((sum, u) => sum + loadout(s, u.def.id).power, 0);
+    // 고른 스테이지의 장만 보인다. 다음 장은 그 장 첫 스테이지가 열려야 넘어간다
+    const ch = chapterOf(STAGES.find(st => st.id === this.selected)!);
+    const nextAt = STAGES.findIndex(st => chapterOf(st) === ch + 1);
     return `
       <div class="lb-panel">
-        <div class="lb-ch">${CHAPTER}<span class="pp">파티 전투력 <b>${fmt(partyPower)}</b></span></div>
+        <div class="lb-ch"><span class="chn"><button class="chp" data-d="-1" ${ch === 0 ? 'disabled' : ''}>‹</button>${CHAPTERS[ch]}<button class="chp" data-d="1" ${nextAt < 0 || !isOpen(nextAt) ? 'disabled' : ''}>›</button></span><span class="pp">파티 전투력 <b>${fmt(partyPower)}</b></span></div>
         <div class="lb-stages">${STAGES.map((st, i) => {
+          if (chapterOf(st) !== ch) return '';
           const cleared = s.cleared.includes(st.id);
           return `
           <button class="stage ${st.id === this.selected ? 'sel' : ''} ${isOpen(i) ? '' : 'locked'} ${st.waves.some(w => w.boss) ? 'is-boss' : ''}" data-id="${st.id}" ${isOpen(i) ? '' : 'disabled'}>

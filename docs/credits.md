@@ -4,8 +4,8 @@
 
 | 에셋 | 위치 | 출처 | 라이선스 |
 |---|---|---|---|
-| 영웅 모델·애니메이션 (Knight, Barbarian, Mage, Rogue, Rogue_Hooded) | data/kaykit/characters/ | KayKit Adventurers Character Pack 1.0, Kay Lousberg (github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) | CC0 |
-| 해골 모델·애니메이션 (Minion, Warrior, Rogue, Mage) | data/kaykit/enemies/ | KayKit Skeletons Character Pack 1.0, Kay Lousberg (github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) | CC0 |
+| 영웅 모델·애니메이션 (Knight, Barbarian, Mage, Rogue, Rogue_Hooded) | data/kaykit/characters/ (3-5 부터 안 씀, 줄인 판은 archive/assets/characters) | KayKit Adventurers Character Pack 1.0, Kay Lousberg (github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0) | CC0 |
+| 해골 모델·애니메이션 (Minion, Warrior, Rogue, Mage) | data/kaykit/enemies/ (3-5 부터 안 씀, 줄인 판은 archive/assets/enemies) | KayKit Skeletons Character Pack 1.0, Kay Lousberg (github.com/KayKit-Game-Assets/KayKit-Character-Pack-Skeletons-1.0) | CC0 |
 | 해골 무기 (Axe, Blade, Staff, Crossbow, Shield) | data/kaykit/enemies/weapons/ | 위와 같은 팩 | CC0 |
 | 던전 바닥·벽·소품 20종 | data/kaykit/dungeon/ | KayKit Dungeon Remastered 1.0, Kay Lousberg (github.com/KayKit-Game-Assets/KayKit-Dungeon-Remastered-1.0) | CC0 |
 | 조합형 캐릭터 몸·머리·헤어 | public/assets/q/head, body/Human_*, hair (원본 data/quaternius/base) | Quaternius Universal Base Characters [Standard] | CC0 |
@@ -16,6 +16,7 @@
 | 무기 70종 (도끼·단검·망치·장검·철퇴·곡괭이·세이버·단검·삽·창) | public/assets/q/weapon/*_0N (원본 data/weapons/rpg-weapons) | Binbun RPG Weapons (Free) | CC0 |
 | 무기 31종 (활·지팡이·완드·방패·검 등) | public/assets/q/weapon/kk_* (원본 data/weapons/fantasy-weapons-bits) | KayKit Fantasy Weapons Bits 1.0 (Free), Kay Lousberg | CC0 |
 | 투구·모자·망토 11종 | public/assets/q/gear (원본 data/kaykit 캐릭터에서 떼어 냄) | KayKit Adventurers·Skeletons, Kay Lousberg | CC0 |
+| 보스 몬스터 (Ghost_Skull 망령 군주, Demon 불꽃 악마) | public/assets/um (받은 원본 16종은 data/ultimate_monsters, 출처 목록 data/ultimate_monsters/sources.txt) | Quaternius Ultimate Monsters (quaternius.com, Google Drive 가 한도 초과라 같은 모델을 Poly Pizza poly.pizza 에서 GLB 로 받음, 2026-11-18, 16개 5.3MB) | CC0 |
 | 장비 아이콘 17종 | public/icons/*.svg | game-icons.net (Lorc, Delapouite, Willdabeast) | CC BY 3.0 (표기 의무) |
 | 글꼴 Black Han Sans, Noto Sans KR | Google Fonts 에서 불러옴 | Google Fonts | SIL OFL 1.1 |
 | meshopt 디코더 | public/meshopt_decoder.js | meshoptimizer, Arseny Kapoulkine | MIT |

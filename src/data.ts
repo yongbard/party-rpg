@@ -1,6 +1,7 @@
 // 캐릭터·적·웨이브 정의. v0 는 코드 안에 두고, v1 부터 data/ JSON 으로 옮긴다.
 import { Vector3 } from '@babylonjs/core';
 import { COL, lowestHpRatio, QS } from './common';
+import { ENEMIES } from './enemies';
 import { MORE_HEROES } from './heroes';
 import type { Battle } from './battle';
 import type { Unit } from './unit';
@@ -52,6 +53,7 @@ export interface Look {
   helmet?: string;            // q/gear/… 머리 뼈에 고정 (쓰면 머리카락은 눈썹만 남긴다)
   cloak?: string;             // q/gear/… 가슴 뼈에 고정
   tint?: [number, number, number];   // 의상 색 곱
+  skin?: [number, number, number];   // 몸(피부) 색 곱 (적: 좀비·임프 등)
   glow?: [number, number, number];   // 무기 발광
   aura?: [number, number, number];   // 발밑 오라
   scale?: number;
@@ -60,11 +62,11 @@ export interface Look {
 export interface UnitDef {
   id: string; name: string; title?: string;
   archetype?: string;                            // 설계 의도 (화면에는 안 보인다)
-  model: string; scale?: number; boss?: boolean;    // model 'q' = 조합형(looks 사용)
+  model: string; scale?: number; boss?: boolean;    // model 'q' = 조합형(looks 사용), 'um/…' = Ultimate Monsters 통짜 모델
+  fit?: number;                                      // um 모델 원래 크기에 곱하는 배율 (키 약 2 가 되게)
+  eyeGlow?: [number, number, number];                // um 모델 눈을 이 색으로 빛나게 (귀여운 눈을 무섭게)
   maxGrade?: number; startGrade?: number;            // 영웅: 오를 수 있는 최대 등급, 처음 등급
   titles?: string[]; looks?: Look[];                 // 등급별 칭호·외형 (0 ~ maxGrade)
-  keep?: string[];                               // 모델에 붙은 무기 중 남길 것
-  attach?: { mesh: string; slot: string }[];     // 따로 붙일 무기
   stats: Stats; anims: Anims;
   hitAt: number;                                 // 기본 공격이 맞는 시점(초)
   projectile?: ProjKind;
@@ -74,7 +76,7 @@ export interface UnitDef {
   color: string;
 }
 
-export { COL };
+export { COL, ENEMIES };
 
 // 처음 4명은 여기, 3-5 에서 늘린 영웅은 heroes.ts
 export const HEROES: UnitDef[] = [
@@ -271,83 +273,18 @@ export const HEROES: UnitDef[] = [
   ...MORE_HEROES,
 ];
 
-const SKEL_ANIMS = (attack: string[], idle = 'Idle_Combat'): Anims => ({
-  idle, run: 'Walking_D_Skeletons', attack, hit: 'Hit_A', death: 'Death_C_Skeletons', spawn: 'Spawn_Ground_Skeletons',
-});
-
-export const ENEMIES: Record<string, UnitDef> = {
-  minion: {
-    id: 'minion', name: '해골 병사', model: 'Skeleton_Minion', color: '#ccc',
-    attach: [{ mesh: 'Skeleton_Blade', slot: 'handslot.r' }],
-    stats: { hp: 760, atk: 80, def: 15, spd: 95, crit: 0.05, critDmg: 1.5, healPow: 1, threat: 1, range: 1.5, move: 2.4 },
-    anims: SKEL_ANIMS(['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal']),
-    hitAt: 0.4, targeting: 'threat', skills: [],
-  },
-  warrior: {
-    id: 'warrior', name: '해골 전사', model: 'Skeleton_Warrior', color: '#ccc',
-    attach: [{ mesh: 'Skeleton_Axe', slot: 'handslot.r' }, { mesh: 'Skeleton_Shield_Small_A', slot: 'handslot.l' }],
-    stats: { hp: 1400, atk: 100, def: 40, spd: 85, crit: 0.05, critDmg: 1.5, healPow: 1, threat: 1, range: 1.6, move: 2.2 },
-    anims: SKEL_ANIMS(['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Horizontal']),
-    hitAt: 0.45, targeting: 'threat', skills: [],
-  },
-  rogue: {
-    id: 'rogue', name: '해골 궁수', model: 'Skeleton_Rogue', color: '#ccc',
-    attach: [{ mesh: 'Skeleton_Crossbow', slot: 'handslot.r' }],
-    stats: { hp: 700, atk: 90, def: 12, spd: 95, crit: 0.1, critDmg: 1.5, healPow: 1, threat: 1, range: 9, move: 2.4 },
-    anims: SKEL_ANIMS(['1H_Ranged_Shoot'], 'Idle_B'),
-    hitAt: 0.3, projectile: 'bone', targeting: 'threat', skills: [],
-  },
-  mage: {
-    id: 'mage', name: '해골 술사', model: 'Skeleton_Mage', color: '#ccc',
-    attach: [{ mesh: 'Skeleton_Staff', slot: 'handslot.r' }],
-    stats: { hp: 800, atk: 110, def: 14, spd: 85, crit: 0.05, critDmg: 1.5, healPow: 1, threat: 1, range: 8, move: 2.2 },
-    anims: SKEL_ANIMS(['Spellcast_Shoot'], 'Idle_B'),
-    hitAt: 0.35, projectile: 'dark', targeting: 'threat', skills: [],
-  },
-  boss: {
-    id: 'boss', name: '해골 군주 바르크', model: 'Skeleton_Warrior', scale: 1.8, boss: true, color: '#c44',
-    attach: [{ mesh: 'Skeleton_Axe', slot: 'handslot.r' }, { mesh: 'Skeleton_Shield_Large_A', slot: 'handslot.l' }],
-    stats: { hp: 13000, atk: 150, def: 50, spd: 80, crit: 0.08, critDmg: 1.6, healPow: 1, threat: 1, range: 2.4, move: 2.0 },
-    anims: { ...SKEL_ANIMS(['1H_Melee_Attack_Chop', '1H_Melee_Attack_Slice_Diagonal']), extra: ['Taunt', '1H_Melee_Attack_Jump_Chop', '2H_Melee_Attack_Spin'] },
-    hitAt: 0.45, targeting: 'threat',
-    skills: [
-      {
-        name: '휩쓸기', cd: 9, anim: '2H_Melee_Attack_Spin', hitAt: 0.5, melee: true,
-        run: (b, u) => {
-          b.fx.ring(u.pos, COL.red, 4, 0.4);
-          for (const h of b.near(u.pos, b.foesOf(u), 4)) b.damage(u, h, 1.1);
-        },
-      },
-    ],
-    ult: {
-      name: '대지 분쇄', desc: '', cutAnim: 'Taunt',
-      run: (b, u) => {
-        const t = u.target ?? b.foesOf(u)[0]; if (!t) return;
-        const at = t.pos.clone();
-        u.faceNow(at);
-        u.play('Taunt', false);
-        u.busyUntil = b.time + 2.4;
-        b.hud.banner('대지 분쇄', '바르크가 땅을 내려칩니다', true);
-        b.fx.telegraph(at, 4.2, 1.7);
-        b.after(1.2, () => { if (u.alive) u.play('1H_Melee_Attack_Jump_Chop', false); });
-        b.after(1.7, () => {
-          if (!u.alive) return;
-          b.fx.ring(at, COL.red, 5.5, 0.5);
-          b.fx.burst(at.add(new Vector3(0, 0.3, 0)), COL.bone, 40, 7, 0.3);
-          b.shake(0.6);
-          for (const h of b.near(at, b.foesOf(u), 4.2)) b.damage(u, h, 1.8, { noGauge: true });
-        });
-      },
-    },
-  },
-};
-
 type Spawn = [kind: string, x: number, z: number];
 export interface Wave { boss?: boolean; units: Spawn[] }
 
-const W_SKEL: Wave = { units: [['minion', -2, 6], ['minion', 2, 6], ['minion', 0, 7.5], ['rogue', 0, 10.5]] };
-const W_GUARD: Wave = { units: [['warrior', -1.6, 6], ['warrior', 1.6, 6], ['minion', -3.2, 7.5], ['mage', -1.6, 10.5], ['rogue', 1.6, 10.5]] };
-const W_BOSS: Wave = { boss: true, units: [['boss', 0, 8], ['minion', -2.6, 6], ['minion', 2.6, 6], ['mage', -3.4, 11], ['mage', 3.4, 11]] };
+// 1장 · 망자의 무덤
+const W1_DEAD: Wave = { units: [['zombie', -2, 6], ['zombie', 2, 6], ['zombie_f', 0, 7.5], ['hunter', 0, 10.5]] };
+const W1_CULT: Wave = { units: [['gravedigger', -1.6, 6], ['cultist', 1.6, 6], ['zombie_f', -3.2, 7.5], ['acolyte', -1.6, 10.5], ['hunter', 1.6, 10.5]] };
+const W1_BOSS: Wave = { boss: true, units: [['lich', 0, 8], ['zombie', -2.6, 6], ['zombie', 2.6, 6], ['acolyte', -3.4, 11], ['hunter', 3.4, 11]] };
+// 2장 · 불타는 고블린 굴
+const W2_GOB: Wave = { units: [['goblin', -2, 6], ['goblin', 2, 6], ['goblin', 0, 7.5], ['goblin_shaman', -1.5, 10.5], ['orc_spear', 1.5, 10.5]] };
+const W2_ORC: Wave = { units: [['orc', -1.6, 6], ['orc', 1.6, 6], ['imp', -3.4, 7.5], ['imp', 3.4, 7.5], ['goblin_shaman', 0, 10.5]] };
+const W2_RAID: Wave = { units: [['orc', 0, 6], ['goblin', -2.4, 6.5], ['imp', 2.4, 6.5], ['orc_spear', -1.8, 10.5], ['orc_spear', 1.8, 10.5], ['goblin_shaman', 0, 11.5]] };
+const W2_BOSS: Wave = { boss: true, units: [['demon', 0, 8.5], ['imp', -2.6, 6], ['imp', 2.6, 6], ['goblin_shaman', -3.4, 11], ['orc_spear', 3.4, 11]] };
 
 export interface Stage {
   id: string; name: string;
@@ -356,12 +293,19 @@ export interface Stage {
   reward: { gold: number; gems: number };        // gems 는 첫 클리어 때 전부, 다시 깨면 1/10 (repeatGems)
 }
 
-export const CHAPTER = '1장 · 해골 군주의 무덤';
+/** 장 이름. 스테이지 id 의 앞 숫자가 장 번호다 ('2-1' → CHAPTERS[1]) */
+export const CHAPTERS = ['1장 · 망자의 무덤', '2장 · 불타는 고블린 굴'];
+export const chapterOf = (st: Stage) => Number(st.id.split('-')[0]) - 1;
 export const STAGES: Stage[] = [
-  { id: '1-1', name: '무너진 입구', level: 1, waves: [W_SKEL], reward: { gold: 300, gems: 150 } },
-  { id: '1-2', name: '뼈의 회랑', level: 2, waves: [W_SKEL, W_GUARD], reward: { gold: 500, gems: 150 } },
-  { id: '1-3', name: '군주의 방', level: 4, waves: [W_SKEL, W_GUARD, W_BOSS], reward: { gold: 900, gems: 300 } },
+  { id: '1-1', name: '무너진 입구', level: 1, waves: [W1_DEAD], reward: { gold: 300, gems: 150 } },
+  { id: '1-2', name: '뼈의 회랑', level: 2, waves: [W1_DEAD, W1_CULT], reward: { gold: 500, gems: 150 } },
+  { id: '1-3', name: '군주의 방', level: 4, waves: [W1_DEAD, W1_CULT, W1_BOSS], reward: { gold: 900, gems: 300 } },
+  { id: '2-1', name: '연기 굴 입구', level: 9, waves: [W2_GOB, W2_ORC], reward: { gold: 1200, gems: 150 } },
+  { id: '2-2', name: '약탈자 소굴', level: 12, waves: [W2_GOB, W2_RAID], reward: { gold: 1600, gems: 150 } },
+  { id: '2-3', name: '악마의 제단', level: 16, waves: [W2_ORC, W2_RAID, W2_BOSS], reward: { gold: 2400, gems: 300 } },
 ];
+/** 스테이지에 나오는 적 (보스가 부르는 적은 그 웨이브에 같이 넣어 둔다) */
+export const stageEnemies = (st: Stage) => [...new Set(st.waves.flatMap(w => w.units.map(([k]) => k)))].map(k => ENEMIES[k]);
 
 // 레벨에 따른 능력치 배율 (HP·공격·방어에 곱한다)
 export const heroMul = (lv: number) => 1 + 0.08 * (lv - 1);
@@ -387,18 +331,3 @@ export const FORMATION = [
   new Vector3(1.5, 0, -3.8),  // 뒷줄 왼쪽
   new Vector3(-1.5, 0, -3.8), // 뒷줄 오른쪽
 ];
-
-// 모델별로 쓰는 애니메이션만 남기려고 모은다 (복제 비용 절감)
-export function animsByModel(): Map<string, Set<string>> {
-  const m = new Map<string, Set<string>>();
-  const defs = [...HEROES, ...Object.values(ENEMIES)];
-  for (const d of defs) {
-    const s = m.get(d.model) ?? new Set<string>();
-    const a = d.anims;
-    [a.idle, a.run, a.hit, a.death, a.victory, a.spawn, ...a.attack, ...(a.extra ?? [])].forEach(n => n && s.add(n));
-    d.skills.forEach(k => s.add(k.anim));
-    if (d.ult) s.add(d.ult.cutAnim);
-    m.set(d.model, s);
-  }
-  return m;
-}

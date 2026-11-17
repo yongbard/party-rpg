@@ -1,10 +1,12 @@
 // 외형 확인 페이지: 영웅 한 명의 등급별 외형을 한 줄로 세운다
 // 주소: /poc.html?hero=leon&anim=Sword_Block  (anim 생략 시 영웅 대기 동작)
+//       적 줄 세우기: /poc.html?enemy=zombie,cultist,goblin  (ENEMIES 의 조합형 적)
+//       몬스터 비교: &mon=Demon,Yeti:2.4  (public/poc/um/{이름}.glb 를 영웅 옆에 높이 2.4 로 세운다)
 //       무기 각도 맞춤: &grip=blade:0,0,90:0.03,0.09,0.02[:배율]  (도, m)  장비 시험: &helmet=Knight_Helmet&cloak=Knight_Cape
-import { ArcRotateCamera, Color3, Color4, DirectionalLight, Engine, HemisphericLight, MeshBuilder, MeshoptCompression, Scene, ShadowGenerator, StandardMaterial, Vector3 } from '@babylonjs/core';
+import { ArcRotateCamera, LoadAssetContainerAsync, TransformNode, Color3, Color4, DirectionalLight, Engine, HemisphericLight, MeshBuilder, MeshoptCompression, Scene, ShadowGenerator, StandardMaterial, Vector3 } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 import { Assets } from './assets';
-import { GRADES, HEROES } from './data';
+import { ENEMIES, GRADES, HEROES } from './data';
 import { Fx } from './fx';
 import { ANIM_KEYS, lookKeys, makeHeroModel, setGrip } from './heroModel';
 
@@ -37,9 +39,10 @@ ground.receiveShadows = true;
 const fx = new Fx(scene);
 
 async function main() {
+  const foes = q.get('enemy')?.split(',').map(id => ENEMIES[id]);
   const def = HEROES.find(h => h.id === (q.get('hero') ?? 'leon'))!;
   const only = q.get('i');
-  const looks = only === null ? def.looks! : [def.looks![Number(only)]];
+  const looks = foes ? foes.map(e => e.looks![0]) : only === null ? def.looks! : [def.looks![Number(only)]];
   const assets = new Assets(scene);
   const t0 = performance.now();
   await assets.ensure([...ANIM_KEYS, ...looks.flatMap(lookKeys), ...['helmet', 'cloak'].filter(k => q.get(k)).map(k => `q/gear/${q.get(k)}`)]);
@@ -52,7 +55,7 @@ async function main() {
     const m = makeHeroModel(assets, scene, { ...look, ...gear }, shadow, fx);
     m.root.position.x = w / 2 - i * gap;   // 카메라에서 보면 +x 가 왼쪽
     m.root.rotation.y = Math.PI;           // 카메라를 본다
-    const name = q.get('anim') ?? def.anims.idle;
+    const name = q.get('anim') ?? (foes ? foes[i] : def).anims.idle;
     const g = m.anims.get(name);
     g?.start(true, 1);
     if (i === 0) {
@@ -61,7 +64,26 @@ async function main() {
     }
     if (i === 0) log(`anims ${m.anims.size}: ${[...m.anims.keys()].join(', ')}${g ? '' : ' (없음: ' + name + ')'}`);
   });
-  log(looks.map((_, i) => `${GRADES[i]} ${def.titles![i]}`).join(' | '));
+  const [mons, mh] = (q.get('mon') ?? '').split(':');
+  for (const [k, name] of mons.split(',').filter(Boolean).entries()) {
+    const c = await LoadAssetContainerAsync(`poc/um/${name}.glb`, scene);
+    const e = c.instantiateModelsToScene(n => n, false, { doNotInstantiate: true });
+    const holder = new TransformNode(name, scene);
+    e.rootNodes.forEach(r => (r.parent = holder));
+    holder.computeWorldMatrix(true);
+    const bb = holder.getHierarchyBoundingVectors(true);
+    const h0 = bb.max.y - bb.min.y, s = Number(mh ?? 2.2) / h0;
+    holder.scaling.setAll(s);
+    holder.position.x = -w / 2 - 1.6 - k * 2.2;
+    holder.rotation.y = Math.PI;
+    holder.getChildMeshes().forEach(m => shadow.addShadowCaster(m));
+    e.animationGroups.forEach(g => g.stop());
+    const idle = e.animationGroups.find(g => /Idle/.test(g.name)) ?? e.animationGroups[0];
+    idle?.start(true, 1);
+    log(`${name}: 원래 높이 ${h0.toFixed(3)} → 배율 ${s.toFixed(1)}, anims ${e.animationGroups.map(g => g.name.split('|').pop()).join(' ')}`);
+  }
+  if (mons) { const n = mons.split(',').length; cam.target.x = -n * 1.1 - 0.8; cam.radius += n * 2.2; }
+  log(foes ? foes.map(e => e.name).join(' | ') : looks.map((_, i) => `${GRADES[i]} ${def.titles![i]}`).join(' | '));
   engine.runRenderLoop(() => scene.render());
   window.addEventListener('resize', () => engine.resize());
 }
