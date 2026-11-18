@@ -3,12 +3,13 @@ import { GRADES, GRADE_COLORS, HEROES } from './data';
 import type { Pull } from './gacha';
 import { baseOf, ITEM_ICON } from './items';
 import { sound } from './sound';
+import { portraitUrl } from './common';
 
 function card(p: Pull, portraits: Record<string, string>, hi: number) {
   let face: string, name: string, tag = '';
   if (p.kind === 'hero') {
     const d = HEROES.find(h => h.id === p.id)!;
-    face = portraits[d.id] ? `<img src="${portraits[d.id]}" alt="">` : `<b class="sm-ini" style="color:${d.color}">${d.name[0]}</b>`;
+    face = `<img src="${portraits[d.id] ?? portraitUrl(d.id)}" alt="">`;
     name = d.name;
     tag = p.isNew ? '<em class="new">NEW</em>' : `<em>조각 +${p.shards}</em>`;
   } else {

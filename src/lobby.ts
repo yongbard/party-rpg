@@ -18,6 +18,7 @@ import type { Hud } from './hud';
 import { writeSave, type SaveData } from './save';
 import { auraOf, passivesOf, passiveText, ULT_MUL, ultLevel, branchesOf, canLearn, canStar, learn, MAX_STARS, nodeText, NODE_NEED, pointsOf, RANKS, resetTalents, RESET_GOLD, spentOf, STAR_COST, starUp } from './talents';
 import { Unit } from './unit';
+import { portraitUrl } from './common';
 import { openSettings } from './settings';
 import { sound } from './sound';
 import { showTip, tipOpen } from './tutorial';
@@ -29,6 +30,9 @@ const GUEST_POS = new Vector3(0, 0, 2.6);   // 파티 밖 영웅을 볼 때 혼�
 const SLOT_NAMES_KO = ['앞줄 왼쪽', '앞줄 오른쪽', '뒷줄 왼쪽', '뒷줄 오른쪽'];
 
 type Tab = 'adventure' | 'dungeon' | 'hero' | 'summon' | 'bag';
+// 아래 탭: 이름과 아이콘 (public/icons/ui, game-icons.net CC BY 3.0)
+const TABS: [Tab, string, string][] = [['adventure', '모험', 'crossed-swords'], ['dungeon', '던전', 'dungeon-gate'], ['hero', '영웅', 'visored-helm'], ['summon', '소환', 'magic-portal'], ['bag', '가방', 'backpack']];
+const uiIcon = (name: string) => new URL(`icons/ui/${name}.svg`, document.baseURI).href;
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 export class Lobby {
@@ -299,7 +303,7 @@ export class Lobby {
     const s = this.save;
     this.el.innerHTML = `
       <div class="lb-top">
-        <button class="opt-t" aria-label="설정">⚙</button>
+        <button class="opt-t" aria-label="설정"><i class="tic" style="--ico:url(${uiIcon('cog')})"></i></button>
         <div class="res"><i class="ic-gold"></i><b>${fmt(s.gold)}</b></div>
         <div class="res"><i class="ic-gem"></i><b>${fmt(s.gems)}</b></div>
       </div>
@@ -308,12 +312,8 @@ export class Lobby {
       </div>
       <div class="lb-bottom">
         ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'dungeon' ? this.dungeonHtml() : this.tab === 'hero' ? this.heroHtml() : this.tab === 'summon' ? this.summonHtml() : this.bagHtml()}
-        <div class="lb-tabs">
-          <button data-tab="adventure" class="${this.tab === 'adventure' ? 'on' : ''}">모험</button>
-          <button data-tab="dungeon" class="${this.tab === 'dungeon' ? 'on' : ''}">던전</button>
-          <button data-tab="hero" class="${this.tab === 'hero' ? 'on' : ''}">영웅</button>
-          <button data-tab="summon" class="${this.tab === 'summon' ? 'on' : ''}">소환</button>
-          <button data-tab="bag" class="${this.tab === 'bag' ? 'on' : ''}">가방</button>
+        <div class="lb-tabs">${TABS.map(([t, name, icon]) => `
+          <button data-tab="${t}" class="${this.tab === t ? 'on' : ''}"><i class="tic" style="--ico:url(${uiIcon(icon)})"></i><span>${name}</span></button>`).join('')}
         </div>
       </div>`;
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
@@ -521,8 +521,7 @@ export class Lobby {
   }
 
   private face(id: string) {
-    const d = HEROES.find(h => h.id === id)!;
-    return this.portraits[id] ? `<img src="${this.portraits[id]}" alt="">` : `<b class="ini" style="color:${d.color}">${d.name[0]}</b>`;
+    return `<img src="${this.portraits[id] ?? portraitUrl(id)}" alt="">`;
   }
 
   private formHtml() {

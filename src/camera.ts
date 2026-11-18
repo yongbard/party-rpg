@@ -130,7 +130,7 @@ export class CameraRig {
     const r = new Vector3(f.z, 0, -f.x);
     this.cut.fov = 0.5;
     this.cut.position = head.add(f.scale(u.def.model === 'q' ? 2.0 * u.tall : 2.9)).add(r.scale(0.35)).addInPlaceFromFloats(0, -0.1, 0);
-    this.cut.setTarget(head.add(new Vector3(0, -0.2, 0)));
+    this.cut.setTarget(head.add(new Vector3(0, -0.08, 0)));   // 얼굴을 가운데쯤에 (모자·투구가 잘리지 않게)
     this.scene.activeCamera = this.cut;
   }
 

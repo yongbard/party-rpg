@@ -300,3 +300,13 @@
   - lobby.ts: measure()(자원 줄 아래 ~ 패널 위, 이름표 30px 뺌)를 그릴 때마다·창 크기 바뀔 때·show 뒤에. 영웅 탭 [외형] 보기(승격·능력치 등 빼고 패널을 줄임), 등급 칭호를 누르면 이 보기로. 탭 이름 "능력치 · 스킬" → "능력치". style.css 영웅 탭 seg 4칸.
 - 확인: 헤드리스 390×844. 전투 1-3 세라 뒷모습 비교(원본 / 0.72 / 0.6). 로비 모험 탭 파티가 패널 위로 올라옴(이름표 포함), 소환 탭, 영웅 탭 외형 보기(레온 신화 미리보기 날개·후광, 세라). 전투로 가면 렌즈 밀기 0 으로. npm run build 통과.
 - 결과: src/tools/import-quaternius.mjs, public/assets/q/part/ 20개, src/camera.ts, src/lobby.ts, src/style.css.
+
+## 2026-11-19 — 7단계 UI 디자인 1차: 패널·버튼·탭 아이콘, 영웅 초상화 파일
+
+- 한 일:
+  - style.css: 로비 패널(금빛 그라데이션 테두리, 위 가운데 보석, 안쪽 그늘), 금색 주 버튼(출전·레벨업·소환·확인·다시 하기) 입체(위 밝은 줄, 아래 어두운 줄, 테두리), 보조 버튼(편성·임무·파티 B·한 번 더·로비로) 어두운 바탕 + 금 테, 아래 탭(아이콘 + 이름, 고른 탭 위 금빛 줄·아이콘 빛), 자원 표시 금 테, 설정 톱니 아이콘. 쓰지 않게 된 머리글자 규칙(.ini, .sm-ini)과 옛 .retry 규칙 지움. 소환 카드 초상화 아래를 흐리게.
+  - 아이콘: game-icons.net 6개(crossed-swords, dungeon-gate, visored-helm, magic-portal, backpack, cog; Lorc·Delapouite, CC BY 3.0)를 GitHub game-icons/icons 에서 받아 배경 사각형을 지움 → public/icons/ui/. lobby.ts TABS, uiIcon.
+  - 초상화: src/tools/portraits.mjs (헤드리스 Chrome 으로 새 저장에 모든 영웅을 시작 등급으로 넣고 영웅 탭에서 하나씩 골라 찍음) → public/portraits/*.webp 16개(약 180KB). common.ts portraitUrl, lobby.ts face()·summonView.ts 가 실행 중 초상화가 없으면 이 파일. main.ts 초상화 찍을 때만 Idle_Loop(마법사 대기 동작은 손이 얼굴 앞), camera.ts 초상화 시선을 머리 쪽으로(모자·투구 안 잘림).
+  - 크레딧: docs/credits.md, settings.ts.
+- 확인: 헤드리스 390×844 로 임무·모험·던전·영웅·소환·소환 결과·가방·전투 화면. npm run build 통과.
+- 결과: src/style.css, src/lobby.ts, src/summonView.ts, src/common.ts, src/main.ts, src/camera.ts, src/settings.ts, src/tools/portraits.mjs, public/icons/ui/, public/portraits/, docs/credits.md.

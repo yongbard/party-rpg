@@ -19,6 +19,7 @@
 | 보스 몬스터 (Ghost_Skull 망령 군주, Demon 불꽃 악마, Dragon_Evolved 레이드 비룡) | public/assets/um (받은 원본 16종은 data/ultimate_monsters, 출처 목록 data/ultimate_monsters/sources.txt) | Quaternius Ultimate Monsters (quaternius.com, Google Drive 가 한도 초과라 같은 모델을 Poly Pizza poly.pizza 에서 GLB 로 받음, 2026-11-18, 16개 5.3MB) | CC0 |
 | 변신형 용 (용기사) | public/assets/q/body/TripoDragon.glb (원본 data/tripo/dragon_knight_v1.glb) | Tripo AI 무료 계정으로 생성 (tripo3d.ai, H2.5, 2026-11-18). 뼈대는 Quaternius Universal Base Characters 뼈대를 Blender 5.3 으로 옮겨 심음 | Tripo 무료 계정 결과물: 공개 모델·비상업 이용 (게임은 무료 공개) |
 | 장비 아이콘 17종 | public/icons/*.svg | game-icons.net (Lorc, Delapouite, Willdabeast) | CC BY 3.0 (표기 의무) |
+| 메뉴 아이콘 6종(모험·던전·영웅·소환·가방 탭, 설정) | public/icons/ui/*.svg, 약 12KB | game-icons.net (Lorc, Delapouite), github.com/game-icons/icons | CC BY 3.0 (표기 의무) |
 | 글꼴 Black Han Sans, Noto Sans KR | Google Fonts 에서 불러옴 | Google Fonts | SIL OFL 1.1 |
 | meshopt 디코더 | public/meshopt_decoder.js | meshoptimizer, Arseny Kapoulkine | MIT |
 | 이펙트 텍스처 (불꽃, 링, 베기, 빛기둥) | 코드로 그림 (src/fx.ts) | 직접 제작 | — |

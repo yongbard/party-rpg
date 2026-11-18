@@ -42,6 +42,7 @@
 - 2026-11-19: 7단계 외형 1부(무료). 장식 4겹(Look.acc): 뼈에 고정하는 소품 10종(왕관, 철·황금·가죽 갑옷, 목걸이 2, 화살통, 배낭, 주머니, 해골 — Poly Pizza Quaternius 등 CC0, public/assets/q/acc)과 코드로 만드는 빛 장식 4종(후광, 빛 날개, 도는 구슬, 뿔). 영웅 15명의 등급에 나눠 달아(data.ts ACC_STEPS, 그 등급부터 계속) 색·빛만 바뀌던 등급 9개 → 0개(poc.html?check). 레온 영웅~불멸에 기사 망토.
 - 2026-11-19: 7단계 화면 선명도 1차(사용자: 배경·캐릭터가 허접해 보임). 전투 카메라가 싸우는 유닛을 따라 가까이(거리 23 → 13~21), 캐릭터 어두운 외곽선, 뒤에서 비추는 빛·전장 위 조명, 필름 입자·색수차 빼고 비네트 줄임, 전투장 테마 2개(무덤: 깨진 타일·풀·난간·촛불 선반·창살 창 / 고블린 굴: 흙바닥·판자·상자·술통·부서진 탁자·짚 침대), 적 종류로 자동 선택. KayKit Dungeon 조각 20 → 58개.
 - 2026-11-19: 선명도 2차. 옷 파츠 색 텍스처를 밝힘(원본이 어두워 등 쪽이 검게 보였다; import-quaternius.mjs PART_LIFT 감마 0.6). 로비 카메라가 패널에 가리지 않는 구간(자원 줄 아래 ~ 패널 위)에 파티·영웅이 오게 렌즈를 위아래로 민다(camera.ts setBand). 영웅 탭에 [외형] 보기: 패널을 줄이고 영웅을 크게, 등급 칭호를 누르면 자동으로 이 보기.
+- 2026-11-19: UI 디자인 1차. 패널 금빛 테두리·보석 장식, 금색 버튼 입체, 보조 버튼 금 테, 아래 탭 아이콘(game-icons.net CC BY 3.0)·고른 탭 빛, 설정 톱니 아이콘. 영웅 16명 시작 등급 초상화 파일(public/portraits, src/tools/portraits.mjs) — 안 가진 영웅(소환 결과 카드·편성 목록)도 머리글자 대신 얼굴. 초상화는 기본 대기 동작으로 찍음(마법사 손이 얼굴을 가리지 않게).
 - 다음: 7단계 2부(AI 생성으로 상위 등급 의상·변신형, Tripo 크레딧 사용 여부는 사용자 결정), UI 디자인.
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
@@ -100,6 +101,7 @@ party_rpg_261116/
 │   ├── tools/blender_probe.py      Blender 로 모델 크기·높이별 폭과 뼈 위치 보기 (조사용)
 │   ├── tools/fetch-polypizza.sh    Poly Pizza 에서 Quaternius 모델을 이름으로 찾아 GLB 받기 (인자: 출력 폴더, 이름들)
 │   ├── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (PICK·OUT 환경 변수)
+│   ├── tools/portraits.mjs         영웅 16명 시작 등급 초상화 → public/portraits/{id}.webp (개발 서버를 띄운 채 node 로 실행)
 │   └── tools/import-quaternius.mjs Quaternius·무기 원본 → public/assets/q (텍스처 webp 1024, 옷 파츠 색 밝히기, 인간 머리만 자르기, 애니메이션 고르기)
 ├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/) (3-5 부터 안 씀), dungeon/
 ├── data/ultimate_monsters/  Ultimate Monsters 16종 GLB (git 제외), sources.txt 받은 주소. 다시 받기: bash src/tools/fetch-polypizza.sh data/ultimate_monsters Demon "Ghost%20Skull" …
@@ -109,7 +111,8 @@ party_rpg_261116/
 ├── poc.html, src/poc.ts  외형 확인 페이지: /poc.html?hero=leon (등급별 외형 한 줄), &i=2 (한 등급만), &anim=, &grip=종류:rx,ry,rz:px,py,pz (무기 각도 맞춤), ?enemy=zombie,goblin (적 줄 세우기), &mon=Demon,Yeti:2.4 (public/poc/um 의 몬스터를 영웅 옆에)
 ├── public/assets/        게임용 모델: dungeon (npm run assets, KayKit), q/ (npm run import-q, Quaternius·무기), um/ (보스, Ultimate Monsters GLB 그대로 복사)
 ├── public/meshopt_decoder.js   모델 압축 해제기 (npm run assets 가 복사)
-├── public/icons/        장비 아이콘 SVG (game-icons.net, CC BY 3.0)
+├── public/icons/        장비 아이콘 SVG, ui/ 메뉴 아이콘 (game-icons.net, CC BY 3.0)
+├── public/portraits/    영웅 시작 등급 초상화 webp 16개 (실행 중 찍은 지금 외형이 없을 때 씀)
 ├── docs/
 │   ├── design.md         설계 문서
 │   ├── content-design.md 콘텐츠 규모·조합형 캐릭터·장비·뽑기 설계 (2026-11-17)

@@ -15,4 +15,7 @@ export const COL = {
 export const lowestHpRatio = (list: Unit[]) =>
   list.reduce<Unit | null>((m, x) => (!m || x.hp / x.maxHp < m.hp / m.maxHp ? x : m), null);
 
+/** 시작 등급 초상화 파일 (src/tools/portraits.mjs 로 찍음). 실행 중에 찍은 지금 외형이 없을 때 쓴다 */
+export const portraitUrl = (id: string) => new URL(`portraits/${id}.webp`, document.baseURI).href;
+
 export const QS = 1.25;   // 조합형 사람 키(약 1.8)를 KayKit 적(약 2.3)과 맞춘다

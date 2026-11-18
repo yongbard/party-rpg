@@ -90,10 +90,12 @@ async function main() {
   const snap = (ids: string[]) => {
     for (const h of lobby.shown().filter(u => ids.includes(u.def.id))) {
       lobby.shown().forEach(o => o.root.setEnabled(o === h));
+      h.play('Idle_Loop');   // 마법사 대기 동작은 손을 얼굴 앞에 든다: 찍는 동안만 기본 대기로
       rig.portrait(h);
       // 막 세운 영웅은 기본 자세(T자)에서 대기 동작으로 섞여 들어가는 중이다. 섞임이 끝나게 몇 장 더 그린다 (blendingSpeed 0.12 → 약 9장)
       for (let k = 0; k < 10; k++) scene.render();
       portraits[h.def.id] = grabSquare(canvas);
+      h.play(h.def.anims.idle);
     }
     lobby.shown().forEach(o => o.root.setEnabled(true));
   };
