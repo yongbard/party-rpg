@@ -41,6 +41,7 @@
 - 2026-11-18: 6단계 마감. 로비 왼쪽 위 ⚙ 설정: 효과음·음악 크기, 전투 배속(전투 중 바꿔도 저장), 저장 내보내기(파일·코드 복사)·가져오기(파일·코드 붙여넣기, 확인 후 덮어쓰고 다시 시작), 튜토리얼 다시 보기, 처음부터 다시(두 번 눌러야), 크레딧. 소리는 파일 없이 Web Audio 로 합성: 효과음 15종(타격·치명·치유·필살기·웨이브·보스·승패·소환 카드 등), 배경음 3곡(로비·전투·보스). 튜토리얼: 처음 한 번 뜨는 안내 7개(첫 출전, 필살기, 앞뒤 교대, 영웅, 임무, 소환, 던전), 가리킬 곳만 밝힘, 전투 안내 중에는 멈춤. 튜토리얼 전부터 하던 저장에는 안 뜬다.
 - 2026-11-19: 7단계 외형 1부(무료). 장식 4겹(Look.acc): 뼈에 고정하는 소품 10종(왕관, 철·황금·가죽 갑옷, 목걸이 2, 화살통, 배낭, 주머니, 해골 — Poly Pizza Quaternius 등 CC0, public/assets/q/acc)과 코드로 만드는 빛 장식 4종(후광, 빛 날개, 도는 구슬, 뿔). 영웅 15명의 등급에 나눠 달아(data.ts ACC_STEPS, 그 등급부터 계속) 색·빛만 바뀌던 등급 9개 → 0개(poc.html?check). 레온 영웅~불멸에 기사 망토.
 - 2026-11-19: 7단계 화면 선명도 1차(사용자: 배경·캐릭터가 허접해 보임). 전투 카메라가 싸우는 유닛을 따라 가까이(거리 23 → 13~21), 캐릭터 어두운 외곽선, 뒤에서 비추는 빛·전장 위 조명, 필름 입자·색수차 빼고 비네트 줄임, 전투장 테마 2개(무덤: 깨진 타일·풀·난간·촛불 선반·창살 창 / 고블린 굴: 흙바닥·판자·상자·술통·부서진 탁자·짚 침대), 적 종류로 자동 선택. KayKit Dungeon 조각 20 → 58개.
+- 2026-11-19: 선명도 2차. 옷 파츠 색 텍스처를 밝힘(원본이 어두워 등 쪽이 검게 보였다; import-quaternius.mjs PART_LIFT 감마 0.6). 로비 카메라가 패널에 가리지 않는 구간(자원 줄 아래 ~ 패널 위)에 파티·영웅이 오게 렌즈를 위아래로 민다(camera.ts setBand). 영웅 탭에 [외형] 보기: 패널을 줄이고 영웅을 크게, 등급 칭호를 누르면 자동으로 이 보기.
 - 다음: 7단계 2부(AI 생성으로 상위 등급 의상·변신형, Tripo 크레딧 사용 여부는 사용자 결정), UI 디자인.
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
@@ -90,7 +91,7 @@ party_rpg_261116/
 │   ├── items.ts          장비: 기본형 목록, 등급별 능력치 굴림, 장착 규칙(무기군·손 수), 장착한 모습 계산
 │   ├── loadout.ts        저장에서 영웅 한 명의 지금 모습·능력치·전투력 꺼내기 (로비·전투 공용)
 │   ├── arena.ts          던전 배치(thin instance), 조명·그림자·횃불·안개, 후처리
-│   ├── camera.ts         카메라 시점(전투·로비·영웅 확대, 부드럽게 전환), 흔들기, 컷인·초상화
+│   ├── camera.ts         카메라 시점(전투·로비·영웅 확대, 부드럽게 전환), 로비 패널 피하기(렌즈 밀기), 흔들기, 컷인·초상화
 │   ├── fx.ts             이펙트(파티클, 링, 빛기둥, 베기, 보호막, 투사체, 불꽃)
 │   ├── hud.ts            DOM UI(카드, HP 바, 피해 숫자, 배너, 컷인, 결과)
 │   ├── style.css
@@ -99,7 +100,7 @@ party_rpg_261116/
 │   ├── tools/blender_probe.py      Blender 로 모델 크기·높이별 폭과 뼈 위치 보기 (조사용)
 │   ├── tools/fetch-polypizza.sh    Poly Pizza 에서 Quaternius 모델을 이름으로 찾아 GLB 받기 (인자: 출력 폴더, 이름들)
 │   ├── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (PICK·OUT 환경 변수)
-│   └── tools/import-quaternius.mjs Quaternius·무기 원본 → public/assets/q (텍스처 webp 1024, 인간 머리만 자르기, 애니메이션 고르기)
+│   └── tools/import-quaternius.mjs Quaternius·무기 원본 → public/assets/q (텍스처 webp 1024, 옷 파츠 색 밝히기, 인간 머리만 자르기, 애니메이션 고르기)
 ├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/) (3-5 부터 안 씀), dungeon/
 ├── data/ultimate_monsters/  Ultimate Monsters 16종 GLB (git 제외), sources.txt 받은 주소. 다시 받기: bash src/tools/fetch-polypizza.sh data/ultimate_monsters Demon "Ghost%20Skull" …
 ├── data/quaternius/      zips/(받은 원본), base/, outfits/, races/, bestiary/, ual/, ual2/ (풀어 둔 것). git 제외. 다시 받기: node src/tools/fetch-itch.mjs {itch 팩 URL} 뒤 각 폴더에 unzip

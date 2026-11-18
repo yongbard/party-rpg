@@ -290,3 +290,13 @@
 - 한 일: camera.ts frame(살아 있는 유닛에 맞춰 거리 13~21), battle.ts outline(눈 메시 뺌, 두께 0.045), arena.ts 조명(rim 방향광, stage 스포트라이트, 하늘빛 0.9), 후처리(색수차·입자 끔, 선명 0.25, 비네트 1.3), 테마 crypt/cave(themeLayouts, 바닥 색 FLOOR_TINT, setTheme), main.ts 적 종류로 테마 선택. KayKit Dungeon Remastered 조각 38개 추가(data/kaykit/dungeon, GitHub 원본 CC0) → npm run assets → public/assets/dungeon 58개 1.9MB.
 - 확인: 헤드리스 390×844 전투 1-6(무덤)·2-4(고블린 굴) 화면 비교. npm run build 통과.
 - 결과: src/camera.ts, battle.ts, arena.ts, main.ts, public/assets/dungeon/.
+
+## 2026-11-19 — 7단계 화면 선명도 2차: 어두운 옷 밝히기, 로비 화면
+
+- 한 일:
+  - 원인 조사: 영웅 옷 재질은 metallic 1 이지만 ORM 텍스처의 금속 값이 0.07 이라 금속 문제가 아니었다(0 으로 내려도 거의 같음). Quaternius 옷 색 텍스처 자체가 어둡다(밝기 가운데값 0.21) + 등급 색조(tint)가 더 어둡게.
+  - src/tools/import-quaternius.mjs: 옷 파츠(part)의 색 텍스처에 감마 0.6(PART_LIFT, 어두운 곳을 더 올림, 알파 그대로). npm run import-q -- part 로 20개 다시 만듦(8.0 → 7.9MB). 0.72 와 비교해 0.6 으로.
+  - camera.ts: setBand(위, 아래) 로 로비에서 가리지 않는 세로 구간을 받고, 파티 가운데(또는 고른 영웅)가 그 가운데 오게 투영 행렬을 세로로 민다(off-axis 렌즈). 처음엔 targetScreenOffset(카메라 이동)으로 했으나 낮은 시점에서 바닥 밑이 보여 바꿈. focus 는 빈 구간 높이에 맞춰 거리 4.8~9.5.
+  - lobby.ts: measure()(자원 줄 아래 ~ 패널 위, 이름표 30px 뺌)를 그릴 때마다·창 크기 바뀔 때·show 뒤에. 영웅 탭 [외형] 보기(승격·능력치 등 빼고 패널을 줄임), 등급 칭호를 누르면 이 보기로. 탭 이름 "능력치 · 스킬" → "능력치". style.css 영웅 탭 seg 4칸.
+- 확인: 헤드리스 390×844. 전투 1-3 세라 뒷모습 비교(원본 / 0.72 / 0.6). 로비 모험 탭 파티가 패널 위로 올라옴(이름표 포함), 소환 탭, 영웅 탭 외형 보기(레온 신화 미리보기 날개·후광, 세라). 전투로 가면 렌즈 밀기 0 으로. npm run build 통과.
+- 결과: src/tools/import-quaternius.mjs, public/assets/q/part/ 20개, src/camera.ts, src/lobby.ts, src/style.css.

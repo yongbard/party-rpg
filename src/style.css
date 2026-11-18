@@ -419,6 +419,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 
 /* 특성 · 별 */
 .seg { grid-template-columns: repeat(3, 1fr); }
+.lb-panel.hero .seg { grid-template-columns: repeat(4, 1fr); }
 .seg .dot { display: inline-block; width: 6px; height: 6px; margin-left: 4px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 6px var(--gold); vertical-align: middle; }
 .stars { display: flex; align-items: center; gap: 8px; margin: -2px 0 8px; }
 .stars .st { font-size: 15px; letter-spacing: 1px; color: var(--gold); text-shadow: 0 0 8px rgba(241,200,106,.5); }

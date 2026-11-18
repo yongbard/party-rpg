@@ -1,6 +1,7 @@
 // Quaternius 조합형 캐릭터·애니메이션과 무기 팩 원본(data/)을 게임용 glb(public/assets/q/)로 바꾼다.
 // - 텍스처는 webp 로, 캐릭터 1024 / 무기 512 로 줄인다 (원본 4096)
 // - 인간 몸(Superhero)은 옷을 입히면 머리만 필요하므로 머리·목 삼각형만 남긴 판을 만든다
+// - 옷 파츠의 색 텍스처는 밝힌다 (원본이 어두워 등 쪽이 검게 보인다): 어두운 곳을 더 올리는 감마 PART_LIFT
 // - 애니메이션은 src/data.ts·heroes.ts 에 이름이 나오는 것만 남기고 마네킹 메시는 뺀다
 // - 무기·애니메이션은 meshopt 압축 (Babylon 디코더: public/meshopt_decoder.js). 뼈대 있는 메시는 압축하지 않는다(아래 설명)
 // 실행: npm run import-q
@@ -57,6 +58,18 @@ const GEAR = [
   ['enemies/Skeleton_Rogue', 'Skeleton_Rogue_Hood'], ['enemies/Skeleton_Rogue', 'Skeleton_Rogue_Cape'],
 ];
 for (const [file, node] of GEAR) jobs.push({ kind: 'gear', src: `${KK}/${file}.glb`, dst: `${OUT}/gear/${node}.glb`, node });
+
+/** 옷 파츠 색 텍스처를 감마로 밝힌다 (알파는 그대로) */
+const PART_LIFT = 0.6;
+async function liftBaseColor(doc) {
+  const lut = Uint8Array.from({ length: 256 }, (_, v) => Math.round(255 * Math.pow(v / 255, PART_LIFT)));
+  const texs = new Set(doc.getRoot().listMaterials().map(m => m.getBaseColorTexture()).filter(Boolean));
+  for (const t of texs) {
+    const { data, info } = await sharp(t.getImage()).raw().toBuffer({ resolveWithObject: true });
+    for (let i = 0; i < data.length; i++) if (info.channels < 4 || i % 4 !== 3) data[i] = lut[data[i]];
+    t.setImage(await sharp(data, { raw: info }).png().toBuffer()).setMimeType('image/png');
+  }
+}
 
 /** 머리·목 뼈에 주로 붙은 삼각형만 남긴다 (나머지 몸은 옷 파츠가 덮는다) */
 function keepHead(doc) {
@@ -116,6 +129,7 @@ for (const job of jobs) {
   const doc = await io.read(job.src);
   if (job.kind === 'head') keepHead(doc);
   if (job.kind === 'anim') animOnly(doc);
+  if (job.kind === 'part') await liftBaseColor(doc);
   if (job.kind === 'gear') job.parent = gearOnly(doc, job.node);
   const tex = ['weapon', 'gear'].includes(job.kind) ? 512 : 1024;
   await doc.transform(

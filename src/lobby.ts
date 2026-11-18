@@ -46,7 +46,7 @@ export class Lobby {
   private missions = false;            // 모험 탭: 임무·출석 화면
   private save!: SaveData;
   private preview: number | null = null;   // 영웅 탭에서 미리 보는 등급 (null = 지금 등급)
-  private heroView: 'info' | 'gear' | 'talent' = 'info';
+  private heroView: 'info' | 'gear' | 'talent' | 'look' = 'info';   // look: 패널을 줄이고 3D 외형을 크게 본다
   private talentSel: [number, number] | null = null;   // 특성 탭에서 고른 노드 (가지, 노드)
   private gearSlot: EquipSlot | null = null;   // 장비 탭에서 고른 칸
   private bagFilter: Slot | 'all' = 'all';
@@ -66,6 +66,15 @@ export class Lobby {
     this.el.id = 'lobby';
     document.getElementById('app')!.append(this.el);
     this.el.addEventListener('pointerdown', e => { if ((e.target as Element).closest('button')) sound.play('click'); });
+    addEventListener('resize', () => { if (this.el.style.display !== 'none') this.measure(); });
+  }
+
+  /** 3D 영웅이 보일 세로 구간을 카메라에 알린다: 위 자원 줄 아래 ~ 패널 위 (발밑 이름표 자리는 뺀다) */
+  private measure() {
+    const c = this.scene.getEngine().getRenderingCanvas()!.getBoundingClientRect();
+    const top = this.el.querySelector('.lb-top')!.getBoundingClientRect().bottom;
+    const bottom = this.el.querySelector('.lb-bottom')!.getBoundingClientRect().top;
+    this.rig.setBand((top - c.top) / c.height + 0.01, (bottom - c.top - 30) / c.height);
   }
 
   show(save: SaveData) {
@@ -79,6 +88,8 @@ export class Lobby {
     this.tab = 'adventure';
     this.render();
     this.el.style.display = '';
+    this.measure();   // 숨긴 채로 그리면 패널 위치를 못 잰다
+    this.rig.setView('lobby', true);
     sound.music('lobby');
     this.tips();
   }
@@ -306,6 +317,7 @@ export class Lobby {
         </div>
       </div>`;
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
+    this.measure();
     this.el.querySelectorAll<HTMLButtonElement>('.lb-tabs button').forEach(b => { b.onclick = () => void this.setTab(b.dataset.tab as Tab); });
     (this.el.querySelector('.opt-t') as HTMLButtonElement).onclick = () => openSettings(this.save, { onTutorial: () => { this.tab = 'adventure'; this.missions = false; this.forming = false; this.render(); } });
     const on = (sel: string, fn: (b: HTMLButtonElement) => void) => this.el.querySelectorAll<HTMLButtonElement>(sel).forEach(b => { b.onclick = () => fn(b); });
@@ -340,7 +352,7 @@ export class Lobby {
       on('.craft-t', () => { this.crafting = !this.crafting; this.render(); });
       on('.craft-go', b => this.craftItem(b.dataset.u!));
     } else {
-      on('.seg button', b => { this.heroView = b.dataset.v as 'info' | 'gear' | 'talent'; this.gearSlot = null; this.render(); });
+      on('.seg button', b => { this.heroView = b.dataset.v as 'info' | 'gear' | 'talent' | 'look'; this.gearSlot = null; this.render(); this.rig.focus(this.cur()); });
       on('.tn', b => { this.talentSel = [Number(b.dataset.b), Number(b.dataset.i)]; this.render(); });
       on('.tn-go', () => this.learnTalent());
       on('.tn-reset', () => { if (resetTalents(this.save, this.heroId)) { writeSave(this.save); this.refreshBonus(); this.render(); } });
@@ -352,6 +364,7 @@ export class Lobby {
       this.el.querySelectorAll<HTMLButtonElement>('.rung').forEach(b => {
         b.onclick = () => {
           const g = Number(b.dataset.g);
+          if (this.heroView !== 'look') { this.heroView = 'look'; this.render(); this.rig.focus(this.cur()); }   // 미리보기는 3D 로 보이게
           void this.showGrade(g === this.save.heroes[this.heroId].grade ? null : g);
         };
       });
@@ -574,9 +587,9 @@ export class Lobby {
         </div>
         <div class="ladder">${ladder}</div>
         ${shown !== grade ? `<div class="ladder-note">${GRADES[shown]} 「${d.titles?.[shown] ?? ''}」 외형 미리보기 · ${shown > grade ? '같은 영웅 조각으로 승격하면 이 모습이 된다' : '지나온 모습'}</div>` : `<div class="ladder-note">최대 ${GRADES[max]}까지 성장 · 칭호를 누르면 그 등급 외형을 미리 본다</div>`}
-        ${this.promoHtml(d.id)}
-        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치 · 스킬</button><button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}">특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button><button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}">장비</button></div>
-        ${this.heroView === 'gear' ? this.gearHtml(d.id) : this.heroView === 'talent' ? this.talentHtml(d.id) : `
+        ${this.heroView === 'look' ? '' : this.promoHtml(d.id)}
+        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치</button><button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}">특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button><button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}">장비</button><button data-v="look" class="${this.heroView === 'look' ? 'on' : ''}">외형</button></div>
+        ${this.heroView === 'look' ? '' : this.heroView === 'gear' ? this.gearHtml(d.id) : this.heroView === 'talent' ? this.talentHtml(d.id) : `
         <div class="hd-stats">
           <div><small>체력</small><b>${fmt((st.hp * m + bn.hp) * (1 + bn.hpPct))}</b>${grow(st.hp)}</div>
           <div><small>공격력</small><b>${fmt((st.atk * m + bn.atk) * (1 + bn.atkPct))}</b>${grow(st.atk)}</div>

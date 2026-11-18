@@ -1,4 +1,4 @@
-import { ArcRotateCamera, Camera, Scene, TransformNode, UniversalCamera, Vector3 } from '@babylonjs/core';
+import { ArcRotateCamera, Camera, Matrix, Scene, TransformNode, UniversalCamera, Vector3 } from '@babylonjs/core';
 import type { Unit } from './unit';
 
 const ease = (k: number) => 1 - Math.pow(1 - k, 3);
@@ -11,6 +11,8 @@ const VIEWS: Record<string, View> = {
   lobby: { alpha: -Math.PI / 2, beta: 1.36, radius: 12.5, target: new Vector3(0, 0.3, 3.2) },
 };
 
+const LINEUP_MID = new Vector3(0, 0.9, 3.4);   // 로비 파티 가운데 (lobby.ts LINEUP)
+
 export class CameraRig {
   main: ArcRotateCamera;
   cut: UniversalCamera;
@@ -19,6 +21,10 @@ export class CameraRig {
   private shakeAmp = 0;
   private t = 0;
   private anim: ((now: number) => void) | null = null;
+  // 로비: 패널에 가리지 않는 화면 세로 구간(0 위 ~ 1 아래)과 그 가운데에 둘 점. 렌즈만 위아래로 민다 (카메라 자리·각도는 그대로)
+  private band: [number, number] = [0, 1];
+  private subject: Vector3 | null = null;
+  private shift = 0;
 
   constructor(private scene: Scene) {
     const b = this.base;
@@ -40,7 +46,8 @@ export class CameraRig {
   /** 'battle' · 'lobby' 또는 직접 만든 시점. instant 면 바로 옮기고, 아니면 부드럽게 따라간다 */
   setView(v: 'battle' | 'lobby' | View, instant = false) {
     this.base = typeof v === 'string' ? VIEWS[v] : v;
-    if (instant) this.cur = copy(this.base);
+    this.subject = v === 'lobby' ? LINEUP_MID : null;
+    if (instant) { this.cur = copy(this.base); this.shift = this.goalShift(); }
     this.shakeAmp = 0;
     this.scene.activeCamera = this.main;
   }
@@ -55,10 +62,37 @@ export class CameraRig {
     this.base = { alpha: -Math.PI / 2, beta: 0.86, radius, target: new Vector3((x0 + x1) * 0.25, 0, (z0 + z1) / 2 + 0.6) };
   }
 
-  /** 로비에 선 유닛을 가까이서 본다 (아래쪽 패널을 피해 화면 위쪽에 오게) */
+  /** 로비에 선 유닛을 가까이서 본다. 빈 구간이 넓으면 다가가서 키가 구간의 6할쯤 되게 */
   focus(u: Unit) {
-    // 카메라는 바닥 위(약 1.3)에서 살짝 내려다본다. 시선 끝을 바닥 아래에 둬서 영웅이 화면 위쪽(패널 위)에 오게 한다
-    this.setView({ alpha: -Math.PI / 2, beta: 1.25, radius: 9.5, target: new Vector3(u.pos.x, -1.6, u.pos.z) });
+    const mid = u.pos.add(new Vector3(0, 0.95 * u.scale * u.tall, 0));
+    const tanV = 1 / this.main.getProjectionMatrix(true).m[5];
+    const radius = Math.min(9.5, Math.max(4.8, (2 * u.scale * u.tall) / (0.6 * 2 * (this.band[1] - this.band[0]) * tanV)));
+    this.setView({ alpha: -Math.PI / 2, beta: 1.36, radius, target: mid });
+    this.subject = mid;
+  }
+
+  /** 로비 패널이 바뀔 때: 가리지 않는 세로 구간 (화면 높이 비율) */
+  setBand(top: number, bottom: number) { this.band = [top, Math.max(top + 0.12, bottom)]; }
+
+  /** subject 가 band 가운데에 오게 하는 렌즈 밀기 (화면 좌표 -1~1 단위) */
+  private goalShift() {
+    if (!this.subject) return 0;
+    const c = this.cur;
+    const eye = c.target.add(new Vector3(Math.cos(c.alpha) * Math.sin(c.beta), Math.cos(c.beta), Math.sin(c.alpha) * Math.sin(c.beta)).scale(c.radius));
+    const view = Matrix.LookAtRH(eye, c.target, Vector3.Up());
+    const v = Vector3.TransformCoordinates(this.subject, view);
+    const ndc = 1 - (this.band[0] + this.band[1]);
+    return ndc - (v.y * this.main.getProjectionMatrix().m[5]) / Math.abs(v.z);
+  }
+
+  /** 투영 행렬을 세로로 민다 (off-axis). 카메라를 옮기면 낮은 시점에서 바닥 밑이 보인다 */
+  private lens(s: number) {
+    const cam = this.main;
+    cam.unfreezeProjectionMatrix();
+    if (Math.abs(s) < 1e-4) return;
+    const p = cam.getProjectionMatrix(true).clone();
+    p.addAtIndex(9, s * p.m[11]);
+    cam.freezeProjectionMatrix(p);
   }
 
   update(dt: number) {
@@ -80,6 +114,8 @@ export class CameraRig {
       b.target.y + (Math.random() - 0.5) * a,
       b.target.z + (Math.random() - 0.5) * a * 0.5,
     );
+    this.shift += (this.goalShift() - this.shift) * k;
+    this.lens(this.shift);
     this.shakeAmp *= Math.exp(-dt * 9);
     if (this.shakeAmp < 0.002) this.shakeAmp = 0;
   }
