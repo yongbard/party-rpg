@@ -45,6 +45,16 @@ export class CameraRig {
     this.scene.activeCamera = this.main;
   }
 
+  /** 전투: 살아 있는 유닛이 모두 들어오게 가까이 다가간다 (멀리서 보면 캐릭터가 작다) */
+  frame(units: Unit[]) {
+    if (!units.length) return;
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const u of units) { x0 = Math.min(x0, u.pos.x); x1 = Math.max(x1, u.pos.x); z0 = Math.min(z0, u.pos.z); z1 = Math.max(z1, u.pos.z); }
+    // 가로 화각 0.56 → 거리 d 에서 보이는 폭은 약 0.575d. 세로(깊이)는 기울어 보이므로 덜 잡는다
+    const radius = Math.min(21, Math.max(13, (x1 - x0 + 4) / 0.575, (z1 - z0 + 5) * 0.95));
+    this.base = { alpha: -Math.PI / 2, beta: 0.86, radius, target: new Vector3((x0 + x1) * 0.25, 0, (z0 + z1) / 2 + 0.6) };
+  }
+
   /** 로비에 선 유닛을 가까이서 본다 (아래쪽 패널을 피해 화면 위쪽에 오게) */
   focus(u: Unit) {
     // 카메라는 바닥 위(약 1.3)에서 살짝 내려다본다. 시선 끝을 바닥 아래에 둬서 영웅이 화면 위쪽(패널 위)에 오게 한다

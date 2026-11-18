@@ -121,6 +121,8 @@ async function main() {
     await assets.ensure([...party.flatMap(p => lookKeys(p.look)), ...rivals.flatMap(p => lookKeys(p.look)), ...foes]);
     lobby.hide();
     rig.setView('battle', true);
+    // 전투장 테마: 고블린·임프·오크·악마가 나오면 고블린 굴, 아니면 무덤
+    arena.setTheme(stageEnemies(stage).some(d => /goblin|imp|orc|demon/.test(d.id)) ? 'cave' : 'crypt');
     const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party, rivals);
     battle = b;
     b.spawnHeroes();
@@ -226,6 +228,7 @@ async function main() {
     rig.update(dt);
     arena.update(dt);
     battle?.update(dt);
+    if (battle && !battle.frozen) rig.frame(battle.units.filter(u => u.alive));
     if (battle) battleTips(battle);
     if (!battle) { lobby.update(); fx.update(dt); }
     scene.render();

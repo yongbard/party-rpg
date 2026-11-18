@@ -1,5 +1,5 @@
 // 실시간 자동 전투: 대상 고르기, 이동, 공격·스킬, 필살기 컷인, 웨이브 진행
-import { AnimationGroup, Mesh, PBRMaterial, Color3, Scene, ShadowGenerator, TrailMesh, TransformNode, Vector3 } from '@babylonjs/core';
+import { AbstractMesh, AnimationGroup, Mesh, PBRMaterial, Color3, Scene, ShadowGenerator, TrailMesh, TransformNode, Vector3 } from '@babylonjs/core';
 import type { Assets, ModelInstance } from './assets';
 import type { CameraRig } from './camera';
 import { COL, ENEMIES, FORMATION, enemyMul, type Look, type Outcome, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
@@ -32,6 +32,18 @@ export function makeModel(assets: Assets, def: UnitDef, shadow: ShadowGenerator)
 
 /** 전투에 나서는 영웅 한 명 (loadout.ts) */
 export interface Member { def: UnitDef; mul: number; grade?: number; look?: Look; title?: string; bonus?: Bonus; policy?: Policy }
+
+/** 캐릭터 외곽선: 바닥과 섞이지 않게 어두운 테두리 (빛 장식은 빼고) */
+export function outline(meshes: AbstractMesh[]) {
+  for (const m of meshes) {
+    if ((!m.skeleton && !(m.parent && m.getTotalVertices() > 0)) || /Eye/.test(m.name)) continue;
+    m.renderOutline = true;
+    m.outlineColor = OUTLINE;
+    m.outlineWidth = OUTLINE_W;
+  }
+}
+const OUTLINE = new Color3(0.04, 0.03, 0.05);
+const OUTLINE_W = 0.045;
 
 interface Proj { mesh: Mesh; trail: TrailMesh; tgt: Unit; last: Vector3; speed: number; onHit: () => void }
 type State = 'load' | 'intro' | 'fight' | 'clear' | 'won' | 'lost';
@@ -97,6 +109,7 @@ export class Battle {
   spawn(def: UnitDef, side: Side, pos: Vector3, yaw: number, mul = 1, look?: Look, bonus?: Bonus): Unit {
     const m = look ? makeHeroModel(this.assets, this.scene, look, this.shadow, this.fx) : makeModel(this.assets, def, this.shadow);
     const u = new Unit(def, side, m, pos, yaw, mul, bonus);
+    outline(m.meshes);
     this.units.push(u);
     this.hud.addBar(u);
     return u;

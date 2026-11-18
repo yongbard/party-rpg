@@ -284,3 +284,9 @@
   - poc.ts: &acc, &fit, &bones, &check, &r, &ty.
 - 확인: poc 로 16명 등급 사다리, 색·빛만 바뀌는 등급 9 → 0. 게임 전투·로비에서 오류 없이 보임(레온 불멸 후광+날개, 카일 신화 날개).
 - 결과: src/heroModel.ts, src/data.ts, src/poc.ts, src/settings.ts(크레딧), docs/credits.md, docs/content-design.md 11.1, public/assets/q/acc/ 10개(약 0.6MB), data/polypizza/sources.txt.
+
+## 2026-11-19 — 7단계 화면 선명도 1차: 전투 카메라, 외곽선, 조명·후처리, 전투장 테마 2개
+
+- 한 일: camera.ts frame(살아 있는 유닛에 맞춰 거리 13~21), battle.ts outline(눈 메시 뺌, 두께 0.045), arena.ts 조명(rim 방향광, stage 스포트라이트, 하늘빛 0.9), 후처리(색수차·입자 끔, 선명 0.25, 비네트 1.3), 테마 crypt/cave(themeLayouts, 바닥 색 FLOOR_TINT, setTheme), main.ts 적 종류로 테마 선택. KayKit Dungeon Remastered 조각 38개 추가(data/kaykit/dungeon, GitHub 원본 CC0) → npm run assets → public/assets/dungeon 58개 1.9MB.
+- 확인: 헤드리스 390×844 전투 1-6(무덤)·2-4(고블린 굴) 화면 비교. npm run build 통과.
+- 결과: src/camera.ts, battle.ts, arena.ts, main.ts, public/assets/dungeon/.
