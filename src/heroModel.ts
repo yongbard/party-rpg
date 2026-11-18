@@ -39,6 +39,8 @@ const HEAD_FIT: Record<string, Grip> = {
 };
 // 사람과 비율이 다른 몸 (AI 모델에 뼈대를 옮겨 심은 것, src/tools/blender_rig.py). UAL 의 뼈 위치 키를 빼고 회전만 쓴다
 const POSE_ONLY = /^q\/body\/Tripo/;
+// 사람(키 약 1.8)보다 큰 몸: 머리 위 HP 바·초상화·컷인 높이에 곱한다
+const BODY_TALL: Record<string, number> = { 'q/body/TripoDragon': 1.3 };
 // 몸 파일에 붙어 나오는 무기 (Bestiary). 무기는 look 이 정하므로 숨긴다
 const BUILTIN_WEAPON = /^(Puglin_Stick|Imp_Mace)$/;
 
@@ -154,6 +156,7 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
     root: holder,
     anims,
     meshes,
+    tall: BODY_TALL[look.body] ?? 1,
     find: name => holder.getDescendants(false).find(d => d.name === name),
     dispose: () => {
       anims.forEach(g => g.dispose());

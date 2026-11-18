@@ -1,4 +1,4 @@
-import { ArcRotateCamera, Camera, Scene, UniversalCamera, Vector3 } from '@babylonjs/core';
+import { ArcRotateCamera, Camera, Scene, TransformNode, UniversalCamera, Vector3 } from '@babylonjs/core';
 import type { Unit } from './unit';
 
 const ease = (k: number) => 1 - Math.pow(1 - k, 3);
@@ -76,11 +76,14 @@ export class CameraRig {
 
   /** 얼굴 정면 초상화 구도 */
   portrait(u: Unit) {
-    const head = u.pos.add(new Vector3(0, (u.def.model === 'q' ? 1.6 : 1.75) * u.scale, 0));
+    // 사람보다 큰 몸(용)은 얼굴이 몸통보다 앞에 있어 머리 뼈를 직접 겨눈다
+    const hb = u.tall !== 1 ? (u.model.find('Head') as TransformNode | undefined) : undefined;
+    const head = hb ? hb.computeWorldMatrix(true).getTranslation().addInPlaceFromFloats(0, 0.15 * u.scale, 0)
+      : u.pos.add(new Vector3(0, (u.def.model === 'q' ? 1.6 : 1.75) * u.scale, 0));
     const f = u.forward;
     const r = new Vector3(f.z, 0, -f.x);
     this.cut.fov = 0.5;
-    this.cut.position = head.add(f.scale(u.def.model === 'q' ? 2.0 : 2.9)).add(r.scale(0.35)).addInPlaceFromFloats(0, -0.1, 0);
+    this.cut.position = head.add(f.scale(u.def.model === 'q' ? 2.0 * u.tall : 2.9)).add(r.scale(0.35)).addInPlaceFromFloats(0, -0.1, 0);
     this.cut.setTarget(head.add(new Vector3(0, -0.2, 0)));
     this.scene.activeCamera = this.cut;
   }
@@ -90,11 +93,11 @@ export class CameraRig {
   /** 필살기 컷인: 정면에서 천천히 다가간다. 실제 시간 ms 동안 */
   cutin(u: Unit, ms = 1300): Promise<void> {
     return new Promise(res => {
-      const head = u.pos.add(new Vector3(0, 1.45 * u.scale, 0));
+      const head = u.pos.add(new Vector3(0, 1.45 * u.scale * u.tall, 0));
       const f = u.forward;
       const r = new Vector3(f.z, 0, -f.x);
-      const from = head.add(f.scale(4.4)).add(r.scale(1.3)).addInPlaceFromFloats(0, 0.5, 0);
-      const to = head.add(f.scale(2.6)).add(r.scale(0.7)).addInPlaceFromFloats(0, 0.1, 0);
+      const from = head.add(f.scale(4.4 * u.tall)).add(r.scale(1.3)).addInPlaceFromFloats(0, 0.5, 0);
+      const to = head.add(f.scale(2.6 * u.tall)).add(r.scale(0.7)).addInPlaceFromFloats(0, 0.1, 0);
       const look = head.add(new Vector3(0, -0.35, 0));
       this.cut.fov = 0.95;
       this.scene.activeCamera = this.cut;

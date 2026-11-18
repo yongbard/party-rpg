@@ -21,6 +21,7 @@ export class Unit {
   home: Vector3;
   yaw: number; yawGoal: number;
   scale: number; radius: number;
+  tall: number;              // 몸 키 배율 (용 등 사람보다 큰 몸)
   dmgDone = 0; healDone = 0; dmgTaken = 0;
   curAnim: AnimationGroup | null = null;
   title?: string;            // 지금 등급의 칭호
@@ -29,6 +30,7 @@ export class Unit {
   constructor(public def: UnitDef, public side: Side, public model: ModelInstance, pos: Vector3, yaw: number, public mul = 1, public bonus: Bonus = zeroBonus()) {
     this.root = model.root;
     this.scale = def.scale ?? 1;
+    this.tall = model.tall ?? 1;
     this.radius = 0.55 * this.scale;
     this.root.scaling.setAll(this.scale);
     this.root.position.copyFrom(pos);
@@ -44,7 +46,7 @@ export class Unit {
   get pos() { return this.root.position; }
   get forward() { return new Vector3(Math.sin(this.yaw), 0, Math.cos(this.yaw)); }
   chest() { return this.pos.add(new Vector3(0, 1.0 * this.scale, 0)); }
-  head() { return this.pos.add(new Vector3(0, (this.def.model === 'q' ? 1.9 : 2.1) * this.scale, 0)); }
+  head() { return this.pos.add(new Vector3(0, (this.def.model === 'q' ? 1.9 * this.tall : 2.1) * this.scale, 0)); }
   muzzle() { return this.chest().add(this.forward.scale(0.5)).addInPlaceFromFloats(0, 0.2, 0); }
 
   animDur(name: string, speed = 1) {

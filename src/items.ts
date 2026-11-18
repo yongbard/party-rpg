@@ -161,8 +161,10 @@ export function equippedLook(look: Look, equip: Partial<Record<EquipSlot, number
   if (w) out.weapon = baseOf(w).model;
   if (o) out.offhand = baseOf(o).model;
   if (handsOfModel(out.weapon) === 2) out.offhand = undefined;   // 양손이면 방패를 내려놓는다
-  if (h) { out.helmet = baseOf(h).model; out.parts = out.parts!.filter(p => !/Head_Hood/.test(p)); }
-  if (c) out.cloak = baseOf(c).model;
+  // 용 같은 변신 몸에는 투구·망토가 맞지 않는다 (능력치만)
+  const monster = look.body.startsWith('q/body/Tripo');
+  if (h && !monster) { out.helmet = baseOf(h).model; out.parts = out.parts!.filter(p => !/Head_Hood/.test(p)); }
+  if (c && !monster) out.cloak = baseOf(c).model;
   // 갑옷은 옷을 입히는 인간 몸일 때만 보인다 (엘프·오크 몸은 옷이 붙어 있어 능력치만)
   if (a && look.body.startsWith('q/head/')) {
     const sex = look.body.endsWith('Female') ? 'Female' : 'Male';

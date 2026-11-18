@@ -5,6 +5,7 @@ export interface ModelInstance {
   root: TransformNode;
   anims: Map<string, AnimationGroup>;
   meshes: AbstractMesh[];
+  tall?: number;              // 사람보다 큰 몸이면 키 배율 (heroModel.ts BODY_TALL)
   find(name: string): Node | undefined;
   dispose(): void;
 }
