@@ -2,7 +2,8 @@
 import { Color3, Scene, ShadowGenerator, Vector3 } from '@babylonjs/core';
 import type { Assets } from './assets';
 import type { CameraRig } from './camera';
-import { CHAPTERS, chapterOf, COL, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, type UnitDef } from './data';
+import { CHAPTERS, chapterOf, COL, condText, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, starCount, starGems, type UnitDef } from './data';
+import { ATTEND, claim, claimable, DAILY_BONUS, dailyOf, missionText, progress, refresh, rewardText, track, WEEKLY } from './missions';
 import { BANNERS, canPromote, heroRates, hiFrom, pickupHero, promote, PROMOTE, RATES, salvage, SALVAGE_GOLD, summon, type BannerId } from './gacha';
 import { showSummon } from './summonView';
 import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, SLOT_NAMES, STAT_NAMES, type EquipSlot, type Item, type Slot } from './items';
@@ -35,6 +36,7 @@ export class Lobby {
   private heroId = '';                 // 영웅 탭에서 고른 영웅
   private guest: Unit | null = null;   // 파티 밖 영웅을 고르면 가운데에 혼자 세운다
   private forming = false;             // 모험 탭: 파티 편성 화면
+  private missions = false;            // 모험 탭: 임무·출석 화면
   private save!: SaveData;
   private preview: number | null = null;   // 영웅 탭에서 미리 보는 등급 (null = 지금 등급)
   private heroView: 'info' | 'gear' | 'talent' = 'info';
@@ -57,6 +59,7 @@ export class Lobby {
     this.units = save.party.map((id, i) => this.makeUnit(HEROES.find(h => h.id === id)!, slotPos(i), save.heroes[id].grade));
     if (!save.heroes[this.heroId]) this.heroId = save.party[0];
     this.forming = false;
+    this.missions = claimable(save).includes('a');   // 오늘 첫 접속이면 출석부터 보여 준다
     this.selected = this.frontier(-1);
     this.tab = 'adventure';
     this.render();
@@ -201,6 +204,7 @@ export class Lobby {
     if (this.preview !== null) void this.showGrade(null);
     this.tab = t;
     this.forming = false;
+    this.missions = false;
     this.render();
     await this.syncGuest();
     if (this.tab !== t) return;
@@ -227,7 +231,7 @@ export class Lobby {
         <div class="res"><i class="ic-gold"></i><b>${fmt(s.gold)}</b></div>
         <div class="res"><i class="ic-gem"></i><b>${fmt(s.gems)}</b></div>
       </div>
-      <div class="lb-plates ${this.tab !== 'adventure' ? 'hide' : ''}">${this.units.map(u => `
+      <div class="lb-plates ${this.tab !== 'adventure' || this.missions ? 'hide' : ''}">${this.units.map(u => `
         <div class="plate" style="--accent:${u.def.color}"><b>${u.def.name}</b><span>Lv.${s.heroes[u.def.id].level}</span></div>`).join('')}
       </div>
       <div class="lb-bottom">
@@ -247,6 +251,9 @@ export class Lobby {
       on('.chp', b => { this.selected = this.frontier(chapterOf(STAGES.find(st => st.id === this.selected)!) + Number(b.dataset.d)); this.render(); });
       on('.lb-go.start', () => this.onStart(this.selected));
       on('.form-t', () => { this.forming = !this.forming; this.render(); });
+      on('.ms-t', () => { this.missions = !this.missions; this.render(); });
+      on('.ms-go', b => this.claimMission(b.dataset.k!));
+      this.el.querySelector('.stage.sel')?.scrollIntoView({ block: 'nearest' });
       on('.fr', b => void this.toggleMember(b.dataset.id!));
     } else if (this.tab === 'summon') {
       on('.ban', b => { this.banner = b.dataset.b as BannerId; this.render(); });
@@ -280,27 +287,78 @@ export class Lobby {
   private adventureHtml() {
     const s = this.save;
     if (this.forming) return this.formHtml();
+    if (this.missions) return this.missionsHtml();
     const isOpen = (i: number) => i === 0 || s.cleared.includes(STAGES[i - 1].id);
     const partyPower = this.units.reduce((sum, u) => sum + loadout(s, u.def.id).power, 0);
     // 고른 스테이지의 장만 보인다. 다음 장은 그 장 첫 스테이지가 열려야 넘어간다
     const ch = chapterOf(STAGES.find(st => st.id === this.selected)!);
     const nextAt = STAGES.findIndex(st => chapterOf(st) === ch + 1);
+    const inCh = STAGES.filter(st => chapterOf(st) === ch);
+    const chStars = inCh.reduce((a, st) => a + starCount(s.stars?.[st.id]), 0), chMax = inCh.length * 3;
+    const sel = STAGES.find(st => st.id === this.selected)!;
+    const selBits = s.stars?.[sel.id] ?? 0;
+    const stars = (bits: number) => [0, 1, 2].map(i => `<i class="${bits & (1 << i) ? 'on' : ''}">★</i>`).join('');
+    const dot = claimable(s).length ? '<i class="dot"></i>' : '';
     return `
       <div class="lb-panel">
-        <div class="lb-ch"><span class="chn"><button class="chp" data-d="-1" ${ch === 0 ? 'disabled' : ''}>‹</button>${CHAPTERS[ch]}<button class="chp" data-d="1" ${nextAt < 0 || !isOpen(nextAt) ? 'disabled' : ''}>›</button></span><span class="pp">파티 전투력 <b>${fmt(partyPower)}</b></span></div>
+        <div class="lb-ch"><span class="chn"><button class="chp" data-d="-1" ${ch === 0 ? 'disabled' : ''}>‹</button>${CHAPTERS[ch]}<button class="chp" data-d="1" ${nextAt < 0 || !isOpen(nextAt) ? 'disabled' : ''}>›</button></span><span class="pp"><i class="chs">★ ${chStars} / ${chMax}</i>전투력 <b>${fmt(partyPower)}</b></span></div>
         <div class="lb-stages">${STAGES.map((st, i) => {
           if (chapterOf(st) !== ch) return '';
-          const cleared = s.cleared.includes(st.id);
+          const bits = s.stars?.[st.id] ?? 0;
+          // 보석: 아직 못 얻은 별의 합, 별을 다 얻었으면 다시 깬 보석
+          const gems = starCount(bits) < 3 ? (3 - starCount(bits)) * starGems(st) : repeatGems(st);
           return `
           <button class="stage ${st.id === this.selected ? 'sel' : ''} ${isOpen(i) ? '' : 'locked'} ${st.waves.some(w => w.boss) ? 'is-boss' : ''}" data-id="${st.id}" ${isOpen(i) ? '' : 'disabled'}>
-            <span class="sid">${st.id}</span>
-            <span class="snm">${st.name}<em>적 Lv.${st.level}</em>${cleared ? '<i class="ok">클리어</i>' : ''}</span>
-            <span class="srw"><i class="ic-gold"></i>${st.reward.gold}<i class="ic-gem"></i>${cleared ? repeatGems(st) : st.reward.gems}</span>
+            <span class="sid">${st.id}<span class="sst">${stars(bits)}</span></span>
+            <span class="snm">${st.name}<em>적 Lv.${st.level}</em></span>
+            <span class="srw"><i class="ic-gold"></i>${st.reward.gold}<i class="ic-gem"></i>${gems}</span>
           </button>`;
         }).join('')}
         </div>
-        <div class="go-row"><button class="form-t">편성</button><button class="lb-go start">출전</button></div>
+        <div class="conds">${sel.conds.map((c, i) => `<span class="${selBits & (1 << i) ? 'on' : ''}"><i>★</i>${condText(c)}</span>`).join('')}</div>
+        <div class="go-row"><button class="form-t">편성</button><button class="ms-t">임무${dot}</button><button class="lb-go start">출전</button></div>
       </div>`;
+  }
+
+  /** 임무 화면: 출석 7일, 일일 3개 + 보너스, 주간 */
+  private missionsHtml() {
+    const s = this.save;
+    const { day } = refresh(s);
+    const can = claimable(s);
+    const d = s.daily!, w = s.weekly!, a = s.attend!;
+    const got = a.last === day ? ((a.n - 1) % ATTEND.length) + 1 : a.n % ATTEND.length;   // 이번 7일 중 받은 날 수
+    const btn = (k: string, done: boolean) => (done ? '<b class="ms-done">완료</b>' : `<button class="ms-go" data-k="${k}" ${can.includes(k) ? '' : 'disabled'}>받기</button>`);
+    const row = (text: string, cur: number, n: number, rw: string, k: string, done: boolean) => `
+      <div class="ms-row ${done ? 'done' : ''}"><span><b>${text}</b><small>${rw}</small></span><em>${cur} / ${n}</em>${btn(k, done)}</div>`;
+    const daily = dailyOf(day);
+    return `
+      <div class="lb-panel ms">
+        <div class="lb-ch">출석<span class="pp">누적 ${a.n}일</span></div>
+        <div class="att">${ATTEND.map((rw, i) => {
+          const k = i < got ? 'got' : i === got && can.includes('a') ? 'now' : '';
+          return k === 'now' ? `<button class="att-d now ms-go" data-k="a"><b>${i + 1}일</b><small>${rewardText(rw)}</small></button>` : `<div class="att-d ${k}"><b>${i + 1}일</b><small>${rewardText(rw)}</small></div>`;
+        }).join('')}</div>
+        <div class="ms-list">
+          <div class="ms-h">일일 임무<small>매일 0시에 바뀐다</small></div>
+          ${daily.map((m, i) => row(missionText(m), progress(d.counts, m), m.n, rewardText(m.reward), `d${i}`, d.claimed.includes(i))).join('')}
+          ${row('일일 임무 3개 완료', d.claimed.length, 3, rewardText(DAILY_BONUS), 'db', d.bonus)}
+          <div class="ms-h">주간 임무<small>월요일에 바뀐다</small></div>
+          ${WEEKLY.map((m, i) => row(missionText(m), progress(w.counts, m), m.n, rewardText(m.reward), `w${i}`, w.claimed.includes(i))).join('')}
+        </div>
+        <button class="lb-go ms-t">닫기</button>
+      </div>`;
+  }
+
+  private claimMission(k: string) {
+    const rw = claim(this.save, k);
+    if (!rw) return;
+    writeSave(this.save);
+    this.render();
+    const pop = document.createElement('div');
+    pop.className = 'lvpop';
+    pop.textContent = `+ ${rewardText(rw)}`;
+    pop.addEventListener('animationend', () => pop.remove());
+    this.el.append(pop);
   }
 
   private face(id: string) {
@@ -451,6 +509,7 @@ export class Lobby {
   private learnTalent() {
     const sel = this.talentSel;
     if (!sel || !learn(this.save, this.heroId, sel[0], sel[1])) return;
+    track(this.save, 'talent');
     writeSave(this.save);
     this.refreshBonus();
     const u = this.cur();
@@ -462,6 +521,7 @@ export class Lobby {
     const s = this.save;
     const u = this.cur();
     if (!starUp(s, u.def.id)) return;
+    track(s, 'promote');
     writeSave(s);
     this.refreshBonus();
     this.fx.ring(u.pos, COL.gold, 2.4, 0.6);
@@ -481,6 +541,8 @@ export class Lobby {
     const d = this.cur().def;
     const from = s.heroes[d.id].grade;
     if (!promote(s, d.id)) return;
+    track(s, 'promote');
+    writeSave(s);
     this.preview = null;
     await this.rebuild(d.id);
     const u = this.cur();
@@ -533,6 +595,8 @@ export class Lobby {
   private pull(n: 1 | 10) {
     const pulls = summon(this.save, this.banner, n);
     if (!pulls) return;
+    track(this.save, this.banner === 'hero' || this.banner === 'pickup' ? 'summon' : 'gear', n);
+    writeSave(this.save);
     this.render();
     const bn = BANNERS.find(b => b.id === this.banner)!;
     const c = n === 10 ? bn.cost10 : bn.cost;
@@ -547,6 +611,8 @@ export class Lobby {
   private salvage(uids: number[]) {
     const r = salvage(this.save, uids);
     if (!r.n) return;
+    track(this.save, 'salvage', r.n);
+    writeSave(this.save);
     this.bagSel = null;
     this.render();
     const pop = document.createElement('div');
@@ -629,6 +695,7 @@ export class Lobby {
       done++;
     }
     if (!done) return;
+    track(s, 'levelup', done);
     writeSave(s);
     u.mul = heroMul(h.level) * gradeMul(h.grade);   // (전투력 표시는 render 가 loadout 으로 다시 잰다)
     // 연출: 환호, 금빛 링과 불꽃, 레벨 표시

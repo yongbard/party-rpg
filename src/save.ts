@@ -17,6 +17,10 @@ export interface SaveData {
   nextUid?: number;
   party: string[];          // 진형 순서: 앞줄 왼쪽, 앞줄 오른쪽, 뒷줄 왼쪽, 뒷줄 오른쪽
   cleared: string[];        // 클리어한 스테이지 id
+  stars?: Record<string, number>;   // 스테이지 별: 조건 3개를 비트로 (1 = 클리어, 2·4 = 조건 2·3)
+  daily?: { day: string; counts: Record<string, number>; claimed: number[]; bonus: boolean };   // missions.ts
+  weekly?: { week: string; counts: Record<string, number>; claimed: number[] };
+  attend?: { last: string; n: number };   // 마지막 출석 날짜, 받은 횟수
   auto?: boolean;           // 필살기 자동 사용
 }
 
@@ -59,6 +63,17 @@ function upgrade(s: SaveData) {
     s.heroes[h.id].grade ??= h.startGrade ?? 2;
   }
   if (!s.items) giveStarter(s);
+  // 장마다 스테이지가 3개였던 저장: 장 보스(N-3)를 깼으면 그 장 10개를 모두 깬 것으로 (별은 클리어 1개)
+  if (!s.stars) {
+    s.stars = {};
+    const old = [...s.cleared];
+    s.cleared = [];
+    for (const id of old) {
+      const [ch, k] = id.split('-').map(Number);
+      const ids = k === 3 ? Array.from({ length: 10 }, (_, i) => `${ch}-${i + 1}`) : [id];
+      for (const x of ids) if (!s.cleared.includes(x)) { s.cleared.push(x); s.stars[x] = 1; }
+    }
+  }
   if (!s.pity) {
     s.pity = { hero: 0, hero5: 0, gear: 0 };
     s.gems += START_GEMS;

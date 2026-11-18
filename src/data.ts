@@ -278,33 +278,104 @@ type Spawn = [kind: string, x: number, z: number];
 export interface Wave { boss?: boolean; units: Spawn[] }
 
 // 1장 · 망자의 무덤
+const W1_SMALL: Wave = { units: [['zombie', -1.6, 6], ['zombie', 1.6, 6], ['zombie_f', 0, 7.5]] };
 const W1_DEAD: Wave = { units: [['zombie', -2, 6], ['zombie', 2, 6], ['zombie_f', 0, 7.5], ['hunter', 0, 10.5]] };
+const W1_GRAVE: Wave = { units: [['gravedigger', -1.6, 6], ['gravedigger', 1.6, 6], ['zombie', -3.4, 7.5], ['zombie', 3.4, 7.5], ['hunter', 0, 10.5]] };
+const W1_HORDE: Wave = { units: [['zombie', -3, 6], ['zombie', -1, 6], ['zombie', 1, 6], ['zombie', 3, 6], ['zombie_f', -2, 7.5], ['zombie_f', 2, 7.5]] };
 const W1_CULT: Wave = { units: [['gravedigger', -1.6, 6], ['cultist', 1.6, 6], ['zombie_f', -3.2, 7.5], ['acolyte', -1.6, 10.5], ['hunter', 1.6, 10.5]] };
+const W1_RITUAL: Wave = { units: [['cultist', -1.6, 6], ['cultist', 1.6, 6], ['zombie_f', 0, 7.5], ['acolyte', -2, 10.5], ['acolyte', 2, 10.5]] };
+const W1_ARCH: Wave = { units: [['gravedigger', -1.2, 6], ['cultist', 1.2, 6], ['hunter', -2.8, 10.5], ['hunter', 0, 11], ['hunter', 2.8, 10.5]] };
 const W1_BOSS: Wave = { boss: true, units: [['lich', 0, 8], ['zombie', -2.6, 6], ['zombie', 2.6, 6], ['acolyte', -3.4, 11], ['hunter', 3.4, 11]] };
 // 2장 · 불타는 고블린 굴
+const W2_SMALL: Wave = { units: [['goblin', -2, 6], ['goblin', 2, 6], ['goblin', 0, 7.5], ['orc_spear', 0, 10.5]] };
 const W2_GOB: Wave = { units: [['goblin', -2, 6], ['goblin', 2, 6], ['goblin', 0, 7.5], ['goblin_shaman', -1.5, 10.5], ['orc_spear', 1.5, 10.5]] };
+const W2_PACK: Wave = { units: [['goblin', -3, 6], ['goblin', -1, 6], ['goblin', 1, 6], ['goblin', 3, 6], ['orc_spear', -1.5, 10.5], ['orc_spear', 1.5, 10.5]] };
+const W2_IMPS: Wave = { units: [['imp', -3, 6.5], ['imp', 0, 6], ['imp', 3, 6.5], ['goblin_shaman', -1.6, 10.5], ['goblin_shaman', 1.6, 10.5]] };
 const W2_ORC: Wave = { units: [['orc', -1.6, 6], ['orc', 1.6, 6], ['imp', -3.4, 7.5], ['imp', 3.4, 7.5], ['goblin_shaman', 0, 10.5]] };
+const W2_WAR: Wave = { units: [['orc', -1.6, 6], ['orc', 1.6, 6], ['goblin', 0, 7.5], ['orc_spear', -2, 10.5], ['orc_spear', 2, 10.5]] };
 const W2_RAID: Wave = { units: [['orc', 0, 6], ['goblin', -2.4, 6.5], ['imp', 2.4, 6.5], ['orc_spear', -1.8, 10.5], ['orc_spear', 1.8, 10.5], ['goblin_shaman', 0, 11.5]] };
 const W2_BOSS: Wave = { boss: true, units: [['demon', 0, 8.5], ['imp', -2.6, 6], ['imp', 2.6, 6], ['goblin_shaman', -3.4, 11], ['orc_spear', 3.4, 11]] };
+
+/** 별 조건. 첫째는 늘 클리어 */
+export type Cond = { k: 'clear' } | { k: 'nodeath' } | { k: 'time'; n: number } | { k: 'hp'; n: number } | { k: 'ult'; n: number } | { k: 'size'; n: number };
+/** 전투가 끝난 뒤 별 조건을 따질 기록 */
+export interface Outcome { win: boolean; deaths: number; time: number; hpPct: number; ults: number; size: number }
+export const condText = (c: Cond) =>
+  c.k === 'clear' ? '클리어' : c.k === 'nodeath' ? '아무도 쓰러지지 않기' : c.k === 'time' ? `${c.n}초 안에 클리어`
+    : c.k === 'hp' ? `파티 체력 ${c.n}% 이상 남기기` : c.k === 'ult' ? (c.n ? `필살기 ${c.n}번 이하` : '필살기 쓰지 않기') : `${c.n}명 이하로 출전`;
+export function condMet(c: Cond, o: Outcome) {
+  if (!o.win) return false;
+  switch (c.k) {
+    case 'clear': return true;
+    case 'nodeath': return o.deaths === 0;
+    case 'time': return o.time <= c.n;
+    case 'hp': return o.hpPct * 100 >= c.n;
+    case 'ult': return o.ults <= c.n;
+    case 'size': return o.size <= c.n;
+  }
+}
 
 export interface Stage {
   id: string; name: string;
   level: number;                                 // 적 능력치 배율에 쓴다 (enemyMul)
   waves: Wave[];
-  reward: { gold: number; gems: number };        // gems 는 첫 클리어 때 전부, 다시 깨면 1/10 (repeatGems)
+  reward: { gold: number; gems: number };        // gems 는 별 3개를 다 얻을 때의 합 (별 하나에 1/3). 다시 깨면 1/10 (repeatGems)
+  conds: Cond[];                                 // 별 조건 3개
 }
 
 /** 장 이름. 스테이지 id 의 앞 숫자가 장 번호다 ('2-1' → CHAPTERS[1]) */
 export const CHAPTERS = ['1장 · 망자의 무덤', '2장 · 불타는 고블린 굴'];
 export const chapterOf = (st: Stage) => Number(st.id.split('-')[0]) - 1;
-export const STAGES: Stage[] = [
-  { id: '1-1', name: '무너진 입구', level: 1, waves: [W1_DEAD], reward: { gold: 300, gems: 150 } },
-  { id: '1-2', name: '뼈의 회랑', level: 2, waves: [W1_DEAD, W1_CULT], reward: { gold: 500, gems: 150 } },
-  { id: '1-3', name: '군주의 방', level: 4, waves: [W1_DEAD, W1_CULT, W1_BOSS], reward: { gold: 900, gems: 300 } },
-  { id: '2-1', name: '연기 굴 입구', level: 9, waves: [W2_GOB, W2_ORC], reward: { gold: 1200, gems: 150 } },
-  { id: '2-2', name: '약탈자 소굴', level: 12, waves: [W2_GOB, W2_RAID], reward: { gold: 1600, gems: 150 } },
-  { id: '2-3', name: '악마의 제단', level: 16, waves: [W2_ORC, W2_RAID, W2_BOSS], reward: { gold: 2400, gems: 300 } },
+/** 스테이지 순서별 별 조건 2·3 (시간 제한은 웨이브 수로 정한다) */
+type CondMaker = (w: number, boss: boolean) => Cond;
+const T = (per: number): CondMaker => (w, boss) => ({ k: 'time', n: per * w + (boss ? 30 : 0) });
+const C = (c: Cond): CondMaker => () => c;
+const COND_PLAN: [CondMaker, CondMaker][] = [
+  [C({ k: 'nodeath' }), T(25)],
+  [C({ k: 'hp', n: 50 }), T(22)],
+  [C({ k: 'nodeath' }), C({ k: 'ult', n: 1 })],
+  [C({ k: 'size', n: 3 }), T(25)],
+  [C({ k: 'nodeath' }), C({ k: 'hp', n: 60 })],
+  [C({ k: 'ult', n: 0 }), T(25)],
+  [C({ k: 'nodeath' }), C({ k: 'size', n: 3 })],
+  [C({ k: 'hp', n: 50 }), C({ k: 'ult', n: 2 })],
+  [C({ k: 'nodeath' }), T(22)],
+  [C({ k: 'nodeath' }), T(25)],
 ];
+const chapter = (ch: number, list: [name: string, level: number, waves: Wave[], gold: number][]): Stage[] =>
+  list.map(([name, level, waves, gold], i) => {
+    const boss = waves.some(w => w.boss);
+    const [c2, c3] = COND_PLAN[(i + ch * 3) % COND_PLAN.length];
+    return { id: `${ch + 1}-${i + 1}`, name, level, waves, reward: { gold, gems: boss ? 300 : 150 }, conds: [{ k: 'clear' }, c2(waves.length, boss), c3(waves.length, boss)] };
+  });
+export const STAGES: Stage[] = [
+  ...chapter(0, [
+    ['무너진 입구', 1, [W1_SMALL], 300],
+    ['이끼 낀 계단', 2, [W1_DEAD], 350],
+    ['뼈의 회랑', 3, [W1_SMALL, W1_DEAD], 450],
+    ['무덤지기의 오두막', 4, [W1_DEAD, W1_GRAVE], 500],
+    ['썩은 우물', 5, [W1_HORDE, W1_DEAD], 600],
+    ['촛불 예배당', 6, [W1_CULT, W1_RITUAL], 650],
+    ['화살 회랑', 7, [W1_GRAVE, W1_ARCH], 750],
+    ['피의 제단', 8, [W1_HORDE, W1_RITUAL, W1_CULT], 850],
+    ['봉인된 문', 9, [W1_ARCH, W1_CULT, W1_GRAVE], 950],
+    ['군주의 방', 10, [W1_DEAD, W1_CULT, W1_BOSS], 1200],
+  ]),
+  ...chapter(1, [
+    ['연기 굴 입구', 10, [W2_SMALL, W2_GOB], 1200],
+    ['그을린 갱도', 11, [W2_GOB, W2_PACK], 1300],
+    ['약탈자 소굴', 11, [W2_GOB, W2_RAID], 1450],
+    ['임프 둥지', 12, [W2_IMPS, W2_ORC], 1600],
+    ['전쟁 막사', 13, [W2_WAR, W2_RAID], 1750],
+    ['용암 다리', 13, [W2_PACK, W2_IMPS, W2_ORC], 1900],
+    ['주술사의 동굴', 14, [W2_IMPS, W2_GOB, W2_WAR], 2050],
+    ['투기장', 15, [W2_WAR, W2_RAID, W2_ORC], 2200],
+    ['지옥문', 16, [W2_RAID, W2_IMPS, W2_WAR], 2400],
+    ['악마의 제단', 17, [W2_ORC, W2_RAID, W2_BOSS], 2800],
+  ]),
+];
+/** 스테이지 별 개수 (저장의 비트 수) */
+export const starCount = (bits = 0) => (bits & 1) + ((bits >> 1) & 1) + ((bits >> 2) & 1);
 /** 스테이지에 나오는 적 (보스가 부르는 적은 그 웨이브에 같이 넣어 둔다) */
 export const stageEnemies = (st: Stage) => [...new Set(st.waves.flatMap(w => w.units.map(([k]) => k)))].map(k => ENEMIES[k]);
 
@@ -313,6 +384,7 @@ export const heroMul = (lv: number) => 1 + 0.08 * (lv - 1);
 export const enemyMul = (lv: number) => 1 + 0.1 * (lv - 1);
 
 export const repeatGems = (st: Stage) => Math.round(st.reward.gems / 10);
+export const starGems = (st: Stage) => Math.round(st.reward.gems / 3);
 
 // 레벨업: 골드만 쓴다. 최대 레벨은 지금 등급이 정한다 (design.md 3.3)
 const MAX_LEVELS = [40, 50, 60, 70, 80, 90, 100, 120];

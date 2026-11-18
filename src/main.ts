@@ -3,21 +3,26 @@ import { buildArena, setupPost } from './arena';
 import { Assets } from './assets';
 import { Battle } from './battle';
 import { CameraRig } from './camera';
-import { repeatGems, stageEnemies, STAGES } from './data';
+import { condMet, condText, repeatGems, stageEnemies, STAGES, starGems } from './data';
 import { rollGrade, rollItem, type Item } from './items';
 import { loadout } from './loadout';
 import { ANIM_KEYS, lookKeys } from './heroModel';
 import { Fx } from './fx';
 import { Hud } from './hud';
 import { Lobby } from './lobby';
+import { track } from './missions';
 import { addItem, loadSave, writeSave } from './save';
 
-// 스테이지 적 레벨별 드랍 등급 확률 (일반 ~ 초월)
-const DROP_WEIGHTS: Record<number, number[]> = {
-  1: [60, 30, 9, 1, 0, 0, 0, 0],
-  2: [45, 35, 15, 4, 1, 0, 0, 0],
-  4: [25, 35, 25, 11, 3.5, 0.5, 0, 0],
-};
+// 스테이지 적 레벨별 드랍 등급 확률 (일반 ~ 초월). 레벨 이하에서 가장 높은 줄을 쓴다
+const DROP_WEIGHTS: [number, number[]][] = [
+  [1, [60, 30, 9, 1, 0, 0, 0, 0]],
+  [2, [45, 35, 15, 4, 1, 0, 0, 0]],
+  [4, [25, 35, 25, 11, 3.5, 0.5, 0, 0]],
+  [8, [15, 30, 30, 18, 6, 1, 0, 0]],
+  [12, [10, 25, 32, 22, 9, 2, 0, 0]],
+  [16, [5, 20, 32, 27, 12, 3.5, 0.5, 0]],
+];
+const dropWeights = (lv: number) => DROP_WEIGHTS.filter(([l]) => l <= lv).pop()![1];
 import './style.css';
 
 const params = new URLSearchParams(location.search);
@@ -116,18 +121,31 @@ async function main() {
     b.auto = !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
-      let reward: { gold: number; gems: number; items: Item[]; first: boolean } | null = null;
+      let reward: { gold: number; gems: number; items: Item[]; first: boolean; stars: { text: string; met: boolean; was: boolean }[] } | null = null;
       if (win) {
         const first = !save.cleared.includes(stage.id);
-        reward = { gold: stage.reward.gold, gems: first ? stage.reward.gems : repeatGems(stage), items: [], first };
+        // 별: 이번에 처음 채운 조건마다 보석. 새 별이 없으면 다시 깬 보석
+        const o = b.outcome(true);
+        const had = save.stars![stage.id] ?? 0;
+        const now = stage.conds.reduce((bits, c, i) => bits | (condMet(c, o) ? 1 << i : 0), 0);
+        const fresh = now & ~had;
+        const nNew = [0, 1, 2].filter(i => fresh & (1 << i)).length;
+        reward = {
+          gold: stage.reward.gold, gems: nNew ? nNew * starGems(stage) : repeatGems(stage), items: [], first,
+          stars: stage.conds.map((c, i) => ({ text: condText(c), met: !!(now & (1 << i)), was: !!(had & (1 << i)) })),
+        };
+        save.stars![stage.id] = had | now;
         save.gold += reward.gold;
         save.gems += reward.gems;
         // 장비 드랍: 첫 클리어는 1개 확정, 다시 깨면 50% (장비 소환과 함께 장비를 얻는 길)
         if (first || Math.random() < 0.5) {
-          const it = rollItem(0, rollGrade(DROP_WEIGHTS[stage.level] ?? DROP_WEIGHTS[1]));
+          const it = rollItem(0, rollGrade(dropWeights(stage.level)));
           reward.items.push(addItem(save, it));
         }
         if (first) save.cleared.push(stage.id);
+        track(save, 'win');
+        if (stage.waves.some(w => w.boss)) track(save, 'boss');
+        if (nNew) track(save, 'star', nNew);
         writeSave(save);
       }
       hud.result(win, b.heroes, b.time, reward, () => { endBattle(); void startBattle(stage.id); }, () => { endBattle(); lobby.show(save); });

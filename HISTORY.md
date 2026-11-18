@@ -210,3 +210,16 @@
   - save.ts: heroes[id].stars, talents(15칸).
 - 확인: 헤드리스 Chrome. 수호 가지 배우기·끝 노드 잠금(8P)·배움, 별 3개 → 최대 레벨 75, 초기화(골드 차감), 끝 노드 4종(불굴·가시·넘치는 생명·기습)으로 1-3 승리(불굴 발동, 기습 위협 0·첫 치명). 초월 레온: 필살기 ×1.6, 아군 전원 오라 +8%, 패시브 3개 표시. 균형 다시: 1-1 Lv.1 승, 1-3 Lv.1 패·Lv.5 승, 2-3 Lv.16 패·Lv.22 승(3명 생존). npm run build 통과.
 - 결과: src/talents.ts 새로. items.ts, loadout.ts, unit.ts, battle.ts, lobby.ts, save.ts, data.ts(maxLevel 에 별), style.css 수정.
+
+## 2026-11-18 — 2단계 메인 스토리 확장: 장마다 스테이지 10개, 별 조건, 임무·출석
+
+- 한 일:
+  - src/data.ts: 스테이지 20개(장마다 10개, 10번째 보스), 웨이브 15종(1장 W1_SMALL·GRAVE·HORDE·RITUAL·ARCH 추가, 2장 W2_SMALL·PACK·IMPS·WAR 추가). 별 조건 Cond(클리어·아무도 안 쓰러짐·시간·파티 체력·필살기 횟수·출전 인원), condText, condMet, starCount, starGems.
+  - battle.ts: 영웅 필살기 수(ults), outcome()(시간·쓰러진 수·남은 체력 비율·필살기 수·인원).
+  - main.ts: 승리 때 별 판정, 처음 채운 별마다 보석, 임무 집계(승리·보스·별). 장비 드랍 등급표를 적 레벨 8·12·16 까지 늘림(2장이 1장 표를 쓰던 것 고침).
+  - src/missions.ts 새로: 일일 3개(날짜 씨앗) + 보너스, 주간 6개, 출석 7일, track·claim.
+  - lobby.ts: 스테이지 별 표시, 장 별 합계, 고른 스테이지 조건, [임무] 버튼(받을 것 있으면 빨간 점)과 임무 화면, 하루 첫 접속 때 임무 화면부터. 소환·레벨업·특성·분해·승격·별 승급을 임무로 셈.
+  - hud.ts 결과 화면: 별 조건 3개와 NEW.
+  - save.ts: stars, daily, weekly, attend. 예전 저장 옮기기(장 보스 N-3 을 깼으면 N-1 ~ N-10 클리어, 별 1개).
+- 확인: 헤드리스 Chrome. 예전 저장 옮기기(1-3·2-1 클리어 → 1-1 ~ 1-10, 2-1). 출석 받기(골드 3,000), 1-1 별 3개 → 보석 150. 임무 받기·보너스·날짜 바뀜 초기화·주 경계(월요일). 균형: 1-3 Lv.2, 1-5 Lv.4, 1-7 Lv.6, 1-9 Lv.8, 2-1 Lv.9, 2-3 Lv.10, 2-5 Lv.12, 2-7 Lv.14, 2-9 Lv.16 모두 승(체력 89~97%), 1-10 Lv.8 승(1명 쓰러짐), 2-10 Lv.18 패·Lv.22 승. npm run build 통과.
+- 결과: src/missions.ts 새로. data.ts, battle.ts, main.ts, lobby.ts, hud.ts, save.ts, style.css 수정.

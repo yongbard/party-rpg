@@ -2,7 +2,7 @@
 import { AnimationGroup, Mesh, PBRMaterial, Color3, Scene, ShadowGenerator, TrailMesh, TransformNode, Vector3 } from '@babylonjs/core';
 import type { Assets, ModelInstance } from './assets';
 import type { CameraRig } from './camera';
-import { COL, ENEMIES, FORMATION, enemyMul, type Look, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
+import { COL, ENEMIES, FORMATION, enemyMul, type Look, type Outcome, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
 import { makeHeroModel } from './heroModel';
 import type { Bonus } from './items';
 import type { Fx } from './fx';
@@ -37,6 +37,7 @@ const ATK_ANIM_SPEED = 1.25;
 export class Battle {
   units: Unit[] = [];
   time = 0;
+  ults = 0;   // 영웅이 쓴 필살기 수 (별 조건)
   speed = 1;
   paused = false;
   frozen = false;
@@ -59,6 +60,16 @@ export class Battle {
   get heroes() { return this.units.filter(u => u.side === 'hero'); }
   get waveCount() { return this.stage.waves.length; }
   get waveTitle() { return this.stage.waves[this.wave]?.boss ? 'BOSS' : `WAVE ${this.wave + 1}`; }
+  /** 별 조건을 따질 기록 */
+  outcome(win: boolean): Outcome {
+    const hs = this.heroes;
+    return {
+      win, time: this.time, ults: this.ults, size: hs.length,
+      deaths: hs.filter(h => !h.alive).length,
+      hpPct: hs.reduce((a, h) => a + (h.alive ? h.hp : 0), 0) / hs.reduce((a, h) => a + h.maxHp, 0),
+    };
+  }
+
   foesOf(u: Unit) { return this.units.filter(x => x.alive && x.side !== u.side); }
   alliesOf(u: Unit) { return this.units.filter(x => x.alive && x.side === u.side); }
   dist(a: Unit, b: Unit) { return Math.hypot(a.pos.x - b.pos.x, a.pos.z - b.pos.z); }
@@ -447,6 +458,7 @@ export class Battle {
   private async castUlt(u: Unit, target?: Unit) {
     const ult = u.def.ult!;
     u.gauge = 0;
+    if (u.side === 'hero') this.ults++;
     this.frozen = true;
     this.scene.animationTimeScale = 1;
     const paused: AnimationGroup[] = [];
