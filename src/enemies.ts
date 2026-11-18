@@ -203,4 +203,47 @@ export const ENEMIES: Record<string, UnitDef> = {
       },
     },
   },
+  // ───────── 레이드 보스 (쓰러뜨리기보다 60초 동안 피해량을 겨룬다, modes.ts) ─────────
+  wyrm: {
+    id: 'wyrm', name: '심연의 비룡 카르나스', model: 'um/Dragon_Evolved', fit: 0.9, scale: 2.4, boss: true, color: '#7cf',
+    eyeGlow: [0.3, 0.8, 1],
+    stats: { hp: 400000, atk: 220, def: 40, spd: 80, crit: 0.05, critDmg: 1.6, healPow: 1, threat: 1, range: 3.2, move: 1.6 },
+    anims: UM_FLYER, hitAt: 0.4, targeting: 'threat',
+    skills: [
+      {
+        name: '꼬리 휩쓸기', cd: 8, anim: 'Punch', hitAt: 0.4, melee: true,
+        run: (b, u) => {
+          b.fx.ring(u.pos, COL.blue, 4.6, 0.4);
+          for (const h of b.near(u.pos, b.foesOf(u), 4.6)) b.damage(u, h, 0.9);
+        },
+      },
+      {
+        name: '서리 숨결', cd: 14, anim: 'Headbutt', hitAt: 0.5,
+        run: (b, u) => {
+          b.hud.banner('서리 숨결', '카르나스가 숨을 들이켭니다', true);
+          for (const h of b.foesOf(u)) { b.damage(u, h, 0.5); b.dot(u, h, 0.15, 3); }
+          b.fx.ring(u.pos, COL.blue, 8, 0.6);
+        },
+      },
+    ],
+    ult: {
+      name: '심연 낙하', desc: '', cutAnim: 'Yes',
+      run: (b, u) => {
+        const t = u.target ?? b.foesOf(u)[0]; if (!t) return;
+        const at = t.pos.clone();
+        u.faceNow(at);
+        u.play('Yes', false);
+        u.busyUntil = b.time + 2.4;
+        b.hud.banner('심연 낙하', '카르나스가 날아오릅니다', true);
+        b.fx.telegraph(at, 5, 1.7);
+        b.after(1.7, () => {
+          if (!u.alive) return;
+          b.fx.ring(at, COL.blue, 6.5, 0.5);
+          b.fx.burst(at.add(new Vector3(0, 0.3, 0)), COL.blue, 46, 8, 0.3);
+          b.shake(0.7);
+          for (const h of b.near(at, b.foesOf(u), 5)) b.damage(u, h, 1.6, { noGauge: true });
+        });
+      },
+    },
+  },
 };

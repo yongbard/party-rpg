@@ -237,3 +237,17 @@
   - save.ts: mats(stone, essence). loadout.ts: 전투력에 고유 효과·4세트.
 - 확인: 헤드리스 Chrome. 고유·세트 장비 15개를 파티에 끼우고 장비 탭 요약(철벽 4/4 등), 불멸 장신구 +10 강화(골드 27,500, 강화석 220 차감, 고유 효과 ×1.25), 파티 전체 효과(날카로운 눈 0.63·재생 0.50 이 다른 아군에게), 제작(피의 서약 전설 망치, 정수 30 차감), 1-10 전투 승리(광풍 4세트 추가 타격, 오류 없음). npm run build 통과.
 - 결과: src/uniques.ts 새로. items.ts, unit.ts, battle.ts, gacha.ts, main.ts, hud.ts, lobby.ts, save.ts, loadout.ts, talents.ts(NumKey 를 items 에서), style.css 수정.
+
+## 2026-11-18 — 4단계 반복 콘텐츠: 요일 던전, 무한탑, 레이드
+
+- 한 일:
+  - src/modes.ts 새로: 요일 던전 5종(요일·단계 6개·하루 3회·보상), 무한탑(층별 웨이브·보상, 주간 리셋), 레이드(60초, 피해 구간 6개, 하루 2회), refreshModes, stageOf, canRun, finishRun.
+  - enemies.ts: 레이드 보스 심연의 비룡 카르나스(um/Dragon_Evolved, 체력 400,000, 꼬리 휩쓸기·서리 숨결·심연 낙하). public/assets/um/Dragon_Evolved.glb 복사(data/ultimate_monsters 원본, CC0).
+  - data.ts: WAVE_POOL(망자·고블린·보스 웨이브), Stage.limit.
+  - battle.ts: 제한 시간(fightAt, 시간 종료 배너), 남은 초를 웨이브 자리에, heroDamage.
+  - main.ts: stageOf 로 스테이지를 찾고, 별 조건 없는 스테이지는 finishRun 보상. 다시 하기 때 횟수를 다 썼으면 로비로.
+  - hud.ts 결과 화면: 제목 바꾸기(레이드 종료), 보상·정보 줄.
+  - lobby.ts: [던전] 탭(요일 던전 목록·단계 고르기, 무한탑, 레이드 구간표), 승격 버튼에 승격석, 가방 재료 줄에 승격석. gacha.ts: PROMOTE_STONE.
+  - save.ts: mats.promo, dungeon, tower, raid. missions.ts: dayKey·weekKey 내보내기.
+- 확인: 헤드리스 Chrome(2026-11-18 수요일). 정수·승격석 던전만 열림, 시련의 제단 1단계 Lv.4·2단계 Lv.8 승(승격석 2·4), 무한탑 1·2층 Lv.3 승(다음 층으로), 레이드 Lv.10 피해 5만(3명 생존), Lv.20 8.7만, 하루 2회 뒤 버튼 막힘. npm run build 통과.
+- 결과: src/modes.ts 새로. enemies.ts, data.ts, battle.ts, main.ts, hud.ts, lobby.ts, gacha.ts, save.ts, missions.ts, style.css, docs/credits.md 수정. public/assets/um/Dragon_Evolved.glb 추가.

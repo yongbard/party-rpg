@@ -14,7 +14,10 @@ export interface SaveData {
   shards?: Record<string, number>;                  // 영웅 조각 (중복 소환)
   pity?: { hero: number; hero5: number; gear: number; pick?: number };   // 천장 카운터 (전설+, 신화+, 장비 전설+, 픽업 영웅)
   items?: Item[];           // 가방
-  mats?: { stone: number; essence: number };   // 강화석(강화), 정수(제작). 분해와 전투로 얻는다
+  mats?: { stone: number; essence: number; promo?: number };   // 강화석(강화), 정수(제작), 승격석(전설 이상 승격)
+  dungeon?: { day: string; runs: Record<string, number>; best: Record<string, number> };   // 요일 던전: 오늘 횟수, 깬 최고 단계 (modes.ts)
+  tower?: { week: string; floor: number; best: number };   // 무한탑: 이번 주 다음 층, 역대 최고 층
+  raid?: { day: string; runs: number; week: string; best: number; top: number };   // 레이드: 오늘 횟수, 이번 주·역대 최고 피해
   nextUid?: number;
   party: string[];          // 진형 순서: 앞줄 왼쪽, 앞줄 오른쪽, 뒷줄 왼쪽, 뒷줄 오른쪽
   cleared: string[];        // 클리어한 스테이지 id

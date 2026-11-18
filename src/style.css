@@ -533,3 +533,33 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .craft-go small { margin: 0; font: 700 9px var(--body); color: inherit; }
 .craft-go:disabled { background: rgba(255,255,255,.08); color: var(--muted); }
 .rw .stone { font: 700 13px var(--body); color: var(--muted); }
+
+.rlines { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: -4px 0 12px; font: 700 12px var(--body); color: var(--text); }
+
+/* 던전 탭 */
+.lb-tabs { grid-template-columns: repeat(5, 1fr); }
+.dun .dseg { margin-bottom: 10px; }
+.dgs { display: flex; flex-direction: column; gap: 5px; }
+.dg { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 8px; padding: 8px 12px; border-radius: 11px; border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.04); color: var(--text); text-align: left; font-family: var(--body); }
+.dg b { font: 700 14px var(--body); }
+.dg small { grid-row: 2; font: 700 10px var(--body); color: var(--muted); }
+.dg em { grid-row: 1 / 3; grid-column: 2; align-self: center; font: 900 12px var(--body); font-style: normal; color: var(--gold); }
+.dg.shut { opacity: .4; }
+.dg.shut em { color: var(--muted); }
+.dg.sel { border-color: var(--gold); background: rgba(241,200,106,.12); }
+.dtiers { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-top: 10px; }
+.dtier { display: flex; flex-direction: column; align-items: center; padding: 5px 0; border-radius: 9px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.05); color: var(--text); font: 900 14px var(--body); }
+.dtier small { font: 700 9px var(--body); color: var(--muted); }
+.dtier.on { border-color: var(--gold); background: rgba(241,200,106,.16); color: var(--gold); }
+.dtier:disabled { opacity: .3; }
+.dinfo { margin: 10px 0 2px; font: 700 11.5px var(--body); line-height: 1.5; color: var(--muted); }
+.dbig { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0 4px; }
+.dbig b { font: 400 30px var(--title); color: var(--gold); }
+.dbig span { font: 700 11px var(--body); color: var(--muted); text-align: center; }
+.rtiers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; margin-top: 8px; }
+.rtiers div { display: flex; flex-direction: column; padding: 5px 8px; border-radius: 8px; background: rgba(255,255,255,.04); }
+.rtiers b { font: 900 12px var(--body); }
+.rtiers small { font: 700 9.5px var(--body); color: var(--muted); }
+.rtiers .on b { color: var(--gold); }
+.dgo:disabled { opacity: .5; font-size: 15px; }
+.dun .dseg { grid-template-columns: repeat(3, 1fr); }

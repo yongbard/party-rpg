@@ -320,7 +320,8 @@ export interface Stage {
   level: number;                                 // 적 능력치 배율에 쓴다 (enemyMul)
   waves: Wave[];
   reward: { gold: number; gems: number };        // gems 는 별 3개를 다 얻을 때의 합 (별 하나에 1/3). 다시 깨면 1/10 (repeatGems)
-  conds: Cond[];                                 // 별 조건 3개
+  conds: Cond[];                                 // 별 조건 3개 (요일 던전·탑·레이드는 비운다)
+  limit?: number;                                // 제한 시간(초). 다 되면 그때까지로 끝 (레이드)
 }
 
 /** 장 이름. 스테이지 id 의 앞 숫자가 장 번호다 ('2-1' → CHAPTERS[1]) */
@@ -374,6 +375,12 @@ export const STAGES: Stage[] = [
     ['악마의 제단', 17, [W2_ORC, W2_RAID, W2_BOSS], 2800],
   ]),
 ];
+/** 요일 던전·무한탑이 섞어 쓰는 웨이브 (modes.ts) */
+export const WAVE_POOL = {
+  undead: [W1_SMALL, W1_DEAD, W1_GRAVE, W1_HORDE, W1_CULT, W1_RITUAL, W1_ARCH],
+  goblin: [W2_SMALL, W2_GOB, W2_PACK, W2_IMPS, W2_ORC, W2_WAR, W2_RAID],
+  boss: [W1_BOSS, W2_BOSS],
+};
 /** 스테이지 별 개수 (저장의 비트 수) */
 export const starCount = (bits = 0) => (bits & 1) + ((bits >> 1) & 1) + ((bits >> 2) & 1);
 /** 스테이지에 나오는 적 (보스가 부르는 적은 그 웨이브에 같이 넣어 둔다) */

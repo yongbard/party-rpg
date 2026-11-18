@@ -3,7 +3,8 @@ import { buildArena, setupPost } from './arena';
 import { Assets } from './assets';
 import { Battle } from './battle';
 import { CameraRig } from './camera';
-import { condMet, condText, repeatGems, stageEnemies, STAGES, starGems } from './data';
+import { condMet, condText, repeatGems, stageEnemies, starGems } from './data';
+import { canRun, finishRun, stageOf } from './modes';
 import { rollGrade, rollItem, type Item } from './items';
 import { loadout } from './loadout';
 import { ANIM_KEYS, lookKeys } from './heroModel';
@@ -104,7 +105,10 @@ async function main() {
   hud.visible(false);
 
   const startBattle = async (stageId: string) => {
-    const stage = STAGES.find(s => s.id === stageId)!;
+    // 요일 던전에서 횟수를 다 썼으면 (결과 화면의 다시 하기) 로비로
+    if (canRun(stageId, save)) { lobby.show(save); return; }
+    const stage = stageOf(stageId, save)!;
+    const story = stage.conds.length > 0;
     const party = save.party.map(id => loadout(save, id));
     // 적은 조합형이면 외형 파츠를, 통짜 모델(um/)이면 그 파일을 받는다
     const foes = stageEnemies(stage).flatMap(d => (d.looks ? lookKeys(d.looks[0]) : [d.model]));
@@ -121,8 +125,17 @@ async function main() {
     b.auto = !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
-      let reward: { gold: number; gems: number; stone: number; items: Item[]; first: boolean; stars: { text: string; met: boolean; was: boolean }[] } | null = null;
-      if (win) {
+      let reward: { gold: number; gems: number; stone: number; items: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[]; lines?: string[]; title?: string } | null = null;
+      if (!story) {
+        // 요일 던전·무한탑·레이드 (레이드는 져도 그때까지 피해로 보상)
+        const r = finishRun(save, stage.id, win, b.heroDamage);
+        if (r) {
+          reward = { ...r, items: [] };
+          if (win) track(save, 'win');
+          if (stage.waves.some(w => w.boss)) track(save, 'boss');
+        }
+        writeSave(save);
+      } else if (win) {
         const first = !save.cleared.includes(stage.id);
         // 별: 이번에 처음 채운 조건마다 보석. 새 별이 없으면 다시 깬 보석
         const o = b.outcome(true);

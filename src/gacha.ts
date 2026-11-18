@@ -26,6 +26,8 @@ const PITY_MAX = 5;   // 천장으로 정해지는 등급의 위 끝 (신화)
 export const DUP_SHARDS = [10, 10, 10, 15, 20, 30, 50, 80];
 /** g → g+1 승격에 드는 조각·골드 */
 export const PROMOTE: [number, number][] = [[20, 1000], [40, 3000], [60, 8000], [100, 20000], [150, 50000], [250, 100000], [400, 200000]];
+/** 승격석: 전설 이상으로 올릴 때 (지금 등급별). 요일 던전·레이드에서 얻는다 */
+export const PROMOTE_STONE = [0, 0, 0, 5, 10, 20, 40];
 /** 분해하면 받는 골드 (등급별) */
 export const SALVAGE_GOLD = [50, 100, 200, 400, 1000, 2500, 6000, 15000];
 
@@ -130,6 +132,7 @@ export function canPromote(save: SaveData, heroId: string): string | null {
   const [sh, gold] = PROMOTE[g];
   if ((save.shards?.[heroId] ?? 0) < sh) return '조각이 모자란다';
   if (save.gold < gold) return '골드가 모자란다';
+  if ((save.mats?.promo ?? 0) < PROMOTE_STONE[g]) return '승격석이 모자란다';
   return null;
 }
 
@@ -139,6 +142,7 @@ export function promote(save: SaveData, heroId: string) {
   const [sh, gold] = PROMOTE[h.grade];
   save.shards![heroId] -= sh;
   save.gold -= gold;
+  if (PROMOTE_STONE[h.grade]) save.mats!.promo! -= PROMOTE_STONE[h.grade];
   h.grade++;
   writeSave(save);
   return true;

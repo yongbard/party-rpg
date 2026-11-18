@@ -4,7 +4,8 @@ import type { Assets } from './assets';
 import type { CameraRig } from './camera';
 import { CHAPTERS, chapterOf, COL, condText, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, starCount, starGems, type UnitDef } from './data';
 import { ATTEND, claim, claimable, DAILY_BONUS, dailyOf, missionText, progress, refresh, rewardText, track, WEEKLY } from './missions';
-import { BANNERS, canCraft, canEnhance, canPromote, craft, CRAFT, enhance, enhanceCost, heroRates, hiFrom, pickupHero, promote, PROMOTE, RATES, salvage, salvageOf, summon, type BannerId } from './gacha';
+import { canRun, DAY_NAMES, DUNGEON_RUNS, DUNGEONS, isOpen, RAID_LEVEL, RAID_LIMIT, RAID_RUNS, RAID_TIERS, raidReward, refreshModes, rewardLine, stageOf, TIER_LEVEL, towerReward, type DungeonId } from './modes';
+import { BANNERS, canCraft, canEnhance, canPromote, craft, CRAFT, enhance, enhanceCost, heroRates, hiFrom, pickupHero, promote, PROMOTE, PROMOTE_STONE, RATES, salvage, salvageOf, summon, type BannerId } from './gacha';
 import { SETS, UNIQUES, UNIQUE_IDS, uqPower } from './uniques';
 import { showSummon } from './summonView';
 import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, MAX_ENHANCE, setCounts, SLOT_NAMES, STAT_NAMES, statsOf, type EquipSlot, type Item, type Slot } from './items';
@@ -23,7 +24,7 @@ const slotPos = (i: number) => new Vector3(LINEUP[i], 0, 3 + Math.abs(LINEUP[i])
 const GUEST_POS = new Vector3(0, 0, 2.6);   // 파티 밖 영웅을 볼 때 혼자 서는 자리
 const SLOT_NAMES_KO = ['앞줄 왼쪽', '앞줄 오른쪽', '뒷줄 왼쪽', '뒷줄 오른쪽'];
 
-type Tab = 'adventure' | 'hero' | 'summon' | 'bag';
+type Tab = 'adventure' | 'dungeon' | 'hero' | 'summon' | 'bag';
 const fmt = (n: number) => Math.round(n).toLocaleString();
 
 export class Lobby {
@@ -47,6 +48,9 @@ export class Lobby {
   private bagFilter: Slot | 'all' = 'all';
   private bagSel: number | null = null;
   private crafting = false;            // 가방 탭: 제작 화면
+  private dview: 'day' | 'tower' | 'raid' = 'day';   // 던전 탭: 요일 던전 / 무한탑 / 레이드
+  private dsel: DungeonId = 'gold';
+  private dtier = 1;
   private banner: BannerId = 'hero';
   private showRates = false;
 
@@ -209,6 +213,12 @@ export class Lobby {
     this.forming = false;
     this.missions = false;
     this.crafting = false;
+    // 던전 탭: 고른 요일 던전이 오늘 닫혀 있으면 열린 것으로
+    if (t === 'dungeon') {
+      const wd = refreshModes(this.save);
+      const d = DUNGEONS.find(x => x.id === this.dsel)!;
+      if (!isOpen(d, wd)) { this.dsel = DUNGEONS.find(x => isOpen(x, wd))!.id; this.dtier = Math.min(TIER_LEVEL.length, (this.save.dungeon?.best[this.dsel] ?? 0) + 1); }
+    }
     this.render();
     await this.syncGuest();
     if (this.tab !== t) return;
@@ -239,9 +249,10 @@ export class Lobby {
         <div class="plate" style="--accent:${u.def.color}"><b>${u.def.name}</b><span>Lv.${s.heroes[u.def.id].level}</span></div>`).join('')}
       </div>
       <div class="lb-bottom">
-        ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'hero' ? this.heroHtml() : this.tab === 'summon' ? this.summonHtml() : this.bagHtml()}
+        ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'dungeon' ? this.dungeonHtml() : this.tab === 'hero' ? this.heroHtml() : this.tab === 'summon' ? this.summonHtml() : this.bagHtml()}
         <div class="lb-tabs">
           <button data-tab="adventure" class="${this.tab === 'adventure' ? 'on' : ''}">모험</button>
+          <button data-tab="dungeon" class="${this.tab === 'dungeon' ? 'on' : ''}">던전</button>
           <button data-tab="hero" class="${this.tab === 'hero' ? 'on' : ''}">영웅</button>
           <button data-tab="summon" class="${this.tab === 'summon' ? 'on' : ''}">소환</button>
           <button data-tab="bag" class="${this.tab === 'bag' ? 'on' : ''}">가방</button>
@@ -259,6 +270,11 @@ export class Lobby {
       on('.ms-go', b => this.claimMission(b.dataset.k!));
       this.el.querySelector('.stage.sel')?.scrollIntoView({ block: 'nearest' });
       on('.fr', b => void this.toggleMember(b.dataset.id!));
+    } else if (this.tab === 'dungeon') {
+      on('.dseg button', b => { this.dview = b.dataset.v as 'day' | 'tower' | 'raid'; this.render(); });
+      on('.dg', b => { this.dsel = b.dataset.d as DungeonId; this.dtier = Math.min(TIER_LEVEL.length, (this.save.dungeon?.best[this.dsel] ?? 0) + 1); this.render(); });
+      on('.dtier', b => { this.dtier = Number(b.dataset.t); this.render(); });
+      on('.dgo', b => this.onStart(b.dataset.id!));
     } else if (this.tab === 'summon') {
       on('.ban', b => { this.banner = b.dataset.b as BannerId; this.render(); });
       on('.pull', b => this.pull(Number(b.dataset.n) as 1 | 10));
@@ -325,6 +341,43 @@ export class Lobby {
         <div class="conds">${sel.conds.map((c, i) => `<span class="${selBits & (1 << i) ? 'on' : ''}"><i>★</i>${condText(c)}</span>`).join('')}</div>
         <div class="go-row"><button class="form-t">편성</button><button class="ms-t">임무${dot}</button><button class="lb-go start">출전</button></div>
       </div>`;
+  }
+
+  /** 던전 탭: 요일 던전 / 무한탑 / 레이드 */
+  private dungeonHtml() {
+    const s = this.save;
+    const wd = refreshModes(s);
+    const seg = `<div class="seg dseg">${([['day', '요일 던전'], ['tower', '무한탑'], ['raid', '레이드']] as const).map(([v, n]) => `<button data-v="${v}" class="${this.dview === v ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+    const go = (id: string, label: string) => { const why = canRun(id, s); return `<button class="lb-go dgo" data-id="${id}" ${why ? 'disabled' : ''}>${why ?? label}</button>`; };
+    let body = '';
+    if (this.dview === 'day') {
+      const d = DUNGEONS.find(x => x.id === this.dsel)!;
+      const best = s.dungeon!.best[d.id] ?? 0;
+      const list = DUNGEONS.map(x => {
+        const open = isOpen(x, wd);
+        const left = DUNGEON_RUNS - (s.dungeon!.runs[x.id] ?? 0);
+        return `<button class="dg ${x.id === this.dsel ? 'sel' : ''} ${open ? '' : 'shut'}" data-d="${x.id}"><b>${x.name}</b><small>${x.desc} · ${x.days.filter(n => n).map(n => DAY_NAMES[n]).join('·')}·일</small><em>${open ? `${left} / ${DUNGEON_RUNS}` : '닫힘'}</em></button>`;
+      }).join('');
+      const tiers = TIER_LEVEL.map((lv, i) => `<button class="dtier ${this.dtier === i + 1 ? 'on' : ''}" data-t="${i + 1}" ${i > best ? 'disabled' : ''}>${i + 1}<small>Lv.${lv}</small></button>`).join('');
+      body = `<div class="dgs">${list}</div>
+        <div class="dtiers">${tiers}</div>
+        <div class="dinfo">${d.name} ${this.dtier}단계 · 적 Lv.${TIER_LEVEL[this.dtier - 1]} · 보상 ${rewardLine(d.reward(this.dtier))}</div>
+        ${go(`d:${d.id}:${this.dtier}`, '출전')}`;
+    } else if (this.dview === 'tower') {
+      const t = s.tower!;
+      const st = stageOf('tower', s)!;
+      body = `<div class="dbig"><b>${t.floor}층</b><span>이번 주 기록 ${t.floor - 1}층 · 역대 최고 ${t.best}층</span></div>
+        <div class="dinfo">적 Lv.${st.level} · 웨이브 ${st.waves.length}${st.waves.some(w => w.boss) ? ' · 보스' : ''}<br>보상 ${rewardLine(towerReward(t.floor))}${t.floor % 10 === 0 && t.floor >= 30 ? ' (불멸·초월 영웅)' : ''}</div>
+        <div class="empty-note">층마다 적이 강해진다 · 10층마다 보스 · 30층부터 10층마다 불멸·초월 영웅 조각 · 월요일에 1층부터 다시</div>
+        ${go('tower', `${t.floor}층 도전`)}`;
+    } else {
+      const r = s.raid!;
+      body = `<div class="dbig"><b>심연의 비룡 카르나스</b><span>${RAID_LIMIT}초 동안 준 피해로 보상 · 적 Lv.${RAID_LEVEL} · 하루 ${RAID_RUNS}회</span></div>
+        <div class="rtiers">${RAID_TIERS.map((v, i) => `<div class="${r.best >= v ? 'on' : ''}"><b>${fmt(v)}</b><small>${rewardLine(raidReward(i + 1))}</small></div>`).join('')}</div>
+        <div class="dinfo">이번 주 최고 ${fmt(r.best)} · 역대 ${fmt(r.top)} · 남은 횟수 ${RAID_RUNS - r.runs} / ${RAID_RUNS}</div>
+        ${go('raid', '도전')}`;
+    }
+    return `<div class="lb-panel dun">${seg}${body}</div>`;
   }
 
   /** 임무 화면: 출석 7일, 일일 3개 + 보너스, 주간 */
@@ -468,7 +521,7 @@ export class Lobby {
     const why = canPromote(s, id);
     return `<div class="promo" style="--gc:${GRADE_COLORS[g + 1]}">
       <span class="pbar"><i style="width:${Math.min(100, (have / need) * 100)}%"></i><b>조각 ${fmt(have)} / ${need}</b></span>
-      <button class="promo-go" ${why ? 'disabled' : ''}><b>승격</b><small>${GRADES[g + 1]} · ${d.titles?.[g + 1] ?? ''}</small><span><i class="ic-gold"></i>${fmt(gold)}</span></button>
+      <button class="promo-go" ${why ? 'disabled' : ''}><b>승격</b><small>${GRADES[g + 1]} · ${d.titles?.[g + 1] ?? ''}</small><span><i class="ic-gold"></i>${fmt(gold)}${PROMOTE_STONE[g] ? ` · 승격석 ${s.mats?.promo ?? 0}/${PROMOTE_STONE[g]}` : ''}</span></button>
     </div>${stars}`;
   }
 
@@ -727,7 +780,7 @@ export class Lobby {
       </div>`;
     })() : '<div class="empty-note">장비를 누르면 자세히 본다 · 장착은 영웅 탭 → 장비에서</div>';
     const m = s.mats ?? { stone: 0, essence: 0 };
-    const matRow = `<div class="mats"><span>강화석 <b>${fmt(m.stone)}</b></span><span>정수 <b>${fmt(m.essence)}</b></span><button class="craft-t ${this.crafting ? 'on' : ''}">${this.crafting ? '가방으로' : '제작'}</button></div>`;
+    const matRow = `<div class="mats"><span>강화석 <b>${fmt(m.stone)}</b></span><span>정수 <b>${fmt(m.essence)}</b></span><span>승격석 <b>${fmt(m.promo ?? 0)}</b></span><button class="craft-t ${this.crafting ? 'on' : ''}">${this.crafting ? '가방으로' : '제작'}</button></div>`;
     if (this.crafting) return `
       <div class="lb-panel bag">
         <div class="lb-ch">제작<span class="pp">전설 장비 · 고유 효과를 골라 확정</span></div>

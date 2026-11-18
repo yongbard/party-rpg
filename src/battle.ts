@@ -38,6 +38,7 @@ export class Battle {
   units: Unit[] = [];
   time = 0;
   ults = 0;   // 영웅이 쓴 필살기 수 (별 조건)
+  fightAt = 0;   // 첫 웨이브가 시작한 시각 (제한 시간)
   speed = 1;
   paused = false;
   frozen = false;
@@ -59,7 +60,12 @@ export class Battle {
 
   get heroes() { return this.units.filter(u => u.side === 'hero'); }
   get waveCount() { return this.stage.waves.length; }
-  get waveTitle() { return this.stage.waves[this.wave]?.boss ? 'BOSS' : `WAVE ${this.wave + 1}`; }
+  get waveTitle() {
+    if (this.stage.limit) return `${Math.max(0, Math.ceil(this.stage.limit - (this.time - this.fightAt)))}초`;
+    return this.stage.waves[this.wave]?.boss ? 'BOSS' : `WAVE ${this.wave + 1}`;
+  }
+  /** 영웅이 준 피해 합 (레이드) */
+  get heroDamage() { return this.heroes.reduce((a, h) => a + h.dmgDone, 0); }
   /** 별 조건을 따질 기록 */
   outcome(win: boolean): Outcome {
     const hs = this.heroes;
@@ -123,6 +129,7 @@ export class Battle {
 
   private startWave(i: number) {
     this.wave = i;
+    if (i === 0) this.fightAt = this.time;
     // 지난 웨이브의 쓰러진 적 정리
     this.units = this.units.filter(u => u.side === 'hero' || u.alive);
     const w = this.stage.waves[i];
@@ -463,6 +470,14 @@ export class Battle {
   }
 
   private checkEnd() {
+    // 제한 시간 (레이드): 다 되면 그때까지로 끝
+    if (this.stage.limit && this.time - this.fightAt >= this.stage.limit) {
+      this.state = 'won';
+      for (const u of this.units) { u.moveTo = null; u.busyUntil = this.time + 9; if (u.alive) u.play(u.def.anims.idle); }
+      this.hud.banner('시간 종료', `피해량 ${Math.round(this.heroDamage).toLocaleString()}`);
+      this.after(2.4, () => this.onEnd(true));
+      return;
+    }
     if (!this.heroes.some(h => h.alive)) {
       this.state = 'lost';
       this.after(1.6, () => this.onEnd(false));
