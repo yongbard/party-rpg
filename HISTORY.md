@@ -274,3 +274,13 @@
   - save.ts: opt, tut, exportCode, parseSave, storeSave, resetSave. hud.ts·battle.ts·summonView.ts·lobby.ts: 효과음·배경음 연결. main.ts: 배속 저장, 전투 안내(게이지가 처음 차면 필살기, 앞줄 체력 50% 아래면 교대; 안내 중 일시정지). lobby.ts: ⚙ 버튼, 로비 안내 순서.
 - 확인: 헤드리스 Chrome 새 저장. 출석 화면을 닫으면 첫 출전 안내 → 1-1 에서 필살기 안내(멈춤 → 닫으면 이어짐), 교대 안내 → 로비에서 영웅·임무 안내. 소리 켜짐(AudioContext running, 전투 곡). 설정: 코드 내보내기 2,020자 → 가져오기 확인 문구, 엉터리 코드는 "저장 코드가 아니다", 배속 2× 저장. 크레딧 화면. npm run build 통과.
 - 결과: src/sound.ts, src/tutorial.ts, src/settings.ts 새로. save.ts, hud.ts, battle.ts, summonView.ts, lobby.ts, main.ts, style.css, docs/credits.md 수정.
+
+## 2026-11-19 — 7단계 외형 1부: 장식 4겹(무료 소품 + 빛 장식), 등급 규칙 검사
+
+- 한 일:
+  - Poly Pizza 검색(30여 개 검색어)으로 CC0 소품 10종을 고름: data/polypizza/*.glb (출처 sources.txt), 게임용 복사 public/assets/q/acc/.
+  - heroModel.ts: Look.acc, ACC_FIT(뼈·크기·위치·회전), 소품 크기 자동 맞춤, makeFxAcc(후광·빛 날개·구슬·뿔, 매 프레임 움직임).
+  - data.ts: ACC_STEPS (영웅 15명 등급별 장식), colorOnlyGrades(). 레온 영웅~불멸 Knight_Cape.
+  - poc.ts: &acc, &fit, &bones, &check, &r, &ty.
+- 확인: poc 로 16명 등급 사다리, 색·빛만 바뀌는 등급 9 → 0. 게임 전투·로비에서 오류 없이 보임(레온 불멸 후광+날개, 카일 신화 날개).
+- 결과: src/heroModel.ts, src/data.ts, src/poc.ts, src/settings.ts(크레딧), docs/credits.md, docs/content-design.md 11.1, public/assets/q/acc/ 10개(약 0.6MB), data/polypizza/sources.txt.

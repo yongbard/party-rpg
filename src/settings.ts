@@ -6,6 +6,7 @@ const CREDITS: [string, string, string][] = [
   ['3D 캐릭터·의상·애니메이션', 'Quaternius — Universal Base Characters, Modular Outfits, Fantasy Races, Bestiary, Universal Animation Library 1·2, Ultimate Monsters (quaternius.com)', 'CC0 / Quaternius Asset License'],
   ['던전·투구·망토·무기 일부', 'Kay Lousberg — KayKit Dungeon Remastered, Adventurers, Skeletons, Fantasy Weapons Bits (www.kaylousberg.com)', 'CC0'],
   ['무기 70종', 'Binbun — RPG Weapons', 'CC0'],
+  ['장식 소품', 'Quaternius, CreativeTrio — Poly Pizza (poly.pizza)', 'CC0'],
   ['용기사 용 모델', 'Tripo AI 로 생성 (tripo3d.ai)', 'Tripo 무료 계정 결과물'],
   ['장비 아이콘', 'game-icons.net — Lorc, Delapouite, Willdabeast', 'CC BY 3.0'],
   ['글꼴', 'Black Han Sans, Noto Sans KR (Google Fonts)', 'SIL OFL 1.1'],

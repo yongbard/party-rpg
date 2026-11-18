@@ -22,6 +22,8 @@
 | 글꼴 Black Han Sans, Noto Sans KR | Google Fonts 에서 불러옴 | Google Fonts | SIL OFL 1.1 |
 | meshopt 디코더 | public/meshopt_decoder.js | meshoptimizer, Arseny Kapoulkine | MIT |
 | 이펙트 텍스처 (불꽃, 링, 베기, 빛기둥) | 코드로 그림 (src/fx.ts) | 직접 제작 | — |
+| 장식 소품 10종 (Crown, Armor_Metal, Armor_Golden, Armor_Leather, Necklace1, Necklace3, Backpack, Bag, Skull: Quaternius / Quiver: CreativeTrio) | public/assets/q/acc (원본 data/polypizza, 출처·주소 data/polypizza/sources.txt) | Poly Pizza (poly.pizza) 에서 받음, 2026-11-19 | CC0 |
+| 빛 장식 (후광, 빛 날개, 구슬, 뿔) | 코드로 만듦 (src/heroModel.ts makeFxAcc) | 직접 제작 | — |
 | 효과음 15종, 배경음 3곡 | 코드로 합성 (src/sound.ts, Web Audio) | 직접 제작 | — |
 
 CC0 는 표기 의무가 없지만 KayKit 제작자가 표기를 권하므로 크레딧 화면에 Kay Lousberg (www.kaylousberg.com) 를 넣는다.

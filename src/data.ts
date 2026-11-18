@@ -52,6 +52,7 @@ export interface Look {
   offhand?: string;           // q/weapon/… 왼손 (방패는 한손 무기일 때만)
   helmet?: string;            // q/gear/… 머리 뼈에 고정 (쓰면 머리카락은 눈썹만 남긴다)
   cloak?: string;             // q/gear/… 가슴 뼈에 고정
+  acc?: string[];             // 장식: q/acc/… 뼈에 고정하는 소품, fx:halo·wings·orbs·horns 코드로 만드는 빛 장식 (heroModel.ts ACC_FIT)
   tint?: [number, number, number];   // 의상 색 곱
   skin?: [number, number, number];   // 몸(피부) 색 곱 (적: 좀비·임프 등)
   glow?: [number, number, number];   // 무기 발광
@@ -88,10 +89,10 @@ export const HEROES: UnitDef[] = [
       { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Peasant_Body', 'q/part/Male_Peasant_Arms', 'q/part/Male_Peasant_Legs', 'q/part/Male_Peasant_Feet'], weapon: 'q/weapon/Short_Sword_01', offhand: 'q/weapon/kk_shield_A' },
       { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Peasant_Body', 'q/part/Male_Peasant_Arms', 'q/part/Male_Peasant_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_01', offhand: 'q/weapon/kk_shield_A' },
       { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_03', offhand: 'q/weapon/kk_shield_B', tint: [0.75, 0.8, 0.95] },
-      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_05', offhand: 'q/weapon/kk_shield_B', tint: [0.55, 0.6, 0.85] },
-      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_07', offhand: 'q/weapon/kk_shield_C', tint: [1, 0.85, 0.5], glow: [1, 0.75, 0.3], scale: 1.03 },
-      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_07', offhand: 'q/weapon/kk_shield_C', tint: [1, 0.95, 0.8], glow: [1, 0.85, 0.4], aura: [1, 0.8, 0.35], scale: 1.05 },
-      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_sword_E', offhand: 'q/weapon/kk_shield_C', tint: [1.1, 1.05, 0.9], glow: [1, 0.95, 0.6], aura: [1, 0.95, 0.6], scale: 1.07 },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_05', cloak: 'q/gear/Knight_Cape', offhand: 'q/weapon/kk_shield_B', tint: [0.55, 0.6, 0.85] },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_07', cloak: 'q/gear/Knight_Cape', offhand: 'q/weapon/kk_shield_C', tint: [1, 0.85, 0.5], glow: [1, 0.75, 0.3], scale: 1.03 },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/Long_Sword_07', cloak: 'q/gear/Knight_Cape', offhand: 'q/weapon/kk_shield_C', tint: [1, 0.95, 0.8], glow: [1, 0.85, 0.4], aura: [1, 0.8, 0.35], scale: 1.05 },
+      { body: 'q/head/Human_Male', hair: ['q/hair/Hair_SimpleParted', 'q/hair/Eyebrows_Regular'], parts: ['q/part/Male_Ranger_Body', 'q/part/Male_Ranger_Arms', 'q/part/Male_Ranger_Legs', 'q/part/Male_Ranger_Feet_Boots', 'q/part/Male_Ranger_Acc_Pauldron'], weapon: 'q/weapon/kk_sword_E', cloak: 'q/gear/Knight_Cape', offhand: 'q/weapon/kk_shield_C', tint: [1.1, 1.05, 0.9], glow: [1, 0.95, 0.6], aura: [1, 0.95, 0.6], scale: 1.07 },
       // 초월: 용으로 변한다 (Tripo 로 만든 몸에 영웅 뼈대를 심음, docs/credits.md)
       { body: 'q/body/TripoDragon', weapon: 'q/weapon/kk_sword_E', offhand: 'q/weapon/kk_shield_C', glow: [1, 0.45, 0.2], aura: [1, 0.4, 0.2] },
     ],
@@ -273,6 +274,41 @@ export const HEROES: UnitDef[] = [
   },
   ...MORE_HEROES,
 ];
+
+// 7단계 외형: 등급마다 실루엣이 바뀌게 장식을 더한다 (그 등급부터 계속 단다). q/acc 는 뼈에 붙이는 소품, fx: 는 코드로 만드는 빛 장식 (heroModel.ts)
+// AI 변신형 몸(q/body/Tripo…)에는 달지 않는다
+const ACC_STEPS: Record<string, Record<number, string[]>> = {
+  leon: { 4: ['q/acc/Armor_Metal'], 5: ['fx:halo'], 6: ['fx:wings'] },
+  bran: { 1: ['q/acc/Necklace3'], 3: ['q/acc/Armor_Leather'], 4: ['fx:horns', 'q/acc/Skull'] },
+  sera: { 4: ['q/acc/Necklace1'], 5: ['fx:halo', 'fx:orbs'] },
+  kyle: { 1: ['q/acc/Quiver'], 4: ['q/acc/Armor_Leather'], 5: ['fx:wings'], 6: ['fx:orbs'] },
+  mia: { 2: ['q/acc/Bag'] },
+  pug: { 1: ['q/acc/Bag'] },
+  hagen: { 3: ['q/acc/Armor_Metal'] },
+  lia: { 3: ['q/acc/Necklace3'] },
+  gorga: { 2: ['q/acc/Necklace3'], 3: ['q/acc/Skull', 'fx:orbs'] },
+  kix: { 3: ['fx:horns'] },
+  jin: { 1: ['q/acc/Necklace1'], 4: ['fx:orbs'] },
+  nora: { 4: ['fx:wings'] },
+  ella: { 3: ['q/acc/Necklace1'], 4: ['fx:orbs'] },
+  morgan: { 4: ['q/acc/Skull', 'q/acc/Necklace3'], 5: ['fx:orbs', 'fx:halo'] },
+  garsh: { 4: ['q/acc/Armor_Golden'], 5: ['fx:orbs'], 6: ['fx:horns', 'q/acc/Necklace3'] },
+};
+for (const h of HEROES) {
+  const steps = ACC_STEPS[h.id];
+  if (!steps || !h.looks) continue;
+  let cur: string[] = [];
+  h.looks = h.looks.map((l, g) => {
+    cur = [...cur, ...(steps[g] ?? [])];
+    return cur.length && !l.body.startsWith('q/body/Tripo') ? { ...l, acc: [...(l.acc ?? []), ...cur] } : l;
+  });
+}
+
+/** 바로 앞 등급과 모양(몸·파츠·헤어·무기·투구·망토·장식)이 같은 등급: 색·빛만 바뀐다 (poc.html?check 로 본다) */
+export function colorOnlyGrades() {
+  const shape = (l: Look) => JSON.stringify([l.body, l.parts, l.hair, l.weapon, l.offhand, l.helmet, l.cloak, l.acc]);
+  return HEROES.flatMap(h => (h.looks ?? []).flatMap((l, g) => (g > 0 && shape(l) === shape(h.looks![g - 1]) ? [`${h.name} ${GRADES[g]}`] : [])));
+}
 
 type Spawn = [kind: string, x: number, z: number];
 export interface Wave { boss?: boolean; units: Spawn[] }

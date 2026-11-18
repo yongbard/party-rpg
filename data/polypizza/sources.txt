@@ -1,0 +1,10 @@
+Crown /m/i0PZVuVlYv Quaternius CC0 47620 https://static.poly.pizza/1381b02a-8310-437b-a2a7-82cab0a94a4c.glb
+Armor_Metal /m/TMUoxILh9w Quaternius CC0 39920 https://static.poly.pizza/60ccfcdb-6aa7-4caf-a688-9b16a2a5f300.glb
+Armor_Golden /m/65ltdmlBcy Quaternius CC0 58064 https://static.poly.pizza/9545010d-4b33-489b-bf7e-acb0ace56824.glb
+Armor_Leather /m/na9KfWiKN8 Quaternius CC0 17452 https://static.poly.pizza/79e120cf-db14-4d0b-b5ff-1fea0e9483a1.glb
+Necklace3 /m/Jvhs8DCNDZ Quaternius CC0 61920 https://static.poly.pizza/2afce515-0123-40df-9740-23e5b97725e4.glb
+Necklace1 /m/Mezewzksj5 Quaternius CC0 59736 https://static.poly.pizza/1ba2c355-431c-46d0-9ab5-0c07c146bb09.glb
+Quiver /m/3PTJlHnOfU CreativeTrio CC0 111684 https://static.poly.pizza/2d17b107-08fa-4fa1-97ac-5013b1467f13.glb
+Backpack /m/2g9Jm7kvIU Quaternius CC0 99444 https://static.poly.pizza/0d29cdc2-0baf-4bf7-835f-075b34c70b61.glb
+Bag /m/Wq1JPPqHZS Quaternius CC0 70352 https://static.poly.pizza/2bc244a8-c709-4cb1-aba1-1f24beb6b9c5.glb
+Skull /m/DJT7N0HuVB Quaternius CC0 36820 https://static.poly.pizza/de0ba3b1-5603-4ea9-a28f-2cb58f5ede3d.glb

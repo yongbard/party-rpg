@@ -1,14 +1,14 @@
 // 조합형 영웅 모델: 몸(얼굴) + 의상 파츠 + 헤어를 한 스켈레톤에 붙이고, 무기·이펙트를 얹고, 공용 애니메이션(UAL)을 연결한다
 import {
-  AbstractMesh, AnimationGroup, Color3, Color4, Node, ParticleSystem, PBRMaterial, Scene, ShadowGenerator,
-  TransformNode, Vector3,
+  AbstractMesh, AnimationGroup, Color3, Color4, DynamicTexture, Engine, Mesh, MeshBuilder, Node, ParticleSystem, PBRMaterial, Scene, ShadowGenerator,
+  StandardMaterial, TransformNode, Vector3,
 } from '@babylonjs/core';
 import type { Assets, ModelInstance } from './assets';
 import type { Look } from './data';
 import type { Fx } from './fx';
 
 export const ANIM_KEYS = ['q/anim/UAL1', 'q/anim/UAL2'];
-export const lookKeys = (l: Look) => [l.body, ...(l.parts ?? []), ...(l.hair ?? []), l.weapon, l.offhand, l.helmet, l.cloak].filter((k): k is string => !!k);
+export const lookKeys = (l: Look) => [l.body, ...(l.parts ?? []), ...(l.hair ?? []), l.weapon, l.offhand, l.helmet, l.cloak, ...(l.acc ?? []).filter(k => !k.startsWith('fx:'))].filter((k): k is string => !!k);
 
 // 무기를 손 뼈에 붙이는 각도·위치 (hand_r / hand_l 좌표계). 팩마다 무기 축이 달라 종류별로 맞춘다
 type Grip = { rot: [number, number, number]; pos: [number, number, number]; scale?: number };
@@ -33,6 +33,110 @@ function gripOf(key: string): Grip {
   return GRIPS.blade;
 }
 export function setGrip(name: string, g: Grip) { GRIPS[name] = g; }   // 맞춤 확인용 (poc)
+
+// 장식(4겹): 뼈에 고정한다. 소품은 가장 긴 변을 size(m) 로 맞추고 가운데를 원점에 둔다. pos·rot 는 그 뼈 좌표계 (poc.html ?acc= 로 맞춤)
+type AccFit = { bone: string; size: number; pos: [number, number, number]; rot: [number, number, number] };
+const ACC_FIT: Record<string, AccFit> = {
+  Crown: { bone: 'Head', size: 0.2, pos: [0, 0.2, 0.01], rot: [0, 0, 0] },
+  Armor_Metal: { bone: 'spine_03', size: 0.55, pos: [0, 0.08, 0.02], rot: [0, 0, 0] },
+  Armor_Golden: { bone: 'spine_03', size: 0.6, pos: [0, 0.08, 0.02], rot: [0, 0, 0] },
+  Armor_Leather: { bone: 'spine_03', size: 0.5, pos: [0, 0.05, 0.02], rot: [0, 0, 0] },
+  Necklace1: { bone: 'spine_03', size: 0.2, pos: [0, 0.17, 0.11], rot: [0, 0, 0] },
+  Necklace3: { bone: 'spine_03', size: 0.2, pos: [0, 0.17, 0.11], rot: [0, 0, 0] },
+  Quiver: { bone: 'spine_03', size: 0.6, pos: [0.05, 0.02, -0.16], rot: [70 * D, 0, 20 * D] },   // 화살이 위로, 오른 어깨 쪽으로 기운다
+  Backpack: { bone: 'spine_03', size: 0.45, pos: [0, 0, -0.2], rot: [0, 0, 0] },
+  Bag: { bone: 'pelvis', size: 0.25, pos: [0.15, 0, 0.05], rot: [0, 0, 0] },
+  Skull: { bone: 'spine_03', size: 0.12, pos: [-0.17, 0.17, 0.02], rot: [0, 0, 0] },   // 왼 어깨 위 전리품
+  halo: { bone: 'Head', size: 0.34, pos: [0, 0.32, -0.04], rot: [0, 0, 0] },
+  wings: { bone: 'spine_03', size: 0.9, pos: [0, 0.05, -0.15], rot: [0, 0, 0] },
+  horns: { bone: 'Head', size: 0.22, pos: [0, 0.14, 0.02], rot: [0, 0, 0] },
+  orbs: { bone: '', size: 0.45, pos: [0, 1.15, 0], rot: [0, 0, 0] },   // 뼈 없이 몸 둘레를 돈다
+};
+export function setAccFit(name: string, f: AccFit) { ACC_FIT[name] = f; }   // 맞춤 확인용 (poc)
+
+/** 빛 날개 그림 (깃털 5장, 가운데가 밝다). 장면마다 하나 */
+const wingTex = new WeakMap<Scene, DynamicTexture>();
+function wingTexture(scene: Scene) {
+  let t = wingTex.get(scene);
+  if (t) return t;
+  t = new DynamicTexture('wing', { width: 256, height: 256 }, scene, true);
+  const c = t.getContext() as CanvasRenderingContext2D;
+  c.clearRect(0, 0, 256, 256);
+  for (let i = 0; i < 5; i++) {
+    const a = -0.15 - i * 0.28, len = 230 - i * 22;
+    c.save();
+    c.translate(10, 200);
+    c.rotate(a);
+    const g = c.createLinearGradient(0, 0, len, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)');
+    g.addColorStop(0.7, 'rgba(255,255,255,0.55)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.fillStyle = g;
+    c.beginPath();
+    c.ellipse(len / 2, 0, len / 2, 16 - i, 0, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+  t.hasAlpha = true;
+  t.update();
+  wingTex.set(scene, t);
+  return t;
+}
+
+/** 코드로 만드는 빛 장식. 만든 메시와 매 프레임 움직임을 돌려준다 */
+function makeFxAcc(kind: string, scene: Scene, color: Color3, size: number): { meshes: Mesh[]; tick?: (t: number) => void } {
+  const glowMat = (name: string) => {
+    const m = new StandardMaterial(name, scene);
+    m.emissiveColor = color;
+    m.diffuseColor = Color3.Black();
+    m.disableLighting = true;
+    return m;
+  };
+  if (kind === 'halo') {
+    const m = MeshBuilder.CreateTorus('halo', { diameter: size, thickness: size * 0.08, tessellation: 40 }, scene);
+    m.material = glowMat('halo');
+    return { meshes: [m], tick: t => (m.position.y = Math.sin(t * 2) * 0.012) };
+  }
+  if (kind === 'wings') {
+    const mat = glowMat('wings');
+    mat.emissiveTexture = wingTexture(scene);
+    mat.opacityTexture = mat.emissiveTexture;
+    mat.alphaMode = Engine.ALPHA_ADD;
+    mat.backFaceCulling = false;
+    const ws = [1, -1].map(side => {
+      const p = MeshBuilder.CreatePlane('wing', { size }, scene);
+      p.material = mat;
+      p.scaling.x = side;                       // 왼쪽은 뒤집는다
+      p.position.x = side * size * 0.42;
+      p.position.y = size * 0.25;
+      return p;
+    });
+    return { meshes: ws, tick: t => ws.forEach((w, i) => (w.rotation.y = (i ? -1 : 1) * (0.5 + Math.sin(t * 2.2) * 0.18))) };
+  }
+  if (kind === 'horns') {
+    const mat = new PBRMaterial('horn', scene);
+    mat.albedoColor = new Color3(0.12, 0.08, 0.07);
+    mat.roughness = 0.5;
+    mat.emissiveColor = color.scale(0.25);
+    const hs = [1, -1].map(side => {
+      const path = Array.from({ length: 9 }, (_, i) => { const k = i / 8; return new Vector3(side * (0.05 + k * 0.08 + k * k * 0.04), k * size * 0.8, -k * k * size * 0.5); });
+      const m = MeshBuilder.CreateTube('horn', { path, radiusFunction: i => 0.032 * (1 - i / 9) + 0.003, tessellation: 10, cap: Mesh.CAP_START }, scene);
+      m.material = mat;
+      return m;
+    });
+    return { meshes: hs };
+  }
+  // orbs: 몸 둘레를 도는 빛 구슬 3개
+  const mat = glowMat('orb');
+  const os = [0, 1, 2].map(() => { const m = MeshBuilder.CreateSphere('orb', { diameter: 0.09, segments: 8 }, scene); m.material = mat; return m; });
+  return {
+    meshes: os,
+    tick: t => os.forEach((o, i) => {
+      const a = t * 1.4 + (i * Math.PI * 2) / 3;
+      o.position.set(Math.cos(a) * size, Math.sin(t * 2 + i) * 0.12, Math.sin(a) * size);
+    }),
+  };
+}
 // 머리가 큰 체형은 투구를 따로 맞춘다 (poc.html?hero=pug&grip=head:... 로 확인)
 const HEAD_FIT: Record<string, Grip> = {
   'q/body/Puglin': { rot: [0, 0, 0], pos: [0, -0.04, 0.03], scale: 0.55 },
@@ -108,6 +212,45 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
   attach(look.offhand, 'hand_l');
   attach(look.helmet, 'Head', HEAD_FIT[look.body] ?? GRIPS.head);
   attach(look.cloak, 'spine_03', GRIPS.back);
+
+  // 장식: 소품(q/acc/…)은 크기를 맞춰 뼈에, 빛 장식(fx:…)은 코드로 만든다
+  const accColor = new Color3(...(look.glow ?? look.aura ?? [1, 0.85, 0.5]));
+  const ticks: ((t: number) => void)[] = [];
+  for (const key of look.acc ?? []) {
+    const name = key.replace(/^(fx:|q\/acc\/)/, '');
+    const fit = ACC_FIT[name];
+    if (!fit) continue;
+    const pivot = new TransformNode(`acc_${name}`, scene);
+    pivot.parent = fit.bone ? boneNode(fit.bone) ?? bodyRoot : holder;
+    pivot.position.set(...fit.pos);
+    pivot.rotation.set(...fit.rot);
+    owned.push(pivot);
+    if (key.startsWith('fx:')) {
+      const f = makeFxAcc(name, scene, accColor, fit.size);
+      f.meshes.forEach(m => { m.parent = pivot; m.isPickable = false; });
+      if (f.tick) ticks.push(f.tick);
+      if (name === 'horns') meshes.push(...f.meshes);   // 뿔만 그림자를 드리운다
+      continue;
+    }
+    const e = assets.container(key).instantiateModelsToScene(n => n, false, { doNotInstantiate: true });
+    owned.push(e);
+    const inner = new TransformNode(`acc_in_${name}`, scene);
+    e.rootNodes.forEach(r => (r.parent = inner));
+    inner.computeWorldMatrix(true);
+    const bb = inner.getHierarchyBoundingVectors(true);
+    const ext = bb.max.subtract(bb.min);
+    const s = fit.size / Math.max(ext.x, ext.y, ext.z, 1e-4);
+    const mid = bb.min.add(bb.max).scale(0.5);
+    inner.scaling.setAll(s);
+    inner.position.copyFrom(mid.scale(-s));
+    inner.parent = pivot;
+    owned.push(inner);
+    meshes.push(...inner.getChildMeshes(false));
+  }
+  if (ticks.length) {
+    const obs = scene.onBeforeRenderObservable.add(() => { const t = performance.now() / 1000; ticks.forEach(f => f(t)); });
+    owned.push({ dispose: () => scene.onBeforeRenderObservable.remove(obs) });
+  }
 
   // 4. 이펙트: 발밑 오라
   if (look.aura && fx) {
