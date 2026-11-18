@@ -11,6 +11,7 @@ import { lookKeys, makeHeroModel } from './heroModel';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
 import { writeSave, type SaveData } from './save';
+import { auraOf, passivesOf, passiveText, ULT_MUL, ultLevel, branchesOf, canLearn, canStar, learn, MAX_STARS, nodeText, NODE_NEED, pointsOf, RANKS, resetTalents, RESET_GOLD, spentOf, STAR_COST, starUp } from './talents';
 import { Unit } from './unit';
 
 // 카메라에서 보면 +x 가 왼쪽이다 (오른손 좌표계, 카메라가 +z 를 본다)
@@ -36,7 +37,8 @@ export class Lobby {
   private forming = false;             // 모험 탭: 파티 편성 화면
   private save!: SaveData;
   private preview: number | null = null;   // 영웅 탭에서 미리 보는 등급 (null = 지금 등급)
-  private heroView: 'info' | 'gear' = 'info';
+  private heroView: 'info' | 'gear' | 'talent' = 'info';
+  private talentSel: [number, number] | null = null;   // 특성 탭에서 고른 노드 (가지, 노드)
   private gearSlot: EquipSlot | null = null;   // 장비 탭에서 고른 칸
   private bagFilter: Slot | 'all' = 'all';
   private bagSel: number | null = null;
@@ -255,11 +257,15 @@ export class Lobby {
       on('.tile', b => { this.bagSel = Number(b.dataset.uid); this.render(); });
       on('.salv', b => this.salvage(b.dataset.uid ? [Number(b.dataset.uid)] : this.lowItems()));
     } else {
-      on('.seg button', b => { this.heroView = b.dataset.v as 'info' | 'gear'; this.gearSlot = null; this.render(); });
+      on('.seg button', b => { this.heroView = b.dataset.v as 'info' | 'gear' | 'talent'; this.gearSlot = null; this.render(); });
+      on('.tn', b => { this.talentSel = [Number(b.dataset.b), Number(b.dataset.i)]; this.render(); });
+      on('.tn-go', () => this.learnTalent());
+      on('.tn-reset', () => { if (resetTalents(this.save, this.heroId)) { writeSave(this.save); this.refreshBonus(); this.render(); } });
+      on('.star-go', () => this.starHero());
       on('.eslot', b => { const sl = b.dataset.slot as EquipSlot; this.gearSlot = this.gearSlot === sl ? null : sl; this.render(); });
       on('.cand', b => void this.equip(this.gearSlot!, Number(b.dataset.uid)));
       on('.unequip', () => void this.equip(this.gearSlot!, null));
-      on('.chip', b => void this.pickHero(b.dataset.id!));
+      on('.chip', b => { this.talentSel = null; void this.pickHero(b.dataset.id!); });
       this.el.querySelectorAll<HTMLButtonElement>('.rung').forEach(b => {
         b.onclick = () => {
           const g = Number(b.dataset.g);
@@ -331,7 +337,7 @@ export class Lobby {
     const gm = gradeMul(grade);
     const m = heroMul(lv) * gm, m2 = heroMul(lv + 1) * gm;
     const max = d.maxGrade ?? 2;
-    const MAXL = maxLevel(grade);
+    const MAXL = maxLevel(grade, s.heroes[d.id].stars);
     const ladder = Array.from({ length: max + 1 }, (_, g) => `
       <button class="rung ${g === shown ? 'on' : ''} ${g === grade ? 'cur' : ''} ${g > grade ? 'future' : ''}" data-g="${g}" style="--gc:${GRADE_COLORS[g]}">
         <i>${GRADES[g]}</i><span>${d.titles?.[g] ?? ''}</span>
@@ -347,6 +353,11 @@ export class Lobby {
       return `<button class="lvup" data-n="${n}" ${left > 0 && s.gold >= c ? '' : 'disabled'}><b>Lv +${n}</b><span><i class="ic-gold"></i>${left > 0 ? fmt(c) : '최대'}</span></button>`;
     };
     const skills = d.skills.map(k => `<li><b>${k.name}</b><small>재사용 ${k.cd}초</small><p>${k.desc ?? ''}</p></li>`).join('');
+    // 등급 보상: 패시브 (못 연 것은 흐리게), 필살기 단계, 파티 오라
+    const passives = passivesOf(d.id).filter(p => p.at <= max).map(p => `<li class="passive ${grade >= p.at ? '' : 'off'}"><b>${p.name}</b><small>${grade >= p.at ? '패시브' : `${GRADES[p.at]}에 열림`}</small><p>${passiveText(p)}</p></li>`).join('');
+    const ul = ultLevel(grade);
+    const aura = auraOf(grade);
+    const ultNote = `${ul > 1 ? ` · 필살기 Lv.${ul} (피해·치유 ×${ULT_MUL[ul - 1]})` : ''}${aura ? ` · 파티 오라: 아군 공격력 +${Math.round(aura * 100)}%` : ''}`;
     return `
       <div class="lb-panel hero" style="--accent:${d.color}">
         <div class="chips">${this.owned().map(x => `
@@ -359,18 +370,18 @@ export class Lobby {
         <div class="ladder">${ladder}</div>
         ${shown !== grade ? `<div class="ladder-note">${GRADES[shown]} 「${d.titles?.[shown] ?? ''}」 외형 미리보기 · ${shown > grade ? '같은 영웅 조각으로 승격하면 이 모습이 된다' : '지나온 모습'}</div>` : `<div class="ladder-note">최대 ${GRADES[max]}까지 성장 · 칭호를 누르면 그 등급 외형을 미리 본다</div>`}
         ${this.promoHtml(d.id)}
-        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치 · 스킬</button><button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}">장비</button></div>
-        ${this.heroView === 'gear' ? this.gearHtml(d.id) : `
+        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치 · 스킬</button><button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}">특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button><button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}">장비</button></div>
+        ${this.heroView === 'gear' ? this.gearHtml(d.id) : this.heroView === 'talent' ? this.talentHtml(d.id) : `
         <div class="hd-stats">
-          <div><small>체력</small><b>${fmt(st.hp * m + bn.hp)}</b>${grow(st.hp)}</div>
+          <div><small>체력</small><b>${fmt((st.hp * m + bn.hp) * (1 + bn.hpPct))}</b>${grow(st.hp)}</div>
           <div><small>공격력</small><b>${fmt((st.atk * m + bn.atk) * (1 + bn.atkPct))}</b>${grow(st.atk)}</div>
-          <div><small>방어력</small><b>${fmt(st.def * m + bn.def)}</b>${grow(st.def)}</div>
+          <div><small>방어력</small><b>${fmt((st.def * m + bn.def) * (1 + bn.defPct))}</b>${grow(st.def)}</div>
           <div><small>공격 속도</small><b>${fmt(st.spd + bn.spd)}</b></div>
           <div><small>치명타</small><b>${((st.crit + bn.crit) * 100).toFixed(1)}%</b></div>
           <div><small>치명 피해</small><b>${Math.round((st.critDmg + bn.critDmg) * 100)}%</b></div>
         </div>
         <ul class="hd-skills">
-          ${d.ult ? `<li class="ult"><b>${d.ult.name}</b><small>필살기</small><p>${d.ult.desc}</p></li>` : ''}${skills}
+          ${d.ult ? `<li class="ult"><b>${d.ult.name}</b><small>필살기${ul > 1 ? ` Lv.${ul}` : ''}</small><p>${d.ult.desc}${ultNote}</p></li>` : ''}${skills}${passives}
         </ul>
         <div class="hd-lv">${btn(1)}${btn(5)}</div>`}
       </div>`;
@@ -382,13 +393,87 @@ export class Lobby {
     const d = HEROES.find(h => h.id === id)!;
     const g = s.heroes[id].grade;
     const have = s.shards?.[id] ?? 0;
-    if (g >= (d.maxGrade ?? 2)) return `<div class="promo max"><span>조각 <b>${fmt(have)}</b></span><span>최대 등급</span></div>`;
+    const st = s.heroes[id].stars ?? 0;
+    // 별: 등급과 따로 0~5. 별마다 최대 레벨 +5, 특성 포인트 +1
+    const stars = `<div class="stars"><span class="st">${'★'.repeat(st)}<i>${'★'.repeat(MAX_STARS - st)}</i></span>${st < MAX_STARS
+      ? `<button class="star-go" ${canStar(s, id) ? 'disabled' : ''}><b>별 +1</b><small>조각 ${STAR_COST[st][0]} · <i class="ic-gold"></i>${fmt(STAR_COST[st][1])}</small></button>`
+      : '<small>별 최대</small>'}<small class="st-note">별마다 Lv +5 · 특성 +1</small></div>`;
+    if (g >= (d.maxGrade ?? 2)) return `<div class="promo max"><span>조각 <b>${fmt(have)}</b></span><span>최대 등급</span></div>${stars}`;
     const [need, gold] = PROMOTE[g];
     const why = canPromote(s, id);
     return `<div class="promo" style="--gc:${GRADE_COLORS[g + 1]}">
       <span class="pbar"><i style="width:${Math.min(100, (have / need) * 100)}%"></i><b>조각 ${fmt(have)} / ${need}</b></span>
       <button class="promo-go" ${why ? 'disabled' : ''}><b>승격</b><small>${GRADES[g + 1]} · ${d.titles?.[g + 1] ?? ''}</small><span><i class="ic-gold"></i>${fmt(gold)}</span></button>
+    </div>${stars}`;
+  }
+
+  /** 특성: 가지 3개를 나란히, 노드를 누르면 아래에 설명과 배우기 */
+  private talentHtml(id: string) {
+    const s = this.save;
+    const h = s.heroes[id];
+    const r: number[] = h.talents ?? new Array(15).fill(0);
+    const left = pointsOf(h) - spentOf(h);
+    const sel = this.talentSel;
+    const cols = branchesOf(id).map((br, b) => {
+      const spent = r.slice(b * 5, b * 5 + 5).reduce((a, x) => a + x, 0);
+      const nodes = [...br.nodes.map(nd => nd.name), br.cap.name].map((name, i) => {
+        const rank = r[b * 5 + i], max = i === 4 ? 1 : RANKS;
+        const locked = spent < NODE_NEED[i];
+        return `<button class="tn ${i === 4 ? 'cap' : ''} ${rank ? 'got' : ''} ${rank >= max ? 'full' : ''} ${locked ? 'locked' : ''} ${sel?.[0] === b && sel[1] === i ? 'on' : ''}" data-b="${b}" data-i="${i}">
+          <span>${name}</span><small>${i === 4 ? (rank ? '배움' : `${NODE_NEED[4]}P`) : `${rank}/${max}`}</small></button>`;
+      }).join('');
+      return `<div class="tb ${b === 0 ? 'main' : ''}"><div class="tb-h"><b>${br.name}</b><small>${br.desc}</small><em>${spent}</em></div>${nodes}</div>`;
+    }).join('');
+    let detail = '<div class="tn-info muted">노드를 눌러 효과를 본다 · 아래 노드는 같은 가지에 포인트를 먼저 써야 열린다</div>';
+    if (sel) {
+      const br = branchesOf(id)[sel[0]];
+      const rank = r[sel[0] * 5 + sel[1]];
+      const why = canLearn(s, id, sel[0], sel[1]);
+      const text = sel[1] === 4 ? br.cap.desc : `단계마다 ${nodeText(br.nodes[sel[1]])}${rank ? ` · 지금 ${nodeText(br.nodes[sel[1]], rank)}` : ''}`;
+      detail = `<div class="tn-info"><div><b>${sel[1] === 4 ? br.cap.name : br.nodes[sel[1]].name}</b><p>${text}</p></div>
+        <button class="tn-go" ${why ? 'disabled' : ''}>${why ?? '배우기'}</button></div>`;
+    }
+    const spent = spentOf(h);
+    return `<div class="talent">
+      <div class="tn-top"><span>특성 포인트 <b>${left}</b> / ${pointsOf(h)}</span>
+        <button class="tn-reset" ${spent && s.gold >= spent * RESET_GOLD ? '' : 'disabled'}>초기화 <i class="ic-gold"></i>${fmt(spent * RESET_GOLD)}</button></div>
+      <div class="tree">${cols}</div>
+      ${detail}
     </div>`;
+  }
+
+  /** 특성·별이 바뀌면 로비에 선 영웅의 능력치도 다시 (전투력 표시는 render 가 loadout 으로 다시 잰다) */
+  private refreshBonus() {
+    const u = this.cur();
+    u.bonus = loadout(this.save, u.def.id).bonus;
+  }
+
+  private learnTalent() {
+    const sel = this.talentSel;
+    if (!sel || !learn(this.save, this.heroId, sel[0], sel[1])) return;
+    writeSave(this.save);
+    this.refreshBonus();
+    const u = this.cur();
+    this.fx.ring(u.pos, COL.blue, 1.8, 0.5);
+    this.render();
+  }
+
+  private starHero() {
+    const s = this.save;
+    const u = this.cur();
+    if (!starUp(s, u.def.id)) return;
+    writeSave(s);
+    this.refreshBonus();
+    this.fx.ring(u.pos, COL.gold, 2.4, 0.6);
+    this.fx.burst(u.chest(), COL.gold, 40, 5, 0.25);
+    u.play(u.def.anims.victory ?? u.def.anims.idle, false);
+    u.curAnim?.onAnimationGroupEndObservable.addOnce(() => u.play(u.def.anims.idle));
+    this.render();
+    const pop = document.createElement('div');
+    pop.className = 'lvpop';
+    pop.textContent = `★ ${s.heroes[u.def.id].stars}`;
+    pop.addEventListener('animationend', () => pop.remove());
+    this.el.append(pop);
   }
 
   private async promoteHero() {
@@ -538,7 +623,7 @@ export class Lobby {
     const u = this.cur();
     const h = s.heroes[u.def.id];
     let done = 0;
-    while (done < n && h.level < maxLevel(h.grade) && s.gold >= levelCost(h.level)) {
+    while (done < n && h.level < maxLevel(h.grade, h.stars) && s.gold >= levelCost(h.level)) {
       s.gold -= levelCost(h.level);
       h.level++;
       done++;

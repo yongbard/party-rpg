@@ -120,8 +120,25 @@ export function rollGrade(weights: number[], rnd = Math.random) {
   return 0;
 }
 
-export interface Bonus { atk: number; hp: number; def: number; crit: number; critDmg: number; spd: number; atkPct: number }
-export const zeroBonus = (): Bonus => ({ atk: 0, hp: 0, def: 0, crit: 0, critDmg: 0, spd: 0, atkPct: 0 });
+export interface Bonus {
+  atk: number; hp: number; def: number; crit: number; critDmg: number; spd: number; atkPct: number;
+  // 특성 (talents.ts): 비율은 0.04 = 4%
+  hpPct: number; defPct: number; healPct: number; threatPct: number; drPct: number; lifesteal: number; cdr: number; gaugePct: number; rage: number;
+  caps: string[];             // 배운 끝 노드 (규칙을 바꾸는 효과, battle.ts)
+}
+export const zeroBonus = (): Bonus => ({
+  atk: 0, hp: 0, def: 0, crit: 0, critDmg: 0, spd: 0, atkPct: 0,
+  hpPct: 0, defPct: 0, healPct: 0, threatPct: 0, drPct: 0, lifesteal: 0, cdr: 0, gaugePct: 0, rage: 0, caps: [],
+});
+/** 두 보너스를 더한다 (장비 + 특성) */
+export function addBonus(a: Bonus, b: Bonus): Bonus {
+  const out = zeroBonus();
+  for (const k of Object.keys(out) as (keyof Bonus)[]) {
+    if (k === 'caps') out.caps = [...a.caps, ...b.caps];
+    else out[k] = a[k] + b[k];
+  }
+  return out;
+}
 
 export function bonusOf(items: Item[]): Bonus {
   const b = zeroBonus();

@@ -1,6 +1,7 @@
 // 저장 데이터에서 영웅 한 명의 지금 모습·능력치를 꺼낸다 (로비와 전투가 같이 쓴다)
 import { gradeMul, HEROES, heroMul, lookOf, power } from './data';
-import { bonusOf, equippedLook, EQUIP_SLOTS, type Item } from './items';
+import { addBonus, bonusOf, equippedLook, EQUIP_SLOTS, type Item } from './items';
+import { passiveBonus, spentOf, talentBonus } from './talents';
 import type { SaveData } from './save';
 
 export function equippedItems(save: SaveData, heroId: string): Item[] {
@@ -15,13 +16,15 @@ export function loadout(save: SaveData, heroId: string, grade?: number) {
   const h = save.heroes[heroId];
   const g = grade ?? h.grade;
   const items = equippedItems(save, heroId);
-  const bonus = bonusOf(items);
+  const bonus = addBonus(addBonus(bonusOf(items), talentBonus(heroId, h)), passiveBonus(heroId, h.grade));
+  const base = power(def, h.level, h.grade);
   return {
     def, grade: g, level: h.level, bonus,
     mul: heroMul(h.level) * gradeMul(h.grade),
     look: equippedLook(lookOf(def, g)!, h.equip ?? {}, save.items ?? []),
     title: def.titles?.[g],
-    power: power(def, h.level, h.grade) + Math.round(bonus.atk * 2 + bonus.hp * 0.1 + bonus.def * 1.5 + bonus.crit * 300 + bonus.critDmg * 100 + bonus.spd * 2 + bonus.atkPct * 400),
+    // 특성은 포인트마다 기본 전투력 1.5% 로 친다 (끝 노드 효과까지 수치로 재기 어렵다)
+    power: base + Math.round(base * 0.015 * spentOf(h) + bonus.atk * 2 + bonus.hp * 0.1 + bonus.def * 1.5 + bonus.crit * 300 + bonus.critDmg * 100 + bonus.spd * 2 + bonus.atkPct * 400),
   };
 }
 

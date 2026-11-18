@@ -6,7 +6,11 @@ export interface SaveData {
   v: 1;
   gold: number;
   gems: number;
-  heroes: Record<string, { level: number; grade: number; equip?: Partial<Record<EquipSlot, number>> }>;   // 가진 영웅만
+  heroes: Record<string, {
+    level: number; grade: number; equip?: Partial<Record<EquipSlot, number>>;
+    stars?: number;           // 별 0~5 (talents.ts)
+    talents?: number[];       // 특성 단계 15칸: 가지 3 × 노드 5
+  }>;   // 가진 영웅만
   shards?: Record<string, number>;                  // 영웅 조각 (중복 소환)
   pity?: { hero: number; hero5: number; gear: number; pick?: number };   // 천장 카운터 (전설+, 신화+, 장비 전설+, 픽업 영웅)
   items?: Item[];           // 가방

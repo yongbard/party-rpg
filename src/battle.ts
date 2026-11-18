@@ -7,6 +7,7 @@ import { makeHeroModel } from './heroModel';
 import type { Bonus } from './items';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
+import { auraOf, ULT_MUL, ultLevel } from './talents';
 import { Unit, type Side } from './unit';
 
 /** 통짜 모델(um/…): 크기 맞춤, 그림자, 눈 빛내기 */
@@ -52,7 +53,7 @@ export class Battle {
   constructor(
     public scene: Scene, private assets: Assets, public fx: Fx, private rig: CameraRig,
     public hud: Hud, private shadow: ShadowGenerator,
-    public stage: Stage, private party: { def: UnitDef; mul: number; look?: Look; title?: string; bonus?: Bonus }[],
+    public stage: Stage, private party: { def: UnitDef; mul: number; grade?: number; look?: Look; title?: string; bonus?: Bonus }[],
   ) {}
 
   get heroes() { return this.units.filter(u => u.side === 'hero'); }
@@ -88,11 +89,15 @@ export class Battle {
     this.party.forEach((p, i) => {
       const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul, p.look, p.bonus);
       u.title = p.title;
+      u.ultMul = ULT_MUL[ultLevel(p.grade ?? 0) - 1];
       u.play(p.def.anims.idle);
     });
   }
 
   start() {
+    // 파티 오라 (불멸 이상 영웅): 아군 전체 공격력. 여러 명이면 더한다
+    const aura = this.party.reduce((a, p) => a + auraOf(p.grade ?? 0), 0);
+    if (aura) for (const h of this.heroes) h.buffAtk += aura;
     for (const h of this.heroes) {
       h.pos.z -= 9;
       h.moveTo = h.home.clone();
@@ -141,7 +146,7 @@ export class Battle {
     for (let i = 0; i < u.cds.length; i++) u.cds[i] -= dt;
     u.atkCd -= dt;
     u.threat *= 1 - 0.06 * dt;
-    if (this.state === 'fight' && u.def.ult) u.gauge = Math.min(100, u.gauge + dt * (u.side === 'hero' ? 3.5 : 5));
+    if (this.state === 'fight' && u.def.ult) u.gauge = Math.min(100, u.gauge + dt * (u.side === 'hero' ? 3.5 : 5) * (1 + u.bonus.gaugePct));
     const busy = this.time < u.busyUntil;
     if (!busy && u.moveTo) {
       const dx = u.moveTo.x - u.pos.x, dz = u.moveTo.z - u.pos.z;
@@ -214,31 +219,41 @@ export class Battle {
     u.busyUntil = this.time + Math.min(dur, interval * 0.85);
     this.after(u.def.hitAt / ATK_ANIM_SPEED, () => {
       if (!u.alive || !t.alive) return;
-      if (u.def.projectile) this.shoot(u, t, u.def.projectile, () => this.damage(u, t, 1));
+      // 특성 파편: 대상 주변 적에게도 30%
+      const cleave = () => { if (u.has('cleave')) for (const f of this.near(t.pos, this.foesOf(u), 2.2)) if (f !== t) this.damage(u, f, 0.3, { noGauge: true }); };
+      if (u.def.projectile) this.shoot(u, t, u.def.projectile, () => { this.damage(u, t, 1); cleave(); });
       else {
         this.damage(u, t, 1);
+        cleave();
         this.fx.slash(t.chest(), u.side === 'hero' ? COL.white : COL.red);
       }
     });
   }
 
   private castSkill(u: Unit, s: SkillDef, i: number) {
-    u.cds[i] = s.cd;
+    // 특성: 재사용 단축, 연속 기술(25% 로 바로 다시)
+    u.cds[i] = u.has('chain') && Math.random() < 0.25 ? 0.5 : s.cd * (1 - Math.min(0.5, u.bonus.cdr));
     if (u.target) u.face(u.target.pos);
     const dur = u.play(s.anim, false, 1.1);
     u.busyUntil = this.time + dur * 0.9;
-    this.after(s.hitAt / 1.1, () => { if (u.alive) s.run(this, u); });
+    this.after(s.hitAt / 1.1, () => {
+      if (!u.alive) return;
+      s.run(this, u);
+      if (u.has('embers') && u.target?.alive) { this.dot(u, u.target, 0.15, 3); this.fx.burst(u.target.chest(), COL.red, 10, 3, 0.2); }   // 특성 잔불
+    });
   }
 
   // ───────── 전투 처리 ─────────
 
-  damage(src: Unit, tgt: Unit, mult: number, o: { crit?: boolean; lifesteal?: number; noGauge?: boolean } = {}) {
+  damage(src: Unit, tgt: Unit, mult: number, o: { crit?: boolean; lifesteal?: number; noGauge?: boolean; reflect?: boolean } = {}) {
     if (!tgt.alive) return 0;
-    const s = src.def.stats;
     const atk = src.atk();
     let raw = Math.max(atk * mult * 0.15, atk * mult - tgt.defense() * 0.5);
-    const crit = o.crit ?? Math.random() < src.critRate();
+    const crit = o.crit ?? (src.firstCrit || Math.random() < src.critRate());
+    src.firstCrit = false;
     if (crit) raw *= src.critDmg();
+    if (src.has('execute') && tgt.hp / tgt.maxHp < 0.3) raw *= 1.4;   // 특성 처형
+    if (src.ultUntil > this.time) raw *= src.ultMul;                   // 필살기 단계
     raw *= (1 - tgt.dr(this.time)) * (0.92 + Math.random() * 0.16);
     const dmg = Math.max(1, Math.round(raw));
     const absorbed = Math.min(tgt.shield, dmg);
@@ -246,14 +261,27 @@ export class Battle {
     tgt.hp -= dmg - absorbed;
     src.dmgDone += dmg;
     tgt.dmgTaken += dmg;
-    src.threat += dmg * s.threat;
-    if (!o.noGauge && src.def.ult) src.gauge = Math.min(100, src.gauge + 4);
-    if (tgt.def.ult) tgt.gauge = Math.min(100, tgt.gauge + 2);
+    src.threat += dmg * src.threatMul();
+    if (!o.noGauge && src.def.ult) src.gauge = Math.min(100, src.gauge + 4 * (1 + src.bonus.gaugePct));
+    if (tgt.def.ult) tgt.gauge = Math.min(100, tgt.gauge + 2 * (1 + tgt.bonus.gaugePct));
     this.hud.number(tgt, dmg, absorbed === dmg ? 'block' : crit ? 'crit' : tgt.side === 'hero' ? 'taken' : 'dmg');
     this.fx.burst(tgt.chest(), crit ? COL.gold : tgt.side === 'hero' ? COL.red : COL.white, crit ? 22 : 12, crit ? 6 : 4);
     if (crit) this.shake(0.12);
-    if (o.lifesteal) this.healFlat(src, src, dmg * o.lifesteal);
-    if (tgt.hp <= 0) this.kill(tgt);
+    const ls = (o.lifesteal ?? 0) + src.bonus.lifesteal;
+    if (ls) this.healFlat(src, src, dmg * ls);
+    // 특성 가시: 가까이서 맞으면 20% 를 되돌린다 (되돌린 피해는 다시 되돌리지 않는다)
+    if (!o.reflect && tgt.has('thorns') && tgt.alive && this.dist(src, tgt) < 3.5) this.damage(tgt, src, (dmg * 0.2) / Math.max(1, tgt.atk()), { crit: false, noGauge: true, reflect: true });
+    // 특성 불굴: 처음으로 HP 30% 아래가 되면
+    if (tgt.hp > 0 && tgt.has('unbroken') && !tgt.unbrokenUsed && tgt.hp / tgt.maxHp < 0.3) {
+      tgt.unbrokenUsed = true;
+      this.addDr(tgt, 0.5, 5);
+      this.addShield(tgt, tgt.maxHp * 0.2);
+      this.fx.bubble(tgt, COL.gold, 5);
+    }
+    if (tgt.hp <= 0) {
+      this.kill(tgt);
+      if (src.has('thirst') && src.alive) this.healFlat(src, src, src.maxHp * 0.15);   // 특성 피의 갈증
+    }
     else if (this.time >= tgt.busyUntil && !tgt.def.boss && Math.random() < 0.3) {
       const d = tgt.play(tgt.def.anims.hit, false, 1.4);
       tgt.busyUntil = this.time + d * 0.7;
@@ -263,7 +291,8 @@ export class Battle {
 
   heal(src: Unit, tgt: Unit, mult: number) {
     const s = src.def.stats;
-    this.healFlat(src, tgt, src.atk() * mult * s.healPow * (0.95 + Math.random() * 0.1));
+    const um = src.ultUntil > this.time ? src.ultMul : 1;
+    this.healFlat(src, tgt, src.atk() * mult * s.healPow * (1 + src.bonus.healPct) * um * (0.95 + Math.random() * 0.1));
     this.fx.heal(tgt);
   }
 
@@ -273,7 +302,8 @@ export class Battle {
     const real = Math.min(v, tgt.maxHp - tgt.hp);
     tgt.hp += real;
     src.healDone += real;
-    src.threat += real * 0.5 * src.def.stats.threat;
+    src.threat += real * 0.5 * src.threatMul();
+    if (src.has('overflow') && v > real) this.addShield(tgt, (v - real) * 0.5);   // 특성 넘치는 생명
     if (v > 0) this.hud.number(tgt, v, 'heal');
   }
 
@@ -437,7 +467,9 @@ export class Battle {
     this.scene.animationTimeScale = this.paused ? 0 : this.speed;
     this.frozen = false;
     u.busyUntil = this.time + 0.4;
+    u.ultUntil = this.time + 5;   // 필살기가 뒤에 이어 거는 피해(after)까지 단계 배율을 준다
     if (u.alive) ult.run(this, u, target);
+    if (u.alive && u.has('inspire')) for (const a of this.alliesOf(u)) { this.buff(a, 0.15, 0, 6); this.fx.ring(a.pos, COL.gold, 1.2, 0.4); }   // 특성 고무
   }
 
   /** 전투를 끝내고 만든 것을 모두 치운다 */

@@ -316,7 +316,7 @@ export const repeatGems = (st: Stage) => Math.round(st.reward.gems / 10);
 
 // 레벨업: 골드만 쓴다. 최대 레벨은 지금 등급이 정한다 (design.md 3.3)
 const MAX_LEVELS = [40, 50, 60, 70, 80, 90, 100, 120];
-export const maxLevel = (grade: number) => MAX_LEVELS[grade];
+export const maxLevel = (grade: number, stars = 0) => MAX_LEVELS[grade] + 5 * stars;   // 별마다 +5
 export const levelCost = (lv: number) => Math.round(100 * Math.pow(1.15, lv - 1));   // lv → lv+1
 
 /** 전투력: 화면에 보여 주는 대략의 세기 */

@@ -198,3 +198,15 @@
 ## 2026-11-18 — 변신형 배포
 
 - 한 일: 2e0ce5e, 99e91fc, c3ffabe 를 main 에 push (사용자 승인). GitHub Actions deploy 성공(31초). 공개 주소에서 assets/q/body/TripoDragon.glb 응답 200 확인.
+
+## 2026-11-18 — 1단계 성장 마무리: 특성 트리, 별, 등급 패시브
+
+- 한 일:
+  - src/talents.ts: 가지 템플릿 11종(노드 4 × 3단계 + 끝 노드), 영웅 16명 가지 배정, 포인트(등급 + 별), 배우기·초기화, 별(조각 + 골드), 영웅별 패시브(희귀·전설·초월), 필살기 단계, 파티 오라.
+  - items.ts Bonus 확장(hpPct, defPct, healPct, threatPct, drPct, lifesteal, cdr, gaugePct, rage, caps) + addBonus. loadout 이 장비 + 특성 + 패시브를 더한다. 전투력에 특성 포인트당 기본의 1.5%.
+  - unit.ts: 체력·방어 비율, 받는 피해 감소, 위협 배율(threatMul), 끝 노드 has(), 불굴·기습·필살기 단계 상태.
+  - battle.ts: 끝 노드 효과 11종, 흡혈·치유량·재사용 단축·필살기 충전, 필살기 단계 배율(필살기 뒤 5초), 파티 오라.
+  - 영웅 탭: [특성] 보기(가지 3열, 노드 눌러 설명·배우기, 초기화), 승격 줄 아래 별 줄, 최대 레벨에 별, 능력치·스킬 목록에 패시브(못 연 것은 흐리게)·필살기 Lv·오라.
+  - save.ts: heroes[id].stars, talents(15칸).
+- 확인: 헤드리스 Chrome. 수호 가지 배우기·끝 노드 잠금(8P)·배움, 별 3개 → 최대 레벨 75, 초기화(골드 차감), 끝 노드 4종(불굴·가시·넘치는 생명·기습)으로 1-3 승리(불굴 발동, 기습 위협 0·첫 치명). 초월 레온: 필살기 ×1.6, 아군 전원 오라 +8%, 패시브 3개 표시. 균형 다시: 1-1 Lv.1 승, 1-3 Lv.1 패·Lv.5 승, 2-3 Lv.16 패·Lv.22 승(3명 생존). npm run build 통과.
+- 결과: src/talents.ts 새로. items.ts, loadout.ts, unit.ts, battle.ts, lobby.ts, save.ts, data.ts(maxLevel 에 별), style.css 수정.
