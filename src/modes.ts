@@ -2,6 +2,7 @@
 import { HEROES, STAGES, WAVE_POOL, type Stage, type Wave } from './data';
 import { dayKey, weekKey } from './missions';
 import type { SaveData } from './save';
+import { FACTIONS, type FactionId } from './tactics';
 
 export interface ModeReward { gold?: number; gems?: number; stone?: number; essence?: number; promo?: number; shards?: number }
 
@@ -74,6 +75,11 @@ export function stageOf(id: string, s: SaveData): Stage | undefined {
     const f = s.tower!.floor;
     return { id, name: `무한탑 ${f}층`, level: 2 + f, waves: towerWaves(f), reward: { gold: 0, gems: 0 }, conds: [] };
   }
+  // 모의전 'mock:{상대}:{레벨 차이}': 적 웨이브 없이 상대 파티가 선다 (main.ts 가 rivalParty 로 만든다)
+  if (id.startsWith('mock:')) {
+    const team = id.split(':')[1];
+    return { id, name: `모의전 · ${team === 'b' ? '내 파티 B' : FACTIONS[team as FactionId].name}`, level: 1, waves: [{ units: [] }], reward: { gold: 0, gems: 0 }, conds: [] };
+  }
   if (id === 'raid') return { id, name: '심연의 비룡', level: RAID_LEVEL, waves: [{ boss: true, units: [['wyrm', 0, 9]] }], reward: { gold: 0, gems: 0 }, conds: [], limit: RAID_LIMIT };
   return STAGES.find(st => st.id === id);
 }
@@ -89,6 +95,7 @@ export function canRun(id: string, s: SaveData): string | null {
     if (Number(t) > (s.dungeon!.best[did] ?? 0) + 1) return '앞 단계를 먼저 깬다';
   }
   if (id === 'raid' && s.raid!.runs >= RAID_RUNS) return '오늘 횟수를 다 썼다';
+  if (id.startsWith('mock:b') && !s.party2?.some(h => s.heroes[h])) return '파티 B 를 먼저 짠다';
   return null;
 }
 
@@ -122,6 +129,10 @@ export function finishRun(s: SaveData, id: string, win: boolean, damage: number)
     s.tower!.best = Math.max(s.tower!.best, f);
     lines.push(`${f}층 돌파 · 다음 ${f + 1}층`);
     if (f >= 30 && f % 10 === 0) lines.push('고층 보상: 불멸·초월 영웅 조각');
+  } else if (id.startsWith('mock:')) {
+    // 모의전: 보상 없음
+    title = win ? '모의전 승리' : '모의전 패배';
+    lines.push('조합 실험용 · 보상 없음');
   } else if (id === 'raid') {
     s.raid!.runs++;
     s.raid!.best = Math.max(s.raid!.best, damage);

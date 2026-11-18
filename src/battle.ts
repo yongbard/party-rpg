@@ -4,9 +4,10 @@ import type { Assets, ModelInstance } from './assets';
 import type { CameraRig } from './camera';
 import { COL, ENEMIES, FORMATION, enemyMul, type Look, type Outcome, type ProjKind, type SkillDef, type Stage, type UnitDef } from './data';
 import { makeHeroModel } from './heroModel';
-import type { Bonus } from './items';
+import { addBonus, zeroBonus, type Bonus } from './items';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
+import { synergy, type Policy } from './tactics';
 import { auraOf, ULT_MUL, ultLevel } from './talents';
 import { Unit, type Side } from './unit';
 
@@ -28,17 +29,22 @@ export function makeModel(assets: Assets, def: UnitDef, shadow: ShadowGenerator)
   return m;
 }
 
+/** 전투에 나서는 영웅 한 명 (loadout.ts) */
+export interface Member { def: UnitDef; mul: number; grade?: number; look?: Look; title?: string; bonus?: Bonus; policy?: Policy }
+
 interface Proj { mesh: Mesh; trail: TrailMesh; tgt: Unit; last: Vector3; speed: number; onHit: () => void }
 type State = 'load' | 'intro' | 'fight' | 'clear' | 'won' | 'lost';
 
 const ARENA = { x: 8.6, zMin: -11, zMax: 15.5 };
 const ATK_ANIM_SPEED = 1.25;
+export const SWAP_CD = 10;   // 앞뒤 교대 재사용 (초)
 
 export class Battle {
   units: Unit[] = [];
   time = 0;
   ults = 0;   // 영웅이 쓴 필살기 수 (별 조건)
   fightAt = 0;   // 첫 웨이브가 시작한 시각 (제한 시간)
+  swapAt = -SWAP_CD;   // 마지막 앞뒤 교대 시각
   speed = 1;
   paused = false;
   frozen = false;
@@ -55,12 +61,14 @@ export class Battle {
   constructor(
     public scene: Scene, private assets: Assets, public fx: Fx, private rig: CameraRig,
     public hud: Hud, private shadow: ShadowGenerator,
-    public stage: Stage, private party: { def: UnitDef; mul: number; grade?: number; look?: Look; title?: string; bonus?: Bonus }[],
+    public stage: Stage, private party: Member[],
+    private rivals: Member[] = [],   // 모의전: 상대 파티 (적 쪽 영웅)
   ) {}
 
   get heroes() { return this.units.filter(u => u.side === 'hero'); }
   get waveCount() { return this.stage.waves.length; }
   get waveTitle() {
+    if (this.rivals.length) return '모의전';
     if (this.stage.limit) return `${Math.max(0, Math.ceil(this.stage.limit - (this.time - this.fightAt)))}초`;
     return this.stage.waves[this.wave]?.boss ? 'BOSS' : `WAVE ${this.wave + 1}`;
   }
@@ -102,23 +110,39 @@ export class Battle {
     return u;
   }
 
-  spawnHeroes() {
-    this.party.forEach((p, i) => {
-      const u = this.spawn(p.def, 'hero', FORMATION[i], 0, p.mul, p.look, p.bonus);
+  spawnHeroes() { this.spawnTeam(this.party, 'hero'); }
+
+  /** 파티를 진형대로 세운다. 모의전 상대(enemy)는 맞은편에 거울처럼 선다 */
+  private spawnTeam(team: Member[], side: Side) {
+    const syn = synergy(team.map(p => p.def.id)).bonus;
+    return team.map((p, i) => {
+      const f = FORMATION[i];
+      const pos = side === 'hero' ? f.clone() : new Vector3(-f.x, 0, 6 - f.z);
+      const u = this.spawn(p.def, side, pos, side === 'hero' ? 0 : Math.PI, p.mul, p.look, addBonus(p.bonus ?? zeroBonus(), syn));
       u.title = p.title;
       u.ultMul = ULT_MUL[ultLevel(p.grade ?? 0) - 1];
+      u.policy = p.policy ?? 'attack';
+      u.slot = i;
+      if (!u.has('stealth')) u.threat = u.threatMul() * 150;
       u.play(p.def.anims.idle);
+      return u;
     });
   }
 
-  start() {
+  /** 전투 시작 때 파티 전체에 거는 것: 파티 오라, 불멸 장비 고유 효과, 수호자 2차·왕국 대형 시너지 보호막 */
+  private teamStart(units: Unit[], team: Member[]) {
     // 파티 오라 (불멸 이상 영웅): 아군 전체 공격력. 여러 명이면 더한다
-    const aura = this.party.reduce((a, p) => a + auraOf(p.grade ?? 0), 0);
-    if (aura) for (const h of this.heroes) h.buffAtk += aura;
+    const aura = team.reduce((a, p) => a + auraOf(p.grade ?? 0), 0);
+    if (aura) for (const h of units) h.buffAtk += aura;
     // 불멸 이상 장비의 고유 효과는 파티 전체에 절반 세기로 (낀 영웅 자신은 이미 가졌다)
-    for (const src of this.heroes) for (const [id, p] of Object.entries(src.bonus.party))
-      for (const h of this.heroes) if (h !== src) h.bonus.uniq[id] = (h.bonus.uniq[id] ?? 0) + p;
-    for (const h of this.heroes) if (h.uq2('guardian')) this.addShield(h, h.maxHp * 0.15);
+    for (const src of units) for (const [id, p] of Object.entries(src.bonus.party))
+      for (const h of units) if (h !== src) h.bonus.uniq[id] = (h.bonus.uniq[id] ?? 0) + p;
+    for (const h of units) if (h.uq2('guardian')) this.addShield(h, h.maxHp * 0.15);
+    for (const h of units) if (h.has('syn_kingdom')) this.addShield(h, h.maxHp * 0.12);
+  }
+
+  start() {
+    this.teamStart(this.heroes, this.party);
     for (const h of this.heroes) {
       h.pos.z -= 9;
       h.moveTo = h.home.clone();
@@ -138,6 +162,11 @@ export class Battle {
     for (const [kind, x, z] of w.units) {
       const u = this.spawnEnemy(kind, x, z);
       this.fx.burst(u.pos.add(new Vector3(0, 0.2, 0)), COL.bone, 18, 3, 0.25);
+    }
+    if (i === 0 && this.rivals.length) {
+      const rs = this.spawnTeam(this.rivals, 'enemy');
+      this.teamStart(rs, this.rivals);
+      for (const u of rs) this.fx.burst(u.pos.add(new Vector3(0, 0.2, 0)), COL.red, 18, 3, 0.25);
     }
     if (w.boss) this.shake(0.4);
     for (const h of this.heroes) if (h.alive && h.uq('shade') && (i === 0 || h.uq2('shade'))) { h.shadeUntil = this.time + 6; h.shadeHit = true; }
@@ -169,7 +198,7 @@ export class Battle {
     for (let i = 0; i < u.cds.length; i++) u.cds[i] -= dt;
     u.atkCd -= dt;
     u.threat *= 1 - 0.06 * dt;
-    if (this.state === 'fight' && u.def.ult) u.gauge = Math.min(100, u.gauge + dt * ((u.side === 'hero' ? 3.5 : 5) * (1 + u.bonus.gaugePct) + 2 * u.uq('focus')));
+    if (this.state === 'fight' && u.def.ult) u.gauge = Math.min(100, u.gauge + dt * ((u.side === 'hero' || u.def.maxGrade !== undefined ? 3.5 : 5) * (1 + u.bonus.gaugePct) + 2 * u.uq('focus')));
     if (this.time < u.shadeUntil) u.threat = 0;   // 고유 그림자 망토
     // 고유 재생의 갑옷: 3초마다
     if (u.uq('regen') && this.state === 'fight' && this.time >= u.regenAt) {
@@ -199,6 +228,19 @@ export class Battle {
     if (!u.alive || this.time < u.busyUntil) return;
     const foes = this.foesOf(u);
     if (!foes.length) { u.moveTo = null; return; }
+    // 행동 방침 생존 우선: 체력이 40% 아래면 잠깐 뒤로 (10초에 한 번)
+    if (u.policy === 'survive' && u.hp / u.maxHp < 0.4 && this.time >= u.retreatAt) {
+      u.retreatAt = this.time + 10;
+      u.threat *= 0.5;
+      u.target = null;
+      u.holdTo = new Vector3(u.home.x, 0, u.home.z + (u.side === 'hero' ? -2.5 : 2.5));
+      u.holdUntil = this.time + 2;
+    }
+    // 앞뒤 교대·후퇴: 정한 자리로 걸어간다
+    if (this.time < u.holdUntil && u.holdTo) {
+      u.moveTo = Math.hypot(u.holdTo.x - u.pos.x, u.holdTo.z - u.pos.z) > 0.1 ? u.holdTo.clone() : null;
+      return;
+    }
     if (!u.target || !u.target.alive || this.time >= u.retargetAt) {
       u.target = this.pickTarget(u, foes);
       u.retargetAt = this.time + 1.2;
@@ -215,7 +257,14 @@ export class Battle {
     }
     if (u.side === 'enemy' && u.def.ult && u.gauge >= 100) {
       u.gauge = 0;
-      u.def.ult.run(this, u);
+      // 모의전 상대 영웅: 컷인 없이 쓴다 (대상 지정형은 지금 대상에게)
+      if (u.def.maxGrade !== undefined) {
+        u.face(t.pos);
+        u.busyUntil = this.time + u.play(u.def.ult.cutAnim, false, 1.2) * 0.8;
+        u.ultUntil = this.time + 5;
+        this.fx.ring(u.pos, COL.red, 1.4, 0.4);
+      }
+      u.def.ult.run(this, u, u.def.ult.targeted ? t : undefined);
       return;
     }
     if (inRange) {
@@ -229,6 +278,14 @@ export class Battle {
 
   private pickTarget(u: Unit, foes: Unit[]): Unit {
     const by = (score: (f: Unit) => number) => foes.reduce((a, b) => (score(b) > score(a) ? b : a));
+    // 행동 방침 (tactics.ts)
+    if (u.policy === 'weak') return by(f => -f.hp - this.dist(u, f));
+    if (u.policy === 'protect') {
+      const mates = this.alliesOf(u).filter(a => a !== u);
+      const hurt = mates.length ? mates.reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a)) : null;
+      const near = foes.filter(f => f.target === hurt);
+      if (hurt && near.length) return near.reduce((a, b) => (this.dist(u, b) < this.dist(u, a) ? b : a));
+    }
     if (u.def.targeting === 'lowest') return by(f => -f.hp / f.maxHp);
     if (u.def.targeting === 'threat') {
       const ranged = u.def.stats.range > 4;
@@ -351,6 +408,7 @@ export class Battle {
       this.kill(tgt);
       if (src.has('thirst') && src.alive) this.healFlat(src, src, src.maxHp * 0.15);   // 특성 피의 갈증
       if (src.uq2('reaper') && src.def.ult) src.gauge = Math.min(100, src.gauge + 15);
+      if (src.has('syn_abyss') && src.def.ult) src.gauge = Math.min(100, src.gauge + 15);   // 심연 대형 시너지
       if (src.uq2('gale') && src.alive) this.buff(src, 0, 30, 3);
     }
     else if (this.time >= tgt.busyUntil && !tgt.def.boss && Math.random() < 0.3) {
@@ -502,6 +560,27 @@ export class Battle {
     }
     this.after(1.6, () => this.heroes.filter(h => h.alive).forEach(h => (h.moveTo = h.home.clone())));
     this.after(3.2, () => this.startWave(this.wave + 1));
+  }
+
+  // ───────── 앞뒤 교대 ─────────
+
+  canSwap() { return this.state === 'fight' && !this.frozen && !this.paused && this.time - this.swapAt >= SWAP_CD && this.heroes.length > 1; }
+  swapLeft() { return Math.max(0, SWAP_CD - (this.time - this.swapAt)); }
+
+  /** 앞줄(0·1)과 뒷줄(2·3)을 바꾼다. 앞으로 나간 영웅은 위협이 커지고, 뒤로 빠진 영웅은 줄어든다 */
+  swapRows() {
+    if (!this.canSwap()) return;
+    this.swapAt = this.time;
+    for (const h of this.heroes) {
+      h.slot ^= 2;
+      h.home = FORMATION[h.slot].clone();
+      if (!h.alive) continue;
+      h.threat *= h.slot < 2 ? 1.5 : 0.4;
+      h.target = null;
+      h.holdTo = h.home.clone();
+      h.holdUntil = this.time + 1.5;
+      this.fx.ring(h.pos, COL.gold, 1, 0.3);
+    }
   }
 
   // ───────── 필살기 ─────────

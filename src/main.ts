@@ -6,7 +6,7 @@ import { CameraRig } from './camera';
 import { condMet, condText, repeatGems, stageEnemies, starGems } from './data';
 import { canRun, finishRun, stageOf } from './modes';
 import { rollGrade, rollItem, type Item } from './items';
-import { loadout } from './loadout';
+import { loadout, rivalParty } from './loadout';
 import { ANIM_KEYS, lookKeys } from './heroModel';
 import { Fx } from './fx';
 import { Hud } from './hud';
@@ -110,12 +110,14 @@ async function main() {
     const stage = stageOf(stageId, save)!;
     const story = stage.conds.length > 0;
     const party = save.party.map(id => loadout(save, id));
+    const [, team, off] = stageId.startsWith('mock:') ? stageId.split(':') : [];
+    const rivals = team ? rivalParty(save, team, Number(off)) : [];
     // 적은 조합형이면 외형 파츠를, 통짜 모델(um/)이면 그 파일을 받는다
     const foes = stageEnemies(stage).flatMap(d => (d.looks ? lookKeys(d.looks[0]) : [d.model]));
-    await assets.ensure([...party.flatMap(p => lookKeys(p.look)), ...foes]);
+    await assets.ensure([...party.flatMap(p => lookKeys(p.look)), ...rivals.flatMap(p => lookKeys(p.look)), ...foes]);
     lobby.hide();
     rig.setView('battle', true);
-    const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party);
+    const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party, rivals);
     battle = b;
     b.spawnHeroes();
     hud.setHeroes(b.heroes, b.heroes.map(h => portraits[h.def.id]));
@@ -127,9 +129,10 @@ async function main() {
     b.onEnd = win => {
       let reward: { gold: number; gems: number; stone: number; items: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[]; lines?: string[]; title?: string } | null = null;
       if (!story) {
-        // 요일 던전·무한탑·레이드 (레이드는 져도 그때까지 피해로 보상)
+        // 요일 던전·무한탑·레이드 (레이드는 져도 그때까지 피해로 보상), 모의전 (보상 없음)
         const r = finishRun(save, stage.id, win, b.heroDamage);
-        if (r) {
+        if (r && team) reward = { ...r, items: [] };
+        else if (r) {
           reward = { ...r, items: [] };
           if (win) track(save, 'win');
           if (stage.waves.some(w => w.boss)) track(save, 'boss');
@@ -182,6 +185,7 @@ async function main() {
     hud.setSpeed(speed);
   };
   hud.onPause = () => { if (battle) hud.setPaused(battle.togglePause()); };
+  hud.onSwap = () => battle?.swapRows();
   hud.onAuto = () => {
     save.auto = !save.auto;
     writeSave(save);

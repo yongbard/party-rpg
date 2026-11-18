@@ -251,3 +251,16 @@
   - save.ts: mats.promo, dungeon, tower, raid. missions.ts: dayKey·weekKey 내보내기.
 - 확인: 헤드리스 Chrome(2026-11-18 수요일). 정수·승격석 던전만 열림, 시련의 제단 1단계 Lv.4·2단계 Lv.8 승(승격석 2·4), 무한탑 1·2층 Lv.3 승(다음 층으로), 레이드 Lv.10 피해 5만(3명 생존), Lv.20 8.7만, 하루 2회 뒤 버튼 막힘. npm run build 통과.
 - 결과: src/modes.ts 새로. enemies.ts, data.ts, battle.ts, main.ts, hud.ts, lobby.ts, gacha.ts, save.ts, missions.ts, style.css, docs/credits.md 수정. public/assets/um/Dragon_Evolved.glb 추가.
+
+## 2026-11-18 — 5단계 전투 깊이: 진영 시너지, 행동 방침, 앞뒤 교대, 모의전
+
+- 한 일:
+  - src/tactics.ts 새로: 진영 4개(왕국·숲·황야·심연)와 영웅 16명의 진영, 시너지(2명 소형·3명 이상 대형), 행동 방침 4가지.
+  - battle.ts: Member 타입, spawnTeam(진형·시너지·방침), teamStart(파티 오라·고유 효과 파티 전체·보호막을 양쪽 모두), pickTarget 방침(약한 적부터·아군 보호), 생존 우선 후퇴, swapRows(앞뒤 교대, 10초), 모의전 상대(rivals) 등장·필살기, 심연 대형 시너지 처치 게이지.
+  - unit.ts: policy, slot, holdUntil·holdTo, retreatAt, 위협에 방침 배율.
+  - hud.ts: ⇅ 교대 버튼(남은 초 표시), 카드에 앞·뒤.
+  - loadout.ts: 방침, aiLoadout, rivalParty. modes.ts: 'mock:{상대}:{레벨 차이}' 스테이지, 보상 없음. main.ts: 상대 파티를 만들어 Battle 에 넘김, 교대 버튼 연결.
+  - lobby.ts: 영웅 탭 진영 표시·행동 방침 고르기, 편성 화면 진영 표시·시너지 설명, 모험 탭 시너지 한 줄, 던전 탭 [모의전](상대 5개, 파티 B 편성, AI 레벨 ±).
+  - save.ts: policy, party2.
+- 확인: 헤드리스 Chrome(영웅 16명 Lv.12, 파티 왕국 4명). 시너지 수치·보호막, 교대 뒤 자리·위협, 모의전 숲 AI 승·심연 AI 승·파티 B(황야) 패, 결과 화면 "모의전 승리/패배 · 보상 없음", 1-5 방침 섞어 승. 던전 탭 상대 버튼이 요일 던전 핸들러에 덮이던 것 고침(.dg[data-d]). npm run build 통과.
+- 결과: src/tactics.ts 새로. battle.ts, unit.ts, hud.ts, loadout.ts, modes.ts, main.ts, lobby.ts, save.ts, style.css 수정.

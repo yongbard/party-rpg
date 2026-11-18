@@ -2,6 +2,7 @@ import { AnimationGroup, TransformNode, Vector3 } from '@babylonjs/core';
 import type { ModelInstance } from './assets';
 import type { UnitDef } from './data';
 import { zeroBonus, type Bonus } from './items';
+import { policyThreat, type Policy } from './tactics';
 
 export type Side = 'hero' | 'enemy';
 
@@ -28,6 +29,12 @@ export class Unit {
   critUntil = 0;             // 집중의 투구 2차: 이 시각까지 모든 공격 치명
   regenAt = 3;               // 재생의 갑옷: 다음 회복 시각
   atkCount = 0;              // 광풍 4세트: 기본 공격 수
+  // 전투 깊이 (tactics.ts)
+  policy: Policy = 'attack'; // 행동 방침
+  slot = 0;                  // 진형 자리: 0·1 앞줄, 2·3 뒷줄
+  holdUntil = 0;             // 이 시각까지 holdTo 로 걸어간다 (앞뒤 교대, 생존 우선 후퇴)
+  holdTo: Vector3 | null = null;
+  retreatAt = 0;             // 생존 우선: 다음에 물러날 수 있는 시각
   moveTo: Vector3 | null = null;
   home: Vector3;
   yaw: number; yawGoal: number;
@@ -102,7 +109,7 @@ export class Unit {
   uq(id: string) { return this.bonus.uniq[id] ?? 0; }
   /** 고유 효과의 2차 효과가 켜졌나 (신화 이상) */
   uq2(id: string) { return this.bonus.uniq2.includes(id); }
-  threatMul() { return this.def.stats.threat * Math.max(0.1, 1 + this.bonus.threatPct) * (this.uq('guardian') ? 2 : 1); }
+  threatMul() { return this.def.stats.threat * Math.max(0.1, 1 + this.bonus.threatPct) * (this.uq('guardian') ? 2 : 1) * policyThreat(this.policy); }
 
   atk() { return (this.def.stats.atk * this.mul + this.bonus.atk) * (1 + this.bonus.atkPct + this.buffAtk) * (1 + ((this.def.rage ?? 0) + this.bonus.rage) * (1 - this.hp / this.maxHp)) * (this.uq('guardian') ? 0.85 : 1); }
   defense() { return (this.def.stats.def * this.mul + this.bonus.def) * (1 + this.bonus.defPct); }

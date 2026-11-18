@@ -1,6 +1,7 @@
 // 기기 안 저장 (localStorage). 서버 없음.
 import { HEROES } from './data';
 import { rollItem, type EquipSlot, type Item } from './items';
+import type { Policy } from './tactics';
 
 export interface SaveData {
   v: 1;
@@ -26,6 +27,8 @@ export interface SaveData {
   weekly?: { week: string; counts: Record<string, number>; claimed: number[] };
   attend?: { last: string; n: number };   // 마지막 출석 날짜, 받은 횟수
   auto?: boolean;           // 필살기 자동 사용
+  policy?: Record<string, Policy>;   // 영웅별 행동 방침 (tactics.ts), 없으면 공격 우선
+  party2?: string[];        // 모의전 상대로 쓰는 내 파티 B
 }
 
 const KEY = 'party-rpg-save';

@@ -1,4 +1,4 @@
-// 로비: 파티가 카메라를 보고 서 있다. 아래 탭으로 [모험](스테이지 선택·파티 편성) / [영웅](가진 영웅 전부: 능력치·레벨업·승격·장비) / [소환] / [가방]
+// 로비: 파티가 카메라를 보고 서 있다. 아래 탭으로 [모험](스테이지 선택·파티 편성) / [던전](요일 던전·무한탑·레이드·모의전) / [영웅](가진 영웅 전부: 능력치·레벨업·승격·장비·행동 방침) / [소환] / [가방]
 import { Color3, Scene, ShadowGenerator, Vector3 } from '@babylonjs/core';
 import type { Assets } from './assets';
 import type { CameraRig } from './camera';
@@ -10,7 +10,8 @@ import { SETS, UNIQUES, UNIQUE_IDS, uqPower } from './uniques';
 import { showSummon } from './summonView';
 import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, MAX_ENHANCE, setCounts, SLOT_NAMES, STAT_NAMES, statsOf, type EquipSlot, type Item, type Slot } from './items';
 import { equippedItems } from './loadout';
-import { loadout, wearerOf } from './loadout';
+import { loadout, rivalParty, wearerOf } from './loadout';
+import { FACTION_IDS, FACTION_OF, FACTIONS, membersOf, POLICIES, synergy, type FactionId, type Policy } from './tactics';
 import { lookKeys, makeHeroModel } from './heroModel';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
@@ -48,7 +49,10 @@ export class Lobby {
   private bagFilter: Slot | 'all' = 'all';
   private bagSel: number | null = null;
   private crafting = false;            // 가방 탭: 제작 화면
-  private dview: 'day' | 'tower' | 'raid' = 'day';   // 던전 탭: 요일 던전 / 무한탑 / 레이드
+  private dview: 'day' | 'tower' | 'raid' | 'mock' = 'day';   // 던전 탭: 요일 던전 / 무한탑 / 레이드 / 모의전
+  private mockTeam: 'b' | FactionId = 'kingdom';   // 모의전 상대
+  private mockOff = 0;                 // 모의전 AI 상대 레벨 차이
+  private forming2 = false;            // 모의전: 파티 B 편성 화면
   private dsel: DungeonId = 'gold';
   private dtier = 1;
   private banner: BannerId = 'hero';
@@ -163,6 +167,29 @@ export class Lobby {
     this.render();
   }
 
+  /** 모의전 파티 B: 누르면 넣고 뺀다 (최대 4명, 내 파티와 겹쳐도 된다) */
+  private toggleB(id: string) {
+    const p = (this.save.party2 ??= []);
+    if (p.includes(id)) p.splice(p.indexOf(id), 1);
+    else if (p.length < 4) p.push(id);
+    writeSave(this.save);
+    this.render();
+  }
+
+  /** 켜진 진영 시너지 (작게: 한 줄 칩) */
+  private synHtml(ids: string[], small = false) {
+    const { active } = synergy(ids);
+    if (!active.length) return small ? '' : '<div class="syn none">진영 시너지 없음 · 같은 진영 2명이면 소형, 3명 이상이면 대형</div>';
+    return `<div class="syn ${small ? 'small' : ''}">${active.map(a => {
+      const f = FACTIONS[a.id];
+      return `<span style="--fc:${f.color}"><b>${f.name} ${a.n}</b>${f.syn}${a.big ? ' (대형)' : ''}${small ? '' : `<small>${a.text}</small>`}</span>`;
+    }).join('')}</div>`;
+  }
+  private facTag(id: string) {
+    const f = FACTIONS[FACTION_OF[id]];
+    return f ? `<i class="fac" style="--fc:${f.color}">${f.name}</i>` : '';
+  }
+
   private async equip(slot: EquipSlot, uid: number | null) {
     const s = this.save;
     const id = this.heroId;
@@ -271,8 +298,12 @@ export class Lobby {
       this.el.querySelector('.stage.sel')?.scrollIntoView({ block: 'nearest' });
       on('.fr', b => void this.toggleMember(b.dataset.id!));
     } else if (this.tab === 'dungeon') {
-      on('.dseg button', b => { this.dview = b.dataset.v as 'day' | 'tower' | 'raid'; this.render(); });
-      on('.dg', b => { this.dsel = b.dataset.d as DungeonId; this.dtier = Math.min(TIER_LEVEL.length, (this.save.dungeon?.best[this.dsel] ?? 0) + 1); this.render(); });
+      on('.dseg button', b => { this.dview = b.dataset.v as 'day' | 'tower' | 'raid' | 'mock'; this.render(); });
+      on('.mk', b => { this.mockTeam = b.dataset.t as 'b' | FactionId; this.forming2 = false; this.render(); });
+      on('.moff', b => { this.mockOff = Math.max(-10, Math.min(10, this.mockOff + Number(b.dataset.d))); this.render(); });
+      on('.form2-t', () => { this.forming2 = !this.forming2; this.render(); });
+      on('.fr2', b => this.toggleB(b.dataset.id!));
+      on('.dg[data-d]', b => { this.dsel = b.dataset.d as DungeonId; this.dtier = Math.min(TIER_LEVEL.length, (this.save.dungeon?.best[this.dsel] ?? 0) + 1); this.render(); });
       on('.dtier', b => { this.dtier = Number(b.dataset.t); this.render(); });
       on('.dgo', b => this.onStart(b.dataset.id!));
     } else if (this.tab === 'summon') {
@@ -304,6 +335,7 @@ export class Lobby {
       });
       this.el.querySelectorAll<HTMLButtonElement>('.lvup').forEach(b => { b.onclick = () => this.levelUp(Number(b.dataset.n)); });
       on('.promo-go', () => void this.promoteHero());
+      on('.pl', b => { (this.save.policy ??= {})[this.heroId] = b.dataset.p as Policy; writeSave(this.save); this.render(); });
     }
   }
 
@@ -339,6 +371,7 @@ export class Lobby {
         }).join('')}
         </div>
         <div class="conds">${sel.conds.map((c, i) => `<span class="${selBits & (1 << i) ? 'on' : ''}"><i>★</i>${condText(c)}</span>`).join('')}</div>
+        ${this.synHtml(s.party, true)}
         <div class="go-row"><button class="form-t">편성</button><button class="ms-t">임무${dot}</button><button class="lb-go start">출전</button></div>
       </div>`;
   }
@@ -347,7 +380,7 @@ export class Lobby {
   private dungeonHtml() {
     const s = this.save;
     const wd = refreshModes(s);
-    const seg = `<div class="seg dseg">${([['day', '요일 던전'], ['tower', '무한탑'], ['raid', '레이드']] as const).map(([v, n]) => `<button data-v="${v}" class="${this.dview === v ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+    const seg = `<div class="seg dseg">${([['day', '요일 던전'], ['tower', '무한탑'], ['raid', '레이드'], ['mock', '모의전']] as const).map(([v, n]) => `<button data-v="${v}" class="${this.dview === v ? 'on' : ''}">${n}</button>`).join('')}</div>`;
     const go = (id: string, label: string) => { const why = canRun(id, s); return `<button class="lb-go dgo" data-id="${id}" ${why ? 'disabled' : ''}>${why ?? label}</button>`; };
     let body = '';
     if (this.dview === 'day') {
@@ -370,6 +403,8 @@ export class Lobby {
         <div class="dinfo">적 Lv.${st.level} · 웨이브 ${st.waves.length}${st.waves.some(w => w.boss) ? ' · 보스' : ''}<br>보상 ${rewardLine(towerReward(t.floor))}${t.floor % 10 === 0 && t.floor >= 30 ? ' (불멸·초월 영웅)' : ''}</div>
         <div class="empty-note">층마다 적이 강해진다 · 10층마다 보스 · 30층부터 10층마다 불멸·초월 영웅 조각 · 월요일에 1층부터 다시</div>
         ${go('tower', `${t.floor}층 도전`)}`;
+    } else if (this.dview === 'mock') {
+      body = this.mockHtml(go);
     } else {
       const r = s.raid!;
       body = `<div class="dbig"><b>심연의 비룡 카르나스</b><span>${RAID_LIMIT}초 동안 준 피해로 보상 · 적 Lv.${RAID_LEVEL} · 하루 ${RAID_RUNS}회</span></div>
@@ -378,6 +413,34 @@ export class Lobby {
         ${go('raid', '도전')}`;
     }
     return `<div class="lb-panel dun">${seg}${body}</div>`;
+  }
+
+  /** 모의전: 내 파티 B 또는 진영 AI 파티와 싸워 본다 (보상 없음) */
+  private mockHtml(go: (id: string, label: string) => string) {
+    const s = this.save;
+    const mine = s.party.reduce((a, id) => a + loadout(s, id).power, 0);
+    const teams: ['b' | FactionId, string, string[]][] = [['b', '내 파티 B', s.party2 ?? []], ...FACTION_IDS.map(f => [f, `${FACTIONS[f].name} 파티`, membersOf(f)] as ['b' | FactionId, string, string[]])];
+    const name = (id: string) => HEROES.find(h => h.id === id)!.name;
+    const list = teams.map(([t, n, ids]) => `<button class="dg mk ${t === this.mockTeam ? 'sel' : ''}" data-t="${t}"><b>${n}</b><small>${ids.length ? ids.map(name).join(' · ') : '비어 있음 · 눌러서 짠다'}</small><em>${t === 'b' ? '내 영웅' : 'AI'}</em></button>`).join('');
+    const rivals = rivalParty(s, this.mockTeam, this.mockOff);
+    const theirs = rivals.reduce((a, r) => a + r.power, 0);
+    let mid: string;
+    if (this.mockTeam === 'b') {
+      const p2 = s.party2 ?? [];
+      mid = this.forming2
+        ? `<div class="froster">${this.owned().map(d => {
+            const k = p2.indexOf(d.id);
+            return `<button class="fr fr2 ${k >= 0 ? 'in' : ''}" data-id="${d.id}" style="--gc:${GRADE_COLORS[s.heroes[d.id].grade]}">${this.face(d.id)}${k >= 0 ? `<em>${k + 1}</em>` : ''}${this.facTag(d.id)}<span>${d.name}</span><small>Lv.${s.heroes[d.id].level}</small></button>`;
+          }).join('')}</div>${this.synHtml(p2)}<button class="lb-go form2-t">완료</button>`
+        : `${this.synHtml(p2)}<div class="dinfo">파티 B 는 내 영웅으로 짠다 (지금 파티와 겹쳐도 된다) · 장비·특성·행동 방침이 그대로 · 상대 전투력 ${fmt(theirs)} · 내 파티 ${fmt(mine)}</div><div class="go-row"><button class="form2-t">파티 B 편성</button>${go('mock:b:0', '대전')}</div>`;
+    } else {
+      const lv = rivals[0]?.level ?? 1;
+      mid = `${this.synHtml(rivals.map(r => r.def.id))}
+        <div class="moffs"><button class="moff" data-d="-1">−</button><span>상대 Lv.${lv} · ${GRADES[rivals[0]?.grade ?? 0]}까지<small>내 파티 평균 ${this.mockOff >= 0 ? '+' : ''}${this.mockOff}</small></span><button class="moff" data-d="1">+</button></div>
+        <div class="dinfo">장비·특성 없는 AI 파티 · 상대 전투력 ${fmt(theirs)} · 내 파티 ${fmt(mine)}</div>
+        ${go(`mock:${this.mockTeam}:${this.mockOff}`, '대전')}`;
+    }
+    return `<div class="dgs">${list}</div>${mid}<div class="empty-note">보상 없음 · 조합·행동 방침·진영 시너지를 시험해 보는 곳</div>`;
   }
 
   /** 임무 화면: 출석 7일, 일일 3개 + 보너스, 주간 */
@@ -439,9 +502,10 @@ export class Lobby {
         <div class="froster">${this.owned().map(d => {
           const h = s.heroes[d.id];
           const k = s.party.indexOf(d.id);
-          return `<button class="fr ${k >= 0 ? 'in' : ''}" data-id="${d.id}" style="--gc:${GRADE_COLORS[h.grade]}">${this.face(d.id)}${k >= 0 ? `<em>${k + 1}</em>` : ''}<span>${d.name}</span><small>Lv.${h.level}</small></button>`;
+          return `<button class="fr ${k >= 0 ? 'in' : ''}" data-id="${d.id}" style="--gc:${GRADE_COLORS[h.grade]}">${this.face(d.id)}${k >= 0 ? `<em>${k + 1}</em>` : ''}${this.facTag(d.id)}<span>${d.name}</span><small>Lv.${h.level}</small></button>`;
         }).join('')}</div>
-        <div class="empty-note">누르면 넣고 뺀다 · 넣은 순서대로 앞줄 왼쪽부터 선다 · 1 ~ 4명</div>
+        ${this.synHtml(s.party)}
+        <div class="empty-note">누르면 넣고 뺀다 · 넣은 순서대로 앞줄 왼쪽부터 선다 · 1 ~ 4명 · 전투 중 ⇅ 로 앞뒷줄을 바꾼다</div>
         <button class="lb-go form-t">완료</button>
       </div>`;
   }
@@ -482,7 +546,7 @@ export class Lobby {
           <button class="chip ${x.id === this.heroId ? 'on' : ''} ${s.party.includes(x.id) ? 'party' : ''}" data-id="${x.id}" style="--accent:${x.color}">${this.face(x.id)}<span>Lv.${s.heroes[x.id].level}</span></button>`).join('')}
         </div>
         <div class="hd-head">
-          <div><div class="hd-title" style="color:${GRADE_COLORS[grade]}">${GRADES[grade]} · ${d.titles?.[grade] ?? ''}</div><div class="hd-name">${d.name}<span>Lv.${lv}<small>/${MAXL}</small></span></div></div>
+          <div><div class="hd-title" style="color:${GRADE_COLORS[grade]}">${GRADES[grade]} · ${d.titles?.[grade] ?? ''}</div><div class="hd-name">${d.name}${this.facTag(d.id)}<span>Lv.${lv}<small>/${MAXL}</small></span></div></div>
           <div class="hd-power"><small>전투력</small><b>${fmt(lo.power)}</b></div>
         </div>
         <div class="ladder">${ladder}</div>
@@ -501,6 +565,8 @@ export class Lobby {
         <ul class="hd-skills">
           ${d.ult ? `<li class="ult"><b>${d.ult.name}</b><small>필살기${ul > 1 ? ` Lv.${ul}` : ''}</small><p>${d.ult.desc}${ultNote}</p></li>` : ''}${skills}${passives}
         </ul>
+        <div class="pol"><small>행동 방침</small>${POLICIES.map(p => `<button class="pl ${(s.policy?.[d.id] ?? 'attack') === p.id ? 'on' : ''}" data-p="${p.id}">${p.name}</button>`).join('')}</div>
+        <div class="pol-d">${POLICIES.find(p => p.id === (s.policy?.[d.id] ?? 'attack'))!.desc}</div>
         <div class="hd-lv">${btn(1)}${btn(5)}</div>`}
       </div>`;
   }

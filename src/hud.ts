@@ -17,15 +17,17 @@ export class Hud {
   onSpeed: () => void = () => {};
   onPause: () => void = () => {};
   onAuto: () => void = () => {};
+  onSwap: () => void = () => {};
   private root: HTMLElement;
   private world: HTMLElement;
-  private cards: { box: HTMLElement; hp: HTMLElement; sh: HTMLElement; g: HTMLElement; hpTxt: HTMLElement }[] = [];
+  private cards: { box: HTMLElement; hp: HTMLElement; sh: HTMLElement; g: HTMLElement; hpTxt: HTMLElement; row: HTMLElement }[] = [];
   private bars = new Map<Unit, { box: HTMLElement; fill: HTMLElement; sh: HTMLElement }>();
   private waveEl: HTMLElement;
   private bossEl: HTMLElement;
   private speedBtn: HTMLButtonElement;
   private pauseBtn: HTMLButtonElement;
   private autoBtn: HTMLButtonElement;
+  private swapBtn: HTMLButtonElement;
   private hintEl: HTMLElement;
   private bannerEl: HTMLElement;
   private cutEl: HTMLElement;
@@ -46,7 +48,10 @@ export class Hud {
     this.pauseBtn.onclick = () => this.onPause();
     this.autoBtn = el('button', 'btn auto', 'AUTO') as HTMLButtonElement;
     this.autoBtn.onclick = () => this.onAuto();
-    btns.append(this.autoBtn, this.speedBtn, this.pauseBtn);
+    // 앞뒤 교대: 앞줄 2명과 뒷줄 2명이 자리를 바꾼다
+    this.swapBtn = el('button', 'btn swap', '⇅') as HTMLButtonElement;
+    this.swapBtn.onclick = () => this.onSwap();
+    btns.append(this.swapBtn, this.autoBtn, this.speedBtn, this.pauseBtn);
     this.bossEl = el('div', 'boss hide', '<div class="bn"></div><div class="bb"><i class="lag"></i><i class="fill"></i></div>');
     top.append(this.waveEl, btns);
     this.hintEl = el('div', 'hint hide', '대상으로 삼을 적을 탭하세요');
@@ -59,7 +64,7 @@ export class Hud {
     this.root.append(this.world, top, this.bossEl, this.hintEl, this.bannerEl, this.cutEl, this.flashEl, cardRow, this.resultEl, this.loadEl);
     for (let i = 0; i < 4; i++) {
       const box = el('div', 'card', `
-        <div class="por"><img alt=""><div class="ready">필살</div><div class="nm"></div></div>
+        <div class="por"><img alt=""><div class="ready">필살</div><div class="nm"></div><i class="row"></i></div>
         <div class="hpb"><i class="fill"></i><i class="sh"></i><span></span></div>
         <div class="gb"><i></i></div>`);
       box.onpointerdown = e => { e.stopPropagation(); this.onUlt(i); };
@@ -70,6 +75,7 @@ export class Hud {
         sh: box.querySelector('.hpb .sh')!,
         g: box.querySelector('.gb i')!,
         hpTxt: box.querySelector('.hpb span')!,
+        row: box.querySelector('.row')!,
       });
     }
   }
@@ -179,7 +185,11 @@ export class Hud {
       c.box.classList.toggle('full', h.alive && h.gauge >= 100);
       c.box.classList.toggle('dead', !h.alive);
       c.box.classList.toggle('aiming', b.targeting === h);
+      c.row.textContent = h.slot < 2 ? '앞' : '뒤';
     });
+    const left = b.swapLeft();
+    this.swapBtn.disabled = !b.canSwap();
+    this.swapBtn.innerHTML = left > 0 && b.state === 'fight' ? `<small>${Math.ceil(left)}</small>` : '⇅';
     for (const [u, bar] of this.bars) {
       const p = this.project(u.head());
       bar.box.style.transform = `translate(${p.x}px, ${p.y}px)`;
