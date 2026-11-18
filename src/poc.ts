@@ -1,5 +1,6 @@
 // 외형 확인 페이지: 영웅 한 명의 등급별 외형을 한 줄로 세운다
 // 주소: /poc.html?hero=leon&anim=Sword_Block  (anim 생략 시 영웅 대기 동작)
+//       몸만 바꿔 보기: &body=q/body/TripoDragon (그 영웅 동작으로)
 //       적 줄 세우기: /poc.html?enemy=zombie,cultist,goblin  (ENEMIES 의 조합형 적)
 //       몬스터 비교: &mon=Demon,Yeti:2.4  (public/poc/um/{이름}.glb 를 영웅 옆에 높이 2.4 로 세운다)
 //       무기 각도 맞춤: &grip=blade:0,0,90:0.03,0.09,0.02[:배율]  (도, m)  장비 시험: &helmet=Knight_Helmet&cloak=Knight_Cape
@@ -42,7 +43,8 @@ async function main() {
   const foes = q.get('enemy')?.split(',').map(id => ENEMIES[id]);
   const def = HEROES.find(h => h.id === (q.get('hero') ?? 'leon'))!;
   const only = q.get('i');
-  const looks = foes ? foes.map(e => e.looks![0]) : only === null ? def.looks! : [def.looks![Number(only)]];
+  const body = q.get('body');
+  const looks = foes ? foes.map(e => e.looks![0]) : body ? [{ body }] : only === null ? def.looks! : [def.looks![Number(only)]];
   const assets = new Assets(scene);
   const t0 = performance.now();
   await assets.ensure([...ANIM_KEYS, ...looks.flatMap(lookKeys), ...['helmet', 'cloak'].filter(k => q.get(k)).map(k => `q/gear/${q.get(k)}`)]);

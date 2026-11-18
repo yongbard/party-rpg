@@ -37,6 +37,8 @@ export function setGrip(name: string, g: Grip) { GRIPS[name] = g; }   // 맞춤 
 const HEAD_FIT: Record<string, Grip> = {
   'q/body/Puglin': { rot: [0, 0, 0], pos: [0, -0.04, 0.03], scale: 0.55 },
 };
+// 사람과 비율이 다른 몸 (AI 모델에 뼈대를 옮겨 심은 것, src/tools/blender_rig.py). UAL 의 뼈 위치 키를 빼고 회전만 쓴다
+const POSE_ONLY = /^q\/body\/Tripo/;
 // 몸 파일에 붙어 나오는 무기 (Bestiary). 무기는 look 이 정하므로 숨긴다
 const BUILTIN_WEAPON = /^(Puglin_Stick|Imp_Mace)$/;
 
@@ -143,7 +145,7 @@ export function makeHeroModel(assets: Assets, scene: Scene, look: Look, shadow: 
     if (!assets.has(k)) continue;
     for (const src of assets.container(k).animationGroups) {
       const g = src.clone(src.name, old => nodes.get((old as Node).name) ?? null);
-      g.targetedAnimations.filter(t => !t.target).forEach(t => g.removeTargetedAnimation(t.animation));
+      g.targetedAnimations.filter(t => !t.target || (POSE_ONLY.test(look.body) && t.animation.targetProperty === 'position')).forEach(t => g.removeTargetedAnimation(t.animation));
       anims.set(src.name, g);
     }
   }

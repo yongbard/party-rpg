@@ -177,3 +177,14 @@
 
 - 한 일: ce8f8a0 를 main 에 push (사용자 승인). GitHub Actions deploy 성공(47초). 공개 주소에서 public/assets/um/Demon.glb 응답 200 확인.
 - 결과: https://yongbard.github.io/party-rpg/
+
+## 2026-11-18 — AI 변신형 시험: Tripo 용 + Blender 리깅
+
+- 한 일:
+  - Tripo 요금표 확인(무료 월 200 크레딧, 생성 15+옵션, 자동 리깅 20, 받기는 크레딧 없음·15회·H2.5 만, 공개·비상업). 사용자 Chrome 에 붙어 직접 생성.
+  - Text to 3D(H2.5, 텍스처 2K, PBR 끔, 폴리곤 2만 → 25 크레딧): 금빛 용기사 용. data/tripo/dragon_knight_v1.glb (1.2MB, 삼각형 19,963, 뼈대 없음).
+  - Tripo 자동 리깅(UE5 Mannequin, 20 크레딧)은 성공했지만 뼈대 포함 받기가 유료라 못 받음(결제 화면은 닫음). 남은 크레딧 155, 받기 14회.
+  - Blender 5.3.0 휴대판(download.blender.org, 406MB, sha256 확인) → C:\Users\USER\tools. src/tools/blender_rig.py: Quaternius 65관절 뼈대를 모델의 골반·어깨·목·손·다리 위치로 옮기되 뼈 방향·roll 은 유지, 복셀 복사본에서 Bone Heat 가중치를 구해 원본으로 옮김(원본에 바로 하면 전부 실패). public/assets/q/body/TripoDragon.glb (키 2.4).
+  - heroModel.ts POSE_ONLY: q/body/Tripo* 몸은 UAL 의 위치 키를 빼고 회전만 쓴다. poc.html &body= 로 몸만 바꿔 보기.
+- 확인: poc.html?hero=leon&body=q/body/TripoDragon&anim=Idle_Shield_Loop / Sword_Regular_A / Jog_Fwd_Loop 에서 자세가 바뀌고 피부가 따라감. 날개는 팔을 따라감. 색은 거의 노랑 한 가지.
+- 결과: src/tools/blender_rig.py, blender_probe.py, data/tripo/dragon_knight_v1.glb, public/assets/q/body/TripoDragon.glb.

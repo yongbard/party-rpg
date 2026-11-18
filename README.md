@@ -30,7 +30,8 @@
 - 2026-11-18: 3-4 뽑기. 로비 [소환] 탭: 영웅 소환(150 / 10회 1,350), 장비 소환·무기 소환(100 / 900). 확률표, 10회 보장, 천장(영웅 80회 전설+·300회 신화+, 장비 60회 전설+, 불멸·초월은 천장 없음). 연출: 소환진 → 카드 뒤집기(희귀한 카드는 멈칫 + 빛) → 결과, 누르면 건너뜀. 결과는 연출 전에 저장. 중복 영웅 → 조각 → 영웅 탭에서 조각 + 골드로 등급 승격(외형·칭호 변경, 빛기둥 연출, 초상화 다시 찍기). 최대 레벨이 등급을 따름(일반 40 … 초월 120). 가방에서 분해(골드), 일반·고급 일괄 분해. 시작 보석 3,000(기존 저장에도 한 번), 다시 깬 스테이지도 보석 1/10.
 - 2026-11-18: 3-5 확장 1부. 영웅 12명 추가(모두 16명, 잠재 희귀 3·영웅 4·전설 4·신화 2·불멸 2·초월 1): 도린(경비병)·미아(약초꾼)·푸그(퍼글린 도둑)·하겐(대장장이)·리아(엘프 검사)·고르가(오크 무당)·킥스(임프 화염술사)·진(무승)·노라(창병)·엘라(음유시인)·모르간(강령술사)·가르쉬(오크 족장). 등급마다 칭호·외형·전용 스킬·필살기. 처음엔 4명만 갖고 나머지는 소환으로 얻는다. 모험 탭 [편성](1~4명), 영웅 탭은 가진 영웅 전부(파티 밖 영웅은 가운데 혼자 세워 보여 줌), 픽업 소환(주마다 잠재 전설·신화 영웅 하나, 같은 등급 안 2배, 80회 확정·이월). 새 무기군 권갑(진).
 - 2026-11-18: 3-5 확장 2부, 적 교체(사용자 결정: 섞기). KayKit 해골을 모두 뺐다. 일반 적 11종은 영웅과 같은 조합형 재료로 만들고(피부색 곱 skin 추가), 보스 2종은 Quaternius Ultimate Monsters(CC0)에서 골라 눈을 빛나게 바꿨다(귀여운 눈 → 무서운 눈). 1장 망자의 무덤: 굶주린 망자·울부짖는 망자(좀비 동작, 땅에서 일어남)·무덤지기·사교도 칼잡이·사교 술사(아군 치유)·사교 사냥꾼, 보스 망령 군주 바르크(망자 일으키기, 망령의 비명). 새 2장 불타는 고블린 굴(2-1 ~ 2-3, 적 Lv.9·12·16): 고블린 약탈자·고블린 주술사(광역 치유)·불꽃 임프(화상)·오크 도살자(전쟁 함성)·오크 투창병, 보스 불꽃 악마 아즈라(임프 부르기, 지옥불 낙하). 모험 탭에 장 넘기기(‹ ›).
-- 다음: AI 변신형 → 특성 트리.
+- 2026-11-18: AI 변신형 시험. Tripo 무료 계정으로 금빛 용기사 용(H2.5, 삼각형 2만, 25 크레딧)을 만들고, Tripo 리깅은 뼈대 받기가 유료라 Blender 5.3(무료)로 영웅 공용 뼈대를 옮겨 심음(src/tools/blender_rig.py). 영웅 동작이 그대로 돈다(날개는 팔을 따라감). 게임에 아직 안 붙임.
+- 다음: 변신형을 게임에 붙이기(쓰는 방식 결정 대기) → 특성 트리.
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
 
@@ -76,12 +77,15 @@ party_rpg_261116/
 │   ├── hud.ts            DOM UI(카드, HP 바, 피해 숫자, 배너, 컷인, 결과)
 │   ├── style.css
 │   ├── tools/optimize-assets.mjs   던전 원본 → 게임용 모델 (meshopt 압축)
+│   ├── tools/blender_rig.py        통짜 모델(Tripo 등)에 영웅 공용 뼈대를 옮겨 심고 자동 가중치로 GLB 내보내기 (Blender 로 실행)
+│   ├── tools/blender_probe.py      Blender 로 모델 크기·높이별 폭과 뼈 위치 보기 (조사용)
 │   ├── tools/fetch-polypizza.sh    Poly Pizza 에서 Quaternius 모델을 이름으로 찾아 GLB 받기 (인자: 출력 폴더, 이름들)
 │   ├── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (PICK·OUT 환경 변수)
 │   └── tools/import-quaternius.mjs Quaternius·무기 원본 → public/assets/q (텍스처 webp 1024, 인간 머리만 자르기, 애니메이션 고르기)
 ├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/) (3-5 부터 안 씀), dungeon/
 ├── data/ultimate_monsters/  Ultimate Monsters 16종 GLB (git 제외), sources.txt 받은 주소. 다시 받기: bash src/tools/fetch-polypizza.sh data/ultimate_monsters Demon "Ghost%20Skull" …
 ├── data/quaternius/      zips/(받은 원본), base/, outfits/, races/, bestiary/, ual/, ual2/ (풀어 둔 것). git 제외. 다시 받기: node src/tools/fetch-itch.mjs {itch 팩 URL} 뒤 각 폴더에 unzip
+├── data/tripo/           Tripo 로 만든 원본 (dragon_knight_v1.glb 용기사 용)
 ├── data/weapons/         rpg-weapons/, fantasy-weapons-bits/ (git 제외, PICK=. OUT=data/weapons/zips 로 받음)
 ├── poc.html, src/poc.ts  외형 확인 페이지: /poc.html?hero=leon (등급별 외형 한 줄), &i=2 (한 등급만), &anim=, &grip=종류:rx,ry,rz:px,py,pz (무기 각도 맞춤), ?enemy=zombie,goblin (적 줄 세우기), &mon=Demon,Yeti:2.4 (public/poc/um 의 몬스터를 영웅 옆에)
 ├── public/assets/        게임용 모델: dungeon (npm run assets, KayKit), q/ (npm run import-q, Quaternius·무기), um/ (보스, Ultimate Monsters GLB 그대로 복사)
@@ -106,6 +110,14 @@ npm run build     dist/ 에 배포용 빌드
 npm run assets    data/kaykit/dungeon 원본 → public/assets/dungeon
 npm run import-q  data/quaternius·data/weapons 원본 → public/assets/q (npm run import-q -- part 처럼 종류 하나만도 됨)
 ```
+
+AI 모델에 뼈대 심기 (Blender 5.3 휴대판, C:\Users\USER\tools\blender-5.3.0-windows-x64):
+
+```
+blender.exe -b --factory-startup -P src/tools/blender_rig.py -- data/tripo/dragon_knight_v1.glb "data/quaternius/base/Universal Base Characters[Standard]/Base Characters/Godot - UE/Superhero_Male_FullBody.gltf" public/assets/q/body/TripoDragon.glb 2.4 0.38,0.61,0.76,0.55,0.12,-0.25
+```
+
+랜드마크는 키를 1 로 본 골반·어깨·목 높이, 손끝 x, 다리 x, 몸통 중심 y. blender_probe.py 의 높이별 폭을 보고 정한다.
 
 주소 뒤 옵션: ?fps (FPS 표시), ?gpu=webgpu (WebGPU 시험)
 
