@@ -264,3 +264,13 @@
   - save.ts: policy, party2.
 - 확인: 헤드리스 Chrome(영웅 16명 Lv.12, 파티 왕국 4명). 시너지 수치·보호막, 교대 뒤 자리·위협, 모의전 숲 AI 승·심연 AI 승·파티 B(황야) 패, 결과 화면 "모의전 승리/패배 · 보상 없음", 1-5 방침 섞어 승. 던전 탭 상대 버튼이 요일 던전 핸들러에 덮이던 것 고침(.dg[data-d]). npm run build 통과.
 - 결과: src/tactics.ts 새로. battle.ts, unit.ts, hud.ts, loadout.ts, modes.ts, main.ts, lobby.ts, save.ts, style.css 수정.
+
+## 2026-11-18 — 6단계 마감: 설정, 저장 내보내기·가져오기, 소리, 튜토리얼, 크레딧
+
+- 한 일:
+  - src/sound.ts 새로: Web Audio 합성. 효과음 15종(dmg·taken·crit·block·heal·ult·wave·boss·win·lose·click·card·rare·up·coin, 짧은 소리는 0.05초 간격), 배경음 3곡(로비 Am-F-C-G 80bpm 화음·펼친 화음, 전투 Dm-Bb-C-A 126bpm 베이스·드럼, 보스 138bpm). 첫 터치(capture 단계)에서 켜고, 다른 앱으로 가면 멈춘다.
+  - src/tutorial.ts 새로: 안내 7개(start·ult·swap·hero·missions·summon·dungeon), 가리킬 곳만 밝히는 구멍 + 말풍선, 본 것은 save.tut. 예전 저장(깬 스테이지가 있음)은 '*' 로 모두 본 것으로.
+  - src/settings.ts 새로: 효과음·음악 크기, 전투 배속, 파일로 내보내기(JSON)·코드 복사(UTF-8 base64)·파일/코드 가져오기(검사 → 덮어쓰기 확인 → 새로 고침), 튜토리얼 다시 보기, 처음부터(두 번 눌러야), 크레딧(docs/credits.md 와 같은 내용).
+  - save.ts: opt, tut, exportCode, parseSave, storeSave, resetSave. hud.ts·battle.ts·summonView.ts·lobby.ts: 효과음·배경음 연결. main.ts: 배속 저장, 전투 안내(게이지가 처음 차면 필살기, 앞줄 체력 50% 아래면 교대; 안내 중 일시정지). lobby.ts: ⚙ 버튼, 로비 안내 순서.
+- 확인: 헤드리스 Chrome 새 저장. 출석 화면을 닫으면 첫 출전 안내 → 1-1 에서 필살기 안내(멈춤 → 닫으면 이어짐), 교대 안내 → 로비에서 영웅·임무 안내. 소리 켜짐(AudioContext running, 전투 곡). 설정: 코드 내보내기 2,020자 → 가져오기 확인 문구, 엉터리 코드는 "저장 코드가 아니다", 배속 2× 저장. 크레딧 화면. npm run build 통과.
+- 결과: src/sound.ts, src/tutorial.ts, src/settings.ts 새로. save.ts, hud.ts, battle.ts, summonView.ts, lobby.ts, main.ts, style.css, docs/credits.md 수정.

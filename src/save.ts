@@ -29,6 +29,8 @@ export interface SaveData {
   auto?: boolean;           // 필살기 자동 사용
   policy?: Record<string, Policy>;   // 영웅별 행동 방침 (tactics.ts), 없으면 공격 우선
   party2?: string[];        // 모의전 상대로 쓰는 내 파티 B
+  opt?: { sfx: number; mus: number; speed: number };   // 설정: 효과음·음악 크기(0~1), 전투 배속
+  tut?: string[];           // 본 튜토리얼 안내 (tutorial.ts). '*' = 모두 본 것으로
 }
 
 const KEY = 'party-rpg-save';
@@ -81,6 +83,8 @@ function upgrade(s: SaveData) {
       for (const x of ids) if (!s.cleared.includes(x)) { s.cleared.push(x); s.stars[x] = 1; }
     }
   }
+  // 튜토리얼이 생기기 전부터 하던 저장은 안내를 띄우지 않는다
+  s.tut ??= s.cleared.length ? ['*'] : [];
   if (!s.pity) {
     s.pity = { hero: 0, hero5: 0, gear: 0 };
     s.gems += START_GEMS;
@@ -100,6 +104,35 @@ export function loadSave(): SaveData {
   }
   return fresh();
 }
+
+/** 저장 코드: JSON 을 base64 로 (한글이 깨지지 않게 UTF-8 바이트로) */
+export function exportCode(s: SaveData) {
+  const bytes = new TextEncoder().encode(JSON.stringify(s));
+  let bin = '';
+  bytes.forEach(b => (bin += String.fromCharCode(b)));
+  return btoa(bin);
+}
+
+/** 파일(JSON) 이나 저장 코드를 읽는다. 잘못됐으면 이유 */
+export function parseSave(text: string): SaveData | string {
+  const t = text.trim();
+  if (!t) return '내용이 비어 있다';
+  let json = t;
+  if (!t.startsWith('{')) {
+    try { json = new TextDecoder().decode(Uint8Array.from(atob(t.replace(/\s+/g, '')), c => c.charCodeAt(0))); } catch { return '저장 코드가 아니다'; }
+  }
+  try {
+    const s = JSON.parse(json) as SaveData;
+    if (s.v !== 1 || typeof s.heroes !== 'object' || !Array.isArray(s.party) || !Array.isArray(s.cleared)) return '이 게임의 저장이 아니다';
+    return upgrade(s);
+  } catch {
+    return '저장을 읽지 못했다';
+  }
+}
+
+/** 가져온 저장으로 바꾼다 (다음에 다시 불러온다) */
+export function storeSave(s: SaveData) { localStorage.setItem(KEY, JSON.stringify(s)); }
+export function resetSave() { localStorage.removeItem(KEY); }
 
 export function writeSave(s: SaveData) {
   try {

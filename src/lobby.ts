@@ -18,6 +18,9 @@ import type { Hud } from './hud';
 import { writeSave, type SaveData } from './save';
 import { auraOf, passivesOf, passiveText, ULT_MUL, ultLevel, branchesOf, canLearn, canStar, learn, MAX_STARS, nodeText, NODE_NEED, pointsOf, RANKS, resetTalents, RESET_GOLD, spentOf, STAR_COST, starUp } from './talents';
 import { Unit } from './unit';
+import { openSettings } from './settings';
+import { sound } from './sound';
+import { showTip, tipOpen } from './tutorial';
 
 // 카메라에서 보면 +x 가 왼쪽이다 (오른손 좌표계, 카메라가 +z 를 본다)
 const LINEUP = [2.4, 0.8, -0.8, -2.4];
@@ -62,6 +65,7 @@ export class Lobby {
     this.el = document.createElement('div');
     this.el.id = 'lobby';
     document.getElementById('app')!.append(this.el);
+    this.el.addEventListener('pointerdown', e => { if ((e.target as Element).closest('button')) sound.play('click'); });
   }
 
   show(save: SaveData) {
@@ -75,6 +79,21 @@ export class Lobby {
     this.tab = 'adventure';
     this.render();
     this.el.style.display = '';
+    sound.music('lobby');
+    this.tips();
+  }
+
+  /** 처음 한 번 뜨는 안내 (tutorial.ts). 진행에 맞춰 하나씩 */
+  private tips() {
+    const s = this.save;
+    if (tipOpen() || this.el.style.display === 'none' || this.tab !== 'adventure' || this.forming || this.missions) return;
+    const q = (sel: string) => this.el.querySelector(sel);
+    const next = () => this.tips();
+    if (!s.cleared.includes('1-1')) { showTip(s, 'start', q('.lb-go.start')); return; }
+    if (showTip(s, 'hero', q('.lb-tabs [data-tab="hero"]'), next)) return;
+    if (showTip(s, 'missions', q('.ms-t'), next)) return;
+    if (s.cleared.includes('1-2') && showTip(s, 'summon', q('.lb-tabs [data-tab="summon"]'), next)) return;
+    if (s.cleared.includes('1-3')) showTip(s, 'dungeon', q('.lb-tabs [data-tab="dungeon"]'));
   }
 
   /** 열린 스테이지 중 안 깬 첫째 (다 깼으면 마지막). ch 를 주면 그 장 안에서 */
@@ -269,6 +288,7 @@ export class Lobby {
     const s = this.save;
     this.el.innerHTML = `
       <div class="lb-top">
+        <button class="opt-t" aria-label="설정">⚙</button>
         <div class="res"><i class="ic-gold"></i><b>${fmt(s.gold)}</b></div>
         <div class="res"><i class="ic-gem"></i><b>${fmt(s.gems)}</b></div>
       </div>
@@ -287,6 +307,7 @@ export class Lobby {
       </div>`;
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
     this.el.querySelectorAll<HTMLButtonElement>('.lb-tabs button').forEach(b => { b.onclick = () => void this.setTab(b.dataset.tab as Tab); });
+    (this.el.querySelector('.opt-t') as HTMLButtonElement).onclick = () => openSettings(this.save, { onTutorial: () => { this.tab = 'adventure'; this.missions = false; this.forming = false; this.render(); } });
     const on = (sel: string, fn: (b: HTMLButtonElement) => void) => this.el.querySelectorAll<HTMLButtonElement>(sel).forEach(b => { b.onclick = () => fn(b); });
     if (this.tab === 'adventure') {
       on('.stage', b => { this.selected = b.dataset.id!; this.render(); });
@@ -294,6 +315,7 @@ export class Lobby {
       on('.lb-go.start', () => this.onStart(this.selected));
       on('.form-t', () => { this.forming = !this.forming; this.render(); });
       on('.ms-t', () => { this.missions = !this.missions; this.render(); });
+      setTimeout(() => this.tips(), 0);
       on('.ms-go', b => this.claimMission(b.dataset.k!));
       this.el.querySelector('.stage.sel')?.scrollIntoView({ block: 'nearest' });
       on('.fr', b => void this.toggleMember(b.dataset.id!));
@@ -475,6 +497,7 @@ export class Lobby {
   private claimMission(k: string) {
     const rw = claim(this.save, k);
     if (!rw) return;
+    sound.play('coin');
     writeSave(this.save);
     this.render();
     const pop = document.createElement('div');
@@ -635,6 +658,7 @@ export class Lobby {
   private learnTalent() {
     const sel = this.talentSel;
     if (!sel || !learn(this.save, this.heroId, sel[0], sel[1])) return;
+    sound.play('up');
     track(this.save, 'talent');
     writeSave(this.save);
     this.refreshBonus();
@@ -647,6 +671,7 @@ export class Lobby {
     const s = this.save;
     const u = this.cur();
     if (!starUp(s, u.def.id)) return;
+    sound.play('rare');
     track(s, 'promote');
     writeSave(s);
     this.refreshBonus();
@@ -667,6 +692,7 @@ export class Lobby {
     const d = this.cur().def;
     const from = s.heroes[d.id].grade;
     if (!promote(s, d.id)) return;
+    sound.play('rare');
     track(s, 'promote');
     writeSave(s);
     this.preview = null;
@@ -737,6 +763,7 @@ export class Lobby {
   private salvage(uids: number[]) {
     const r = salvage(this.save, uids);
     if (!r.n) return;
+    sound.play('coin');
     track(this.save, 'salvage', r.n);
     writeSave(this.save);
     this.bagSel = null;
@@ -750,6 +777,7 @@ export class Lobby {
 
   private enhanceItem(uid: number) {
     if (!enhance(this.save, uid)) return;
+    sound.play('up');
     // 낀 영웅이 지금 서 있으면 능력치를 다시 잰다
     const w = wearerOf(this.save, uid);
     const u = w ? this.unitOf(w) : null;
@@ -766,6 +794,7 @@ export class Lobby {
   private craftItem(uq: string) {
     const it = craft(this.save, uq);
     if (!it) return;
+    sound.play('rare');
     this.crafting = false;
     this.bagFilter = 'all';
     this.bagSel = it.uid;
@@ -878,6 +907,7 @@ export class Lobby {
     }
     if (!done) return;
     track(s, 'levelup', done);
+    sound.play('up');
     writeSave(s);
     u.mul = heroMul(h.level) * gradeMul(h.grade);   // (전투력 표시는 render 가 loadout 으로 다시 잰다)
     // 연출: 환호, 금빛 링과 불꽃, 레벨 표시

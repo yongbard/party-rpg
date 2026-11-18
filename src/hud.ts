@@ -4,6 +4,7 @@ import type { Battle } from './battle';
 import type { Unit } from './unit';
 import { GRADES, GRADE_COLORS } from './data';
 import { baseOf, ITEM_ICON, type Item } from './items';
+import { sound } from './sound';
 
 const el = (tag: string, cls = '', html = '') => {
   const e = document.createElement(tag);
@@ -109,6 +110,10 @@ export class Hud {
     });
   }
 
+  /** 튜토리얼이 가리킬 곳 */
+  card(i: number) { return this.cards[i]?.box ?? null; }
+  get swapEl() { return this.swapBtn; }
+
   setAuto(on: boolean) { this.autoBtn.classList.toggle('on', on); }
   setSpeed(s: number) { this.speedBtn.textContent = `${s}×`; }
   setPaused(p: boolean) { this.pauseBtn.textContent = p ? '▶' : '❚❚'; this.root.classList.toggle('paused', p); }
@@ -137,6 +142,7 @@ export class Hud {
   }
 
   number(u: Unit, v: number, kind: 'dmg' | 'crit' | 'heal' | 'block' | 'taken') {
+    sound.play(kind);
     const p = this.project(u.head());
     if (!p.ok) return;
     const n = el('div', `num ${kind}`, kind === 'heal' ? `+${v}` : kind === 'crit' ? `<small>치명</small>${v}` : `${v}`);
@@ -147,6 +153,8 @@ export class Hud {
   }
 
   banner(title: string, sub = '', danger = false) {
+    if (danger) sound.play('boss');
+    else if (title.startsWith('WAVE') || title === '모의전') sound.play('wave');
     this.bannerEl.className = `banner ${danger ? 'danger' : ''}`;
     this.bannerEl.innerHTML = `<div class="bt">${title}</div>${sub ? `<div class="bs">${sub}</div>` : ''}`;
     void this.bannerEl.offsetWidth;
@@ -155,6 +163,7 @@ export class Hud {
 
   cutin(u: Unit, ms = 1300) {
     const ult = u.def.ult!;
+    sound.play('ult');
     this.cutEl.style.setProperty('--accent', u.def.color);
     this.cutEl.style.setProperty('--dur', `${ms}ms`);
     this.cutEl.innerHTML = `<div class="lines"></div><div class="cbox"><div class="cn">${u.def.name}<small>${u.title ?? u.def.title ?? ''}</small></div><div class="cu">${ult.name}</div><div class="cd">${ult.desc}</div></div>`;
@@ -208,6 +217,7 @@ export class Hud {
   }
 
   result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number; stone?: number; lines?: string[]; title?: string; items?: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[] } | null, onRetry: () => void, onLobby: () => void) {
+    sound.play(win ? 'win' : 'lose');
     const max = Math.max(1, ...heroes.map(h => Math.max(h.dmgDone, h.healDone, h.dmgTaken)));
     const row = (h: Unit) => `
       <div class="rr" style="--accent:${h.def.color}">

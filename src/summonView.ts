@@ -2,6 +2,7 @@
 import { GRADES, GRADE_COLORS, HEROES } from './data';
 import type { Pull } from './gacha';
 import { baseOf, ITEM_ICON } from './items';
+import { sound } from './sound';
 
 function card(p: Pull, portraits: Record<string, string>, hi: number) {
   let face: string, name: string, tag = '';
@@ -42,7 +43,7 @@ export function showSummon(pulls: Pull[], portraits: Record<string, string>, hi:
   cards.forEach((c, i) => {
     const isHi = pulls[i].grade >= hi;
     if (isHi) { at(t, () => c.classList.add('charge')); t += 550; }
-    at(t, () => c.classList.add('open'));
+    at(t, () => { c.classList.add('open'); sound.play(isHi ? 'rare' : 'card'); });
     t += isHi ? 700 : 170;
   });
   at(t + 150, () => finish());

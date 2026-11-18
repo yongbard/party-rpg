@@ -7,6 +7,8 @@ import { condMet, condText, repeatGems, stageEnemies, starGems } from './data';
 import { canRun, finishRun, stageOf } from './modes';
 import { rollGrade, rollItem, type Item } from './items';
 import { loadout, rivalParty } from './loadout';
+import { sound } from './sound';
+import { seen, showTip, tipOpen, type TipId } from './tutorial';
 import { ANIM_KEYS, lookKeys } from './heroModel';
 import { Fx } from './fx';
 import { Hud } from './hud';
@@ -101,13 +103,15 @@ async function main() {
   rig.setView('lobby', true);
 
   let battle: Battle | null = null;
-  let speed = 1;
+  let speed = save.opt?.speed ?? 1;
+  if (save.opt) sound.setVolume(save.opt.sfx, save.opt.mus);
   hud.visible(false);
 
   const startBattle = async (stageId: string) => {
     // 요일 던전에서 횟수를 다 썼으면 (결과 화면의 다시 하기) 로비로
     if (canRun(stageId, save)) { lobby.show(save); return; }
     const stage = stageOf(stageId, save)!;
+    speed = save.opt?.speed ?? speed;
     const story = stage.conds.length > 0;
     const party = save.party.map(id => loadout(save, id));
     const [, team, off] = stageId.startsWith('mock:') ? stageId.split(':') : [];
@@ -124,6 +128,7 @@ async function main() {
     hud.visible(true);
     b.setSpeed(speed);
     hud.setSpeed(speed);
+    sound.music('battle');
     b.auto = !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
@@ -181,6 +186,8 @@ async function main() {
   hud.onSpeed = () => {
     if (!battle) return;
     speed = speed >= 3 ? 1 : speed + 1;
+    (save.opt ??= { sfx: 0.7, mus: 0.35, speed: 1 }).speed = speed;
+    writeSave(save);
     battle.setSpeed(speed);
     hud.setSpeed(speed);
   };
@@ -202,17 +209,30 @@ async function main() {
   let fpsEl: HTMLElement | null = null;
   if (params.has('fps')) { fpsEl = document.createElement('div'); fpsEl.className = 'fps'; document.body.append(fpsEl); }
 
+  // 전투 안내 (튜토리얼): 처음 게이지가 찼을 때 필살기, 앞줄이 위험할 때 앞뒤 교대. 안내를 보는 동안 멈춘다
+  const battleTips = (b: Battle) => {
+    if (tipOpen() || b.state !== 'fight' || b.frozen || b.paused) return;
+    const tip = (id: TipId, el: Element | null) => {
+      if (showTip(save, id, el, () => { if (battle === b && b.paused) hud.setPaused(b.togglePause()); })) hud.setPaused(b.togglePause());
+    };
+    if (!seen(save, 'ult')) {
+      const i = b.heroes.findIndex(h => h.alive && h.gauge >= 100);
+      if (i >= 0 && !b.auto) tip('ult', hud.card(i));
+    } else if (!seen(save, 'swap') && b.canSwap() && b.heroes.some(h => h.alive && h.slot < 2 && h.hp / h.maxHp < 0.5)) tip('swap', hud.swapEl);
+  };
+
   engine.runRenderLoop(() => {
     const dt = engine.getDeltaTime() / 1000;
     rig.update(dt);
     arena.update(dt);
     battle?.update(dt);
+    if (battle) battleTips(battle);
     if (!battle) { lobby.update(); fx.update(dt); }
     scene.render();
     if (fpsEl) fpsEl.textContent = `${engine.getFps().toFixed(0)} fps · ${engine.name}`;
   });
   hud.hideLoading();
-  (window as unknown as { game: unknown }).game = { save, lobby, startBattle };
+  (window as unknown as { game: unknown }).game = { save, lobby, startBattle, sound };
 }
 
 main().catch(err => {

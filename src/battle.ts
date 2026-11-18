@@ -7,6 +7,7 @@ import { makeHeroModel } from './heroModel';
 import { addBonus, zeroBonus, type Bonus } from './items';
 import type { Fx } from './fx';
 import type { Hud } from './hud';
+import { sound } from './sound';
 import { synergy, type Policy } from './tactics';
 import { auraOf, ULT_MUL, ultLevel } from './talents';
 import { Unit, type Side } from './unit';
@@ -168,7 +169,7 @@ export class Battle {
       this.teamStart(rs, this.rivals);
       for (const u of rs) this.fx.burst(u.pos.add(new Vector3(0, 0.2, 0)), COL.red, 18, 3, 0.25);
     }
-    if (w.boss) this.shake(0.4);
+    if (w.boss) { this.shake(0.4); sound.music('boss'); }
     for (const h of this.heroes) if (h.alive && h.uq('shade') && (i === 0 || h.uq2('shade'))) { h.shadeUntil = this.time + 6; h.shadeHit = true; }
     this.state = 'fight';
   }
