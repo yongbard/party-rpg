@@ -4,9 +4,11 @@ import type { Assets } from './assets';
 import type { CameraRig } from './camera';
 import { CHAPTERS, chapterOf, COL, condText, GRADES, GRADE_COLORS, HEROES, STAGES, gradeMul, heroMul, levelCost, maxLevel, repeatGems, starCount, starGems, type UnitDef } from './data';
 import { ATTEND, claim, claimable, DAILY_BONUS, dailyOf, missionText, progress, refresh, rewardText, track, WEEKLY } from './missions';
-import { BANNERS, canPromote, heroRates, hiFrom, pickupHero, promote, PROMOTE, RATES, salvage, SALVAGE_GOLD, summon, type BannerId } from './gacha';
+import { BANNERS, canCraft, canEnhance, canPromote, craft, CRAFT, enhance, enhanceCost, heroRates, hiFrom, pickupHero, promote, PROMOTE, RATES, salvage, salvageOf, summon, type BannerId } from './gacha';
+import { SETS, UNIQUES, UNIQUE_IDS, uqPower } from './uniques';
 import { showSummon } from './summonView';
-import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, SLOT_NAMES, STAT_NAMES, type EquipSlot, type Item, type Slot } from './items';
+import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, MAX_ENHANCE, setCounts, SLOT_NAMES, STAT_NAMES, statsOf, type EquipSlot, type Item, type Slot } from './items';
+import { equippedItems } from './loadout';
 import { loadout, wearerOf } from './loadout';
 import { lookKeys, makeHeroModel } from './heroModel';
 import type { Fx } from './fx';
@@ -44,6 +46,7 @@ export class Lobby {
   private gearSlot: EquipSlot | null = null;   // 장비 탭에서 고른 칸
   private bagFilter: Slot | 'all' = 'all';
   private bagSel: number | null = null;
+  private crafting = false;            // 가방 탭: 제작 화면
   private banner: BannerId = 'hero';
   private showRates = false;
 
@@ -205,6 +208,7 @@ export class Lobby {
     this.tab = t;
     this.forming = false;
     this.missions = false;
+    this.crafting = false;
     this.render();
     await this.syncGuest();
     if (this.tab !== t) return;
@@ -263,6 +267,9 @@ export class Lobby {
       on('.flt', b => { this.bagFilter = b.dataset.f as Slot | 'all'; this.bagSel = null; this.render(); });
       on('.tile', b => { this.bagSel = Number(b.dataset.uid); this.render(); });
       on('.salv', b => this.salvage(b.dataset.uid ? [Number(b.dataset.uid)] : this.lowItems()));
+      on('.enh', b => this.enhanceItem(Number(b.dataset.uid)));
+      on('.craft-t', () => { this.crafting = !this.crafting; this.render(); });
+      on('.craft-go', b => this.craftItem(b.dataset.u!));
     } else {
       on('.seg button', b => { this.heroView = b.dataset.v as 'info' | 'gear' | 'talent'; this.gearSlot = null; this.render(); });
       on('.tn', b => { this.talentSel = [Number(b.dataset.b), Number(b.dataset.i)]; this.render(); });
@@ -603,9 +610,9 @@ export class Lobby {
     showSummon(pulls, this.portraits, hiFrom(this.banner), { label: `한 번 더 · ${fmt(c)}`, ok: this.save.gems >= c }, () => this.pull(n), () => this.render());
   }
 
-  /** 일괄 분해 대상: 끼지 않은 일반·고급 */
+  /** 일괄 분해 대상: 끼지 않고 강화하지 않은 일반·고급 */
   private lowItems() {
-    return (this.save.items ?? []).filter(i => i.grade <= 1 && !wearerOf(this.save, i.uid)).map(i => i.uid);
+    return (this.save.items ?? []).filter(i => i.grade <= 1 && !i.lv && !wearerOf(this.save, i.uid)).map(i => i.uid);
   }
 
   private salvage(uids: number[]) {
@@ -617,7 +624,36 @@ export class Lobby {
     this.render();
     const pop = document.createElement('div');
     pop.className = 'lvpop';
-    pop.textContent = `분해 ${r.n}개  +${fmt(r.gold)} 골드`;
+    pop.textContent = `분해 ${r.n}개  +${fmt(r.gold)} 골드 · 강화석 ${r.stone}${r.essence ? ` · 정수 ${r.essence}` : ''}`;
+    pop.addEventListener('animationend', () => pop.remove());
+    this.el.append(pop);
+  }
+
+  private enhanceItem(uid: number) {
+    if (!enhance(this.save, uid)) return;
+    // 낀 영웅이 지금 서 있으면 능력치를 다시 잰다
+    const w = wearerOf(this.save, uid);
+    const u = w ? this.unitOf(w) : null;
+    if (u) u.bonus = loadout(this.save, w!).bonus;
+    this.render();
+    const it = this.save.items!.find(i => i.uid === uid)!;
+    const pop = document.createElement('div');
+    pop.className = 'lvpop';
+    pop.textContent = `강화 +${it.lv}${it.uq && (it.lv === 10 || it.lv === 15) ? '  고유 효과 강화' : ''}`;
+    pop.addEventListener('animationend', () => pop.remove());
+    this.el.append(pop);
+  }
+
+  private craftItem(uq: string) {
+    const it = craft(this.save, uq);
+    if (!it) return;
+    this.crafting = false;
+    this.bagFilter = 'all';
+    this.bagSel = it.uid;
+    this.render();
+    const pop = document.createElement('div');
+    pop.className = 'lvpop';
+    pop.textContent = `제작 · ${UNIQUES[uq].name}`;
     pop.addEventListener('animationend', () => pop.remove());
     this.el.append(pop);
   }
@@ -626,8 +662,8 @@ export class Lobby {
   private itemRow(it: Item, extra = '') {
     const b = baseOf(it);
     return `<i class="ico" style="--ico:url(${ITEM_ICON(it)});--gc:${GRADE_COLORS[it.grade]}"></i>
-      <span class="inm"><small style="color:${GRADE_COLORS[it.grade]}">${GRADES[it.grade]}</small>${b.name}${extra}</span>
-      <span class="ist">${STAT_NAMES[it.main[0]]} ${fmtStat(...it.main)}${it.subs.length ? ` <em>+${it.subs.length}</em>` : ''}</span>`;
+      <span class="inm"><small style="color:${GRADE_COLORS[it.grade]}">${GRADES[it.grade]}${it.set ? ` · ${SETS[it.set].name}` : ''}${it.uq ? ` · ${UNIQUES[it.uq].name}` : ''}</small>${it.lv ? `+${it.lv} ` : ''}${b.name}${extra}</span>
+      <span class="ist">${STAT_NAMES[it.main[0]]} ${fmtStat(...statsOf(it).main)}${it.subs.length ? ` <em>+${it.subs.length}</em>` : ''}</span>`;
   }
 
   private gearHtml(heroId: string) {
@@ -655,7 +691,12 @@ export class Lobby {
         ${cands.length ? cands.map(i => `<button class="cand">${this.itemRow(i, who(i.uid))}</button>`.replace('class="cand"', `class="cand" data-uid="${i.uid}"`)).join('') : `<div class="empty-note">낄 수 있는 ${SLOT_NAMES[sl]}이(가) 가방에 없다</div>`}
       </div>`;
     }
-    return `<div class="eslots">${slots}</div>${list || '<div class="empty-note">칸을 누르면 가방에서 낄 장비를 고른다 · 무기·방패·투구·갑옷·망토는 모습에 바로 보인다</div>'}`;
+    // 낀 세트와 고유 효과 요약
+    const worn = equippedItems(s, heroId);
+    const sets = Object.entries(setCounts(worn)).map(([id, n]) => `<span class="${n >= 2 ? 'on' : ''}"><b>${SETS[id].name} ${n}/4</b> ${n >= 4 ? SETS[id].fourText : SETS[id].twoText}</span>`);
+    const uqs = worn.filter(i => i.uq).map(i => `<span class="on"><b>${UNIQUES[i.uq!].name}</b> ${UNIQUES[i.uq!].desc(uqPower(i.lv))}</span>`);
+    const sum = sets.length || uqs.length ? `<div class="gsum">${[...uqs, ...sets].join('')}</div>` : '';
+    return `<div class="eslots">${slots}</div>${sum}${list || '<div class="empty-note">칸을 누르면 가방에서 낄 장비를 고른다 · 무기·방패·투구·갑옷·망토는 모습에 바로 보인다</div>'}`;
   }
 
   private bagHtml() {
@@ -667,20 +708,42 @@ export class Lobby {
     const detail = sel ? (() => {
       const b = baseOf(sel);
       const w = wearerOf(s, sel.uid);
+      const st = statsOf(sel);
+      const uq = sel.uq ? UNIQUES[sel.uq] : null;
+      const set = sel.set ? SETS[sel.set] : null;
+      const lv = sel.lv ?? 0;
+      const c = enhanceCost(sel), sv = salvageOf(sel);
       return `<div class="idetail" style="--gc:${GRADE_COLORS[sel.grade]}">
         <i class="ico big" style="--ico:url(${ITEM_ICON(sel)})"></i>
-        <div><div class="idn"><small>${GRADES[sel.grade]} · ${SLOT_NAMES[(b.slot === 'acc' ? 'acc1' : b.slot) as EquipSlot]}${b.hands === 2 ? ' · 양손' : ''}</small>${b.name}</div>
-        <div class="ids"><b>${STAT_NAMES[sel.main[0]]} ${fmtStat(...sel.main)}</b>${sel.subs.map(([k, v]) => `<span>${STAT_NAMES[k]} +${fmtStat(k, v)}</span>`).join('')}</div>
+        <div><div class="idn"><small>${GRADES[sel.grade]} · ${SLOT_NAMES[(b.slot === 'acc' ? 'acc1' : b.slot) as EquipSlot]}${b.hands === 2 ? ' · 양손' : ''}</small>${lv ? `+${lv} ` : ''}${b.name}</div>
+        <div class="ids"><b>${STAT_NAMES[st.main[0]]} ${fmtStat(...st.main)}</b>${st.subs.map(([k, v]) => `<span>${STAT_NAMES[k]} +${fmtStat(k, v)}</span>`).join('')}</div>
+        ${uq ? `<div class="iuq"><b>고유 · ${uq.name}</b> ${uq.desc(uqPower(lv))}<span class="${sel.grade >= 5 ? '' : 'off'}">${sel.grade >= 5 ? '' : '신화 이상: '}${uq.desc2}</span>${sel.grade >= 6 && uq.party ? '<span>파티 전체에 절반 세기로 걸린다</span>' : ''}<small>+10, +15 에서 강해진다</small></div>` : ''}
+        ${set ? `<div class="iset"><b>세트 · ${set.name}</b><span>2개: ${set.twoText}</span><span>4개: ${set.fourText}</span></div>` : ''}
         <div class="idw">${w ? `${HEROES.find(h => h.id === w)!.name} 착용 중` : '착용 안 함'}</div></div>
-        ${w ? '' : `<button class="salv one" data-uid="${sel.uid}">분해<span><i class="ic-gold"></i>${fmt(SALVAGE_GOLD[sel.grade])}</span></button>`}
+        <div class="ibtns">
+          ${lv < MAX_ENHANCE ? `<button class="enh" data-uid="${sel.uid}" ${canEnhance(s, sel) ? '' : 'disabled'}>강화 +${lv + 1}<span><i class="ic-gold"></i>${fmt(c.gold)} · 강화석 ${c.stone}</span></button>` : '<b class="enh-max">강화 최대</b>'}
+          ${w ? '' : `<button class="salv one" data-uid="${sel.uid}">분해<span><i class="ic-gold"></i>${fmt(sv.gold)} · 강화석 ${sv.stone}${sv.essence ? ` · 정수 ${sv.essence}` : ''}</span></button>`}
+        </div>
       </div>`;
     })() : '<div class="empty-note">장비를 누르면 자세히 본다 · 장착은 영웅 탭 → 장비에서</div>';
+    const m = s.mats ?? { stone: 0, essence: 0 };
+    const matRow = `<div class="mats"><span>강화석 <b>${fmt(m.stone)}</b></span><span>정수 <b>${fmt(m.essence)}</b></span><button class="craft-t ${this.crafting ? 'on' : ''}">${this.crafting ? '가방으로' : '제작'}</button></div>`;
+    if (this.crafting) return `
+      <div class="lb-panel bag">
+        <div class="lb-ch">제작<span class="pp">전설 장비 · 고유 효과를 골라 확정</span></div>
+        ${matRow}
+        <div class="crafts">${UNIQUE_IDS.map(id => {
+          const u = UNIQUES[id];
+          return `<div class="crow"><span><b>${u.name}</b><small>${SLOT_NAMES[(u.slot === 'acc' ? 'acc1' : u.slot) as EquipSlot]}</small><p>${u.desc(1)}</p></span><button class="craft-go" data-u="${id}" ${canCraft(s) ? '' : 'disabled'}>제작<small>정수 ${CRAFT.essence} · ${fmt(CRAFT.gold)}</small></button></div>`;
+        }).join('')}</div>
+      </div>`;
     return `
       <div class="lb-panel bag">
         <div class="lb-ch">가방<span class="pp">장비 <b>${s.items?.length ?? 0}</b><button class="salv all" ${this.lowItems().length ? '' : 'disabled'}>일반·고급 분해 ${this.lowItems().length}</button></span></div>
+        ${matRow}
         <div class="flts">${F.map(([k, n]) => `<button class="flt ${this.bagFilter === k ? 'on' : ''}" data-f="${k}">${n}</button>`).join('')}</div>
         ${detail}
-        <div class="tiles">${items.map(i => `<button class="tile ${i.uid === this.bagSel ? 'on' : ''} ${wearerOf(s, i.uid) ? 'worn' : ''}" data-uid="${i.uid}" style="--gc:${GRADE_COLORS[i.grade]}"><i class="ico" style="--ico:url(${ITEM_ICON(i)})"></i></button>`).join('') || '<div class="empty-note">비어 있다</div>'}</div>
+        <div class="tiles">${items.map(i => `<button class="tile ${i.uid === this.bagSel ? 'on' : ''} ${wearerOf(s, i.uid) ? 'worn' : ''}" data-uid="${i.uid}" style="--gc:${GRADE_COLORS[i.grade]}"><i class="ico" style="--ico:url(${ITEM_ICON(i)})"></i>${i.lv ? `<b class="plv">+${i.lv}</b>` : ''}${i.uq ? '<b class="puq">★</b>' : ''}</button>`).join('') || '<div class="empty-note">비어 있다</div>'}</div>
       </div>`;
   }
 

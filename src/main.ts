@@ -121,7 +121,7 @@ async function main() {
     b.auto = !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
-      let reward: { gold: number; gems: number; items: Item[]; first: boolean; stars: { text: string; met: boolean; was: boolean }[] } | null = null;
+      let reward: { gold: number; gems: number; stone: number; items: Item[]; first: boolean; stars: { text: string; met: boolean; was: boolean }[] } | null = null;
       if (win) {
         const first = !save.cleared.includes(stage.id);
         // 별: 이번에 처음 채운 조건마다 보석. 새 별이 없으면 다시 깬 보석
@@ -131,12 +131,13 @@ async function main() {
         const fresh = now & ~had;
         const nNew = [0, 1, 2].filter(i => fresh & (1 << i)).length;
         reward = {
-          gold: stage.reward.gold, gems: nNew ? nNew * starGems(stage) : repeatGems(stage), items: [], first,
+          gold: stage.reward.gold, gems: nNew ? nNew * starGems(stage) : repeatGems(stage), stone: 1 + Math.floor(stage.level / 2), items: [], first,
           stars: stage.conds.map((c, i) => ({ text: condText(c), met: !!(now & (1 << i)), was: !!(had & (1 << i)) })),
         };
         save.stars![stage.id] = had | now;
         save.gold += reward.gold;
         save.gems += reward.gems;
+        (save.mats ??= { stone: 0, essence: 0 }).stone += reward.stone;   // 강화석
         // 장비 드랍: 첫 클리어는 1개 확정, 다시 깨면 50% (장비 소환과 함께 장비를 얻는 길)
         if (first || Math.random() < 0.5) {
           const it = rollItem(0, rollGrade(dropWeights(stage.level)));

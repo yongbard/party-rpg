@@ -14,6 +14,7 @@ export interface SaveData {
   shards?: Record<string, number>;                  // 영웅 조각 (중복 소환)
   pity?: { hero: number; hero5: number; gear: number; pick?: number };   // 천장 카운터 (전설+, 신화+, 장비 전설+, 픽업 영웅)
   items?: Item[];           // 가방
+  mats?: { stone: number; essence: number };   // 강화석(강화), 정수(제작). 분해와 전투로 얻는다
   nextUid?: number;
   party: string[];          // 진형 순서: 앞줄 왼쪽, 앞줄 오른쪽, 뒷줄 왼쪽, 뒷줄 오른쪽
   cleared: string[];        // 클리어한 스테이지 id

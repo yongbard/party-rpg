@@ -16,11 +16,18 @@ export class Unit {
   target: Unit | null = null; retargetAt = 0;
   threat: number; tauntBy: Unit | null = null; tauntUntil = 0;
   drs: { v: number; until: number }[] = [];
-  buffAtk = 0; buffSpd = 0;
+  buffAtk = 0; buffSpd = 0;   // 잠깐 걸리는 공격력 배율(+0.2 = 20%)·공격 속도 (battle.buff)
   unbrokenUsed = false;      // 특성 불굴은 한 번만
   firstCrit = false;         // 특성 기습: 첫 공격 치명
   ultMul = 1;                // 필살기 단계 배율 (talents.ts ULT_MUL)
-  ultUntil = 0;              // 이 시각까지 주는 피해·치유가 필살기 것 (ultMul 적용)   // 잠깐 걸리는 공격력 배율(+0.2 = 20%)·공격 속도 (battle.buff)
+  ultUntil = 0;              // 이 시각까지 주는 피해·치유가 필살기 것 (ultMul 적용)
+  // 장비 고유 효과 상태 (uniques.ts)
+  undyingUsed = false;       // 불사의 갑옷은 한 번만
+  shadeUntil = 0;            // 그림자 망토: 이 시각까지 적이 노리지 않는다
+  shadeHit = false;          // 그림자 망토: 다음 공격 피해 증가
+  critUntil = 0;             // 집중의 투구 2차: 이 시각까지 모든 공격 치명
+  regenAt = 3;               // 재생의 갑옷: 다음 회복 시각
+  atkCount = 0;              // 광풍 4세트: 기본 공격 수
   moveTo: Vector3 | null = null;
   home: Vector3;
   yaw: number; yawGoal: number;
@@ -86,16 +93,20 @@ export class Unit {
   /** 받는 피해 감소 합 (최대 80%) */
   dr(t: number) {
     this.drs = this.drs.filter(d => d.until > t);
-    return Math.min(0.8, this.bonus.drPct + this.drs.reduce((s, d) => s + d.v, 0));
+    return Math.min(0.8, this.bonus.drPct + 0.2 * this.uq('guardian') + this.drs.reduce((s, d) => s + d.v, 0));
   }
 
   /** 배운 끝 노드 (talents.ts) */
   has(cap: string) { return this.bonus.caps.includes(cap); }
-  threatMul() { return this.def.stats.threat * Math.max(0.1, 1 + this.bonus.threatPct); }
+  /** 장비 고유 효과의 세기 (없으면 0) */
+  uq(id: string) { return this.bonus.uniq[id] ?? 0; }
+  /** 고유 효과의 2차 효과가 켜졌나 (신화 이상) */
+  uq2(id: string) { return this.bonus.uniq2.includes(id); }
+  threatMul() { return this.def.stats.threat * Math.max(0.1, 1 + this.bonus.threatPct) * (this.uq('guardian') ? 2 : 1); }
 
-  atk() { return (this.def.stats.atk * this.mul + this.bonus.atk) * (1 + this.bonus.atkPct + this.buffAtk) * (1 + ((this.def.rage ?? 0) + this.bonus.rage) * (1 - this.hp / this.maxHp)); }
+  atk() { return (this.def.stats.atk * this.mul + this.bonus.atk) * (1 + this.bonus.atkPct + this.buffAtk) * (1 + ((this.def.rage ?? 0) + this.bonus.rage) * (1 - this.hp / this.maxHp)) * (this.uq('guardian') ? 0.85 : 1); }
   defense() { return (this.def.stats.def * this.mul + this.bonus.def) * (1 + this.bonus.defPct); }
   critRate() { return this.def.stats.crit + this.bonus.crit; }
-  critDmg() { return this.def.stats.critDmg + this.bonus.critDmg; }
-  spd() { return this.def.stats.spd + this.bonus.spd + this.buffSpd; }
+  critDmg() { return this.def.stats.critDmg + this.bonus.critDmg + (this.uq2('keen') ? 0.3 : 0); }
+  spd() { return this.def.stats.spd + this.bonus.spd + this.buffSpd + 15 * this.uq('gale'); }
 }

@@ -1,5 +1,6 @@
 // 장비: 기본형(모델·부위·무기군), 아이템(등급·주옵션·부옵션), 장착 규칙, 장착한 모습
 import type { Look } from './data';
+import { SETS, SET_IDS, UNIQUES, UNIQUE_IDS, uqPower } from './uniques';
 
 export type Slot = 'weapon' | 'offhand' | 'helmet' | 'armor' | 'cloak' | 'acc' | 'emblem';
 export type EquipSlot = 'weapon' | 'offhand' | 'helmet' | 'armor' | 'cloak' | 'acc1' | 'acc2' | 'emblem';
@@ -21,7 +22,13 @@ export interface ItemBase {
   icon: string;
 }
 
-export interface Item { uid: number; base: string; grade: number; main: [Stat, number]; subs: [Stat, number][] }
+export interface Item {
+  uid: number; base: string; grade: number; main: [Stat, number]; subs: [Stat, number][];
+  lv?: number;     // 강화 +0 ~ +15
+  set?: string;    // 세트 id (uniques.ts SETS), 희귀 이상에서 60%
+  uq?: string;     // 고유 효과 id (uniques.ts UNIQUES), 전설 이상
+}
+export const MAX_ENHANCE = 15;
 
 // ───────── 기본형 목록 ─────────
 
@@ -82,7 +89,7 @@ export const baseOf = (it: Item) => ITEM_BASES.get(it.base)!;
 
 // ───────── 능력치 ─────────
 
-const ITEM_MUL = [1, 1.3, 1.7, 2.2, 2.9, 3.8, 5, 6.5];   // 등급별 수치 배율
+export const ITEM_MUL = [1, 1.3, 1.7, 2.2, 2.9, 3.8, 5, 6.5];   // 등급별 수치 배율
 const SUB_COUNT = [0, 0, 1, 1, 2, 2, 3, 4];
 const MAIN: Record<Slot, [Stat, number]> = {
   weapon: ['atk', 14], offhand: ['def', 10], helmet: ['hp', 90], armor: ['def', 12],
@@ -91,7 +98,7 @@ const MAIN: Record<Slot, [Stat, number]> = {
 const SUB_BASE: Record<Stat, number> = { atk: 5, hp: 40, def: 4, crit: 0.012, critDmg: 0.04, spd: 2, atkPct: 0.015 };
 const SUB_POOL: Stat[] = ['atk', 'hp', 'def', 'crit', 'critDmg', 'spd'];
 
-export function makeItem(uid: number, baseId: string, grade: number, rnd = Math.random): Item {
+export function makeItem(uid: number, baseId: string, grade: number, rnd = Math.random, uq?: string): Item {
   const b = ITEM_BASES.get(baseId)!;
   let [stat, v] = MAIN[b.slot];
   if (b.slot === 'weapon' && b.hands === 2) v *= 1.4;     // 양손 무기는 방패를 못 드는 대신 세다
@@ -103,13 +110,27 @@ export function makeItem(uid: number, baseId: string, grade: number, rnd = Math.
     const s = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
     subs.push([s, SUB_BASE[s] * ITEM_MUL[grade] * (0.7 + rnd() * 0.6)]);
   }
-  return { uid, base: baseId, grade, main, subs };
+  const it: Item = { uid, base: baseId, grade, main, subs };
+  if (grade >= 2 && rnd() < 0.6) it.set = SET_IDS[Math.floor(rnd() * SET_IDS.length)];
+  if (grade >= 4) {
+    const pool = UNIQUE_IDS.filter(id => UNIQUES[id].slot === b.slot);
+    it.uq = uq ?? pool[Math.floor(rnd() * pool.length)];
+  }
+  return it;
+}
+
+/** 강화를 반영한 주옵션·부옵션: 단계마다 주옵션 +6%, 부옵션 +3% */
+export function statsOf(it: Item): { main: [Stat, number]; subs: [Stat, number][] } {
+  const lv = it.lv ?? 0;
+  return { main: [it.main[0], it.main[1] * (1 + 0.06 * lv)], subs: it.subs.map(([s, v]) => [s, v * (1 + 0.03 * lv)]) };
 }
 
 /** 등급을 정하고 그 등급에 나올 수 있는 기본형 중 하나로 아이템을 만든다 */
-export function rollItem(uid: number, grade: number, slot?: Slot, rnd = Math.random): Item {
-  const pool = bases.filter(b => b.minGrade <= grade && grade - b.minGrade <= 3 && (!slot || b.slot === slot));
-  return makeItem(uid, pool[Math.floor(rnd() * pool.length)].id, grade, rnd);
+export function rollItem(uid: number, grade: number, slot?: Slot, rnd = Math.random, uq?: string): Item {
+  const ok = (b: ItemBase) => b.minGrade <= grade && (!slot || b.slot === slot);
+  let pool = bases.filter(b => ok(b) && grade - b.minGrade <= 3);
+  if (!pool.length) pool = bases.filter(ok);   // 갑옷처럼 기본형이 적은 부위는 높은 등급에도 낮은 모델을 쓴다
+  return makeItem(uid, pool[Math.floor(rnd() * pool.length)].id, grade, rnd, uq);
 }
 
 /** 확률표에서 등급을 뽑는다 */
@@ -124,25 +145,58 @@ export interface Bonus {
   atk: number; hp: number; def: number; crit: number; critDmg: number; spd: number; atkPct: number;
   // 특성 (talents.ts): 비율은 0.04 = 4%
   hpPct: number; defPct: number; healPct: number; threatPct: number; drPct: number; lifesteal: number; cdr: number; gaugePct: number; rage: number;
-  caps: string[];             // 배운 끝 노드 (규칙을 바꾸는 효과, battle.ts)
+  caps: string[];             // 배운 끝 노드 (규칙을 바꾸는 효과, battle.ts), 4세트 효과 'set_{id}'
+  uniq: Record<string, number>;    // 장비 고유 효과 id → 세기 (uniques.ts)
+  uniq2: string[];                 // 2차 효과가 켜진 고유 효과 (신화 이상)
+  party: Record<string, number>;   // 파티 전체에 걸 고유 효과 (불멸 이상, 절반 세기)
 }
+export type NumKey = Exclude<keyof Bonus, 'caps' | 'uniq' | 'uniq2' | 'party'>;
 export const zeroBonus = (): Bonus => ({
   atk: 0, hp: 0, def: 0, crit: 0, critDmg: 0, spd: 0, atkPct: 0,
   hpPct: 0, defPct: 0, healPct: 0, threatPct: 0, drPct: 0, lifesteal: 0, cdr: 0, gaugePct: 0, rage: 0, caps: [],
+  uniq: {}, uniq2: [], party: {},
 });
+const addRec = (a: Record<string, number>, b: Record<string, number>) => {
+  const out = { ...a };
+  for (const [k, v] of Object.entries(b)) out[k] = (out[k] ?? 0) + v;
+  return out;
+};
 /** 두 보너스를 더한다 (장비 + 특성) */
 export function addBonus(a: Bonus, b: Bonus): Bonus {
   const out = zeroBonus();
   for (const k of Object.keys(out) as (keyof Bonus)[]) {
-    if (k === 'caps') out.caps = [...a.caps, ...b.caps];
+    if (k === 'caps' || k === 'uniq2') out[k] = [...a[k], ...b[k]];
+    else if (k === 'uniq' || k === 'party') out[k] = addRec(a[k], b[k]);
     else out[k] = a[k] + b[k];
   }
   return out;
 }
 
+/** 낀 세트별 개수 */
+export function setCounts(items: Item[]) {
+  const n: Record<string, number> = {};
+  for (const it of items) if (it.set) n[it.set] = (n[it.set] ?? 0) + 1;
+  return n;
+}
+
+/** 낀 장비의 능력치 + 세트 + 고유 효과 */
 export function bonusOf(items: Item[]): Bonus {
   const b = zeroBonus();
-  for (const it of items) for (const [s, v] of [it.main, ...it.subs]) b[s] += v;
+  for (const it of items) {
+    const st = statsOf(it);
+    for (const [s, v] of [st.main, ...st.subs]) b[s] += v;
+    if (it.uq) {
+      const p = uqPower(it.lv);
+      b.uniq[it.uq] = (b.uniq[it.uq] ?? 0) + p;
+      if (it.grade >= 5) b.uniq2.push(it.uq);
+      if (it.grade >= 6 && UNIQUES[it.uq].party) b.party[it.uq] = (b.party[it.uq] ?? 0) + p * 0.5;
+    }
+  }
+  for (const [id, n] of Object.entries(setCounts(items))) {
+    if (n >= 2) for (const [k, v] of Object.entries(SETS[id].two) as [NumKey, number][]) b[k] += v;
+    if (n >= 4) b.caps.push(`set_${id}`);
+  }
+  if (b.caps.includes('set_blood')) b.rage += 0.5;
   return b;
 }
 

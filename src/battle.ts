@@ -109,6 +109,10 @@ export class Battle {
     // 파티 오라 (불멸 이상 영웅): 아군 전체 공격력. 여러 명이면 더한다
     const aura = this.party.reduce((a, p) => a + auraOf(p.grade ?? 0), 0);
     if (aura) for (const h of this.heroes) h.buffAtk += aura;
+    // 불멸 이상 장비의 고유 효과는 파티 전체에 절반 세기로 (낀 영웅 자신은 이미 가졌다)
+    for (const src of this.heroes) for (const [id, p] of Object.entries(src.bonus.party))
+      for (const h of this.heroes) if (h !== src) h.bonus.uniq[id] = (h.bonus.uniq[id] ?? 0) + p;
+    for (const h of this.heroes) if (h.uq2('guardian')) this.addShield(h, h.maxHp * 0.15);
     for (const h of this.heroes) {
       h.pos.z -= 9;
       h.moveTo = h.home.clone();
@@ -129,6 +133,7 @@ export class Battle {
       this.fx.burst(u.pos.add(new Vector3(0, 0.2, 0)), COL.bone, 18, 3, 0.25);
     }
     if (w.boss) this.shake(0.4);
+    for (const h of this.heroes) if (h.alive && h.uq('shade') && (i === 0 || h.uq2('shade'))) { h.shadeUntil = this.time + 6; h.shadeHit = true; }
     this.state = 'fight';
   }
 
@@ -157,7 +162,13 @@ export class Battle {
     for (let i = 0; i < u.cds.length; i++) u.cds[i] -= dt;
     u.atkCd -= dt;
     u.threat *= 1 - 0.06 * dt;
-    if (this.state === 'fight' && u.def.ult) u.gauge = Math.min(100, u.gauge + dt * (u.side === 'hero' ? 3.5 : 5) * (1 + u.bonus.gaugePct));
+    if (this.state === 'fight' && u.def.ult) u.gauge = Math.min(100, u.gauge + dt * ((u.side === 'hero' ? 3.5 : 5) * (1 + u.bonus.gaugePct) + 2 * u.uq('focus')));
+    if (this.time < u.shadeUntil) u.threat = 0;   // 고유 그림자 망토
+    // 고유 재생의 갑옷: 3초마다
+    if (u.uq('regen') && this.state === 'fight' && this.time >= u.regenAt) {
+      u.regenAt = this.time + 3;
+      if (u.hp < u.maxHp) this.healFlat(u, u, u.maxHp * 0.03 * u.uq('regen') * (u.uq2('regen') && u.hp / u.maxHp < 0.3 ? 2 : 1));
+    }
     const busy = this.time < u.busyUntil;
     if (!busy && u.moveTo) {
       const dx = u.moveTo.x - u.pos.x, dz = u.moveTo.z - u.pos.z;
@@ -223,7 +234,9 @@ export class Battle {
   }
 
   private basicAttack(u: Unit, t: Unit) {
-    const interval = 1.7 * (100 / u.spd());
+    const lonely = u.uq('lonely') && this.alliesOf(u).length <= 2;
+    const fast = (lonely ? 0.2 : 0) + (u.uq2('shade') && this.time < u.shadeUntil ? 0.3 : 0);
+    const interval = 1.7 * (100 / u.spd()) / (1 + fast);
     const anim = u.def.anims.attack[Math.floor(Math.random() * u.def.anims.attack.length)];
     const dur = u.play(anim, false, ATK_ANIM_SPEED);
     u.atkCd = interval;
@@ -232,10 +245,20 @@ export class Battle {
       if (!u.alive || !t.alive) return;
       // 특성 파편: 대상 주변 적에게도 30%
       const cleave = () => { if (u.has('cleave')) for (const f of this.near(t.pos, this.foesOf(u), 2.2)) if (f !== t) this.damage(u, f, 0.3, { noGauge: true }); };
-      if (u.def.projectile) this.shoot(u, t, u.def.projectile, () => { this.damage(u, t, 1); cleave(); });
+      // 고유 연쇄 번개: 근처 다른 적에게 튄다
+      const arc = () => {
+        if (!u.uq('arc') || Math.random() >= (u.uq2('arc') ? 0.5 : 0.3)) return;
+        const o = this.near(t.pos, this.foesOf(u), 4).find(f => f !== t);
+        if (o) { this.damage(u, o, 0.5 * u.uq('arc'), { noGauge: true }); this.fx.burst(o.chest(), COL.blue, 14, 4, 0.2); }
+      };
+      // 광풍 4세트: 3번마다 한 번 더
+      const again = () => { if (u.has('set_storm') && ++u.atkCount % 3 === 0) this.after(0.15, () => { if (u.alive && t.alive) this.damage(u, t, 1, { noGauge: true }); }); };
+      if (u.def.projectile) this.shoot(u, t, u.def.projectile, () => { this.damage(u, t, 1); cleave(); arc(); again(); });
       else {
         this.damage(u, t, 1);
         cleave();
+        arc();
+        again();
         this.fx.slash(t.chest(), u.side === 'hero' ? COL.white : COL.red);
       }
     });
@@ -260,16 +283,26 @@ export class Battle {
     if (!tgt.alive) return 0;
     const atk = src.atk();
     let raw = Math.max(atk * mult * 0.15, atk * mult - tgt.defense() * 0.5);
-    const crit = o.crit ?? (src.firstCrit || Math.random() < src.critRate());
+    const crit = o.crit ?? (src.firstCrit || this.time < src.critUntil || Math.random() < src.critRate());
     src.firstCrit = false;
     if (crit) raw *= src.critDmg();
     if (src.has('execute') && tgt.hp / tgt.maxHp < 0.3) raw *= 1.4;   // 특성 처형
+    // 장비 고유 효과 (uniques.ts)
+    if (src.uq('reaper') && tgt.hp / tgt.maxHp < 0.25) raw *= 1 + 0.5 * src.uq('reaper');
+    if (src.uq('lonely') && this.alliesOf(src).length <= 2) raw *= 1 + 0.4 * src.uq('lonely');
+    if (src.uq2('inverse') && this.alliesOf(src).every(a => a.hp >= a.maxHp)) raw *= 1.25;
+    if (src.shadeHit && !o.reflect) { raw *= 1 + src.uq('shade'); src.shadeHit = false; }
+    if (tgt.uq2('lonely') && this.alliesOf(tgt).length === 1) raw *= 0.7;
     if (src.ultUntil > this.time) raw *= src.ultMul;                   // 필살기 단계
     raw *= (1 - tgt.dr(this.time)) * (0.92 + Math.random() * 0.16);
     const dmg = Math.max(1, Math.round(raw));
-    const absorbed = Math.min(tgt.shield, dmg);
+    // 철벽 4세트: 다른 아군이 받는 피해의 20% 를 대신 받는다 (이것으로는 쓰러지지 않는다)
+    const iron = o.reflect || tgt.has('set_iron') ? undefined : this.alliesOf(tgt).find(x => x !== tgt && x.has('set_iron'));
+    const taken = iron ? Math.round(dmg * 0.2) : 0;
+    if (iron) { iron.hp = Math.max(1, iron.hp - Math.round(taken * (1 - iron.dr(this.time)))); iron.dmgTaken += taken; }
+    const absorbed = Math.min(tgt.shield, dmg - taken);
     tgt.shield -= absorbed;
-    tgt.hp -= dmg - absorbed;
+    tgt.hp -= dmg - taken - absorbed;
     src.dmgDone += dmg;
     tgt.dmgTaken += dmg;
     src.threat += dmg * src.threatMul();
@@ -278,8 +311,19 @@ export class Battle {
     this.hud.number(tgt, dmg, absorbed === dmg ? 'block' : crit ? 'crit' : tgt.side === 'hero' ? 'taken' : 'dmg');
     this.fx.burst(tgt.chest(), crit ? COL.gold : tgt.side === 'hero' ? COL.red : COL.white, crit ? 22 : 12, crit ? 6 : 4);
     if (crit) this.shake(0.12);
-    const ls = (o.lifesteal ?? 0) + src.bonus.lifesteal;
-    if (ls) this.healFlat(src, src, dmg * ls);
+    const ls = (o.lifesteal ?? 0) + src.bonus.lifesteal + 0.08 * src.uq('vamp');
+    if (ls) this.healFlat(src, src, dmg * ls, src.uq2('vamp'));
+    if (crit && src.uq('keen') && src.def.ult) src.gauge = Math.min(100, src.gauge + 5 * src.uq('keen'));
+    // 고유 피의 서약: 체력이 가장 낮은 아군 치유
+    if (src.uq('bloodpact') && !o.reflect) {
+      const low = this.alliesOf(src).reduce((a, b) => (b.hp / b.maxHp < a.hp / a.maxHp ? b : a));
+      this.healFlat(src, low, dmg * 0.15 * src.uq('bloodpact') * (src.uq2('bloodpact') && low.hp / low.maxHp < 0.3 ? 2 : 1));
+    }
+    // 고유 반사 방패: 거리 상관없이 되돌린다
+    if (!o.reflect && tgt.uq('bulwark') && tgt.alive && src.alive) {
+      const k = 0.15 * tgt.uq('bulwark') * (tgt.uq2('bulwark') && tgt.hp / tgt.maxHp < 0.5 ? 2 : 1);
+      this.damage(tgt, src, (dmg * k) / Math.max(1, tgt.atk()), { crit: false, noGauge: true, reflect: true });
+    }
     // 특성 가시: 가까이서 맞으면 20% 를 되돌린다 (되돌린 피해는 다시 되돌리지 않는다)
     if (!o.reflect && tgt.has('thorns') && tgt.alive && this.dist(src, tgt) < 3.5) this.damage(tgt, src, (dmg * 0.2) / Math.max(1, tgt.atk()), { crit: false, noGauge: true, reflect: true });
     // 특성 불굴: 처음으로 HP 30% 아래가 되면
@@ -289,9 +333,18 @@ export class Battle {
       this.addShield(tgt, tgt.maxHp * 0.2);
       this.fx.bubble(tgt, COL.gold, 5);
     }
+    // 고유 불사의 갑옷: 한 번 버틴다
+    if (tgt.hp <= 0 && tgt.uq('undying') && !tgt.undyingUsed) {
+      tgt.undyingUsed = true;
+      tgt.hp = Math.round(tgt.maxHp * 0.3 * tgt.uq('undying'));
+      this.fx.bubble(tgt, COL.gold, 2);
+      if (tgt.uq2('undying')) for (const f of this.near(tgt.pos, this.foesOf(tgt), 3)) this.stun(f, 2);
+    }
     if (tgt.hp <= 0) {
       this.kill(tgt);
       if (src.has('thirst') && src.alive) this.healFlat(src, src, src.maxHp * 0.15);   // 특성 피의 갈증
+      if (src.uq2('reaper') && src.def.ult) src.gauge = Math.min(100, src.gauge + 15);
+      if (src.uq2('gale') && src.alive) this.buff(src, 0, 30, 3);
     }
     else if (this.time >= tgt.busyUntil && !tgt.def.boss && Math.random() < 0.3) {
       const d = tgt.play(tgt.def.anims.hit, false, 1.4);
@@ -303,11 +356,19 @@ export class Battle {
   heal(src: Unit, tgt: Unit, mult: number) {
     const s = src.def.stats;
     const um = src.ultUntil > this.time ? src.ultMul : 1;
-    this.healFlat(src, tgt, src.atk() * mult * s.healPow * (1 + src.bonus.healPct) * um * (0.95 + Math.random() * 0.1));
+    const v = src.atk() * mult * s.healPow * (1 + src.bonus.healPct) * um * (0.95 + Math.random() * 0.1);
+    this.healFlat(src, tgt, v);
     this.fx.heal(tgt);
+    // 고유 역천의 지팡이: 치유량의 일부로 가장 가까운 적을 친다
+    const foes = this.foesOf(src);
+    if (src.uq('inverse') && foes.length) {
+      const f = foes.reduce((a, b) => (this.dist(src, b) < this.dist(src, a) ? b : a));
+      this.damage(src, f, (v * 0.4 * src.uq('inverse')) / Math.max(1, src.atk()), { noGauge: true });
+    }
   }
 
-  private healFlat(src: Unit, tgt: Unit, amount: number) {
+  /** toShield: 넘친 치유를 보호막으로 (고유 흡혈 반지 2차) */
+  private healFlat(src: Unit, tgt: Unit, amount: number, toShield = false) {
     if (!tgt.alive) return;
     const v = Math.round(amount);
     const real = Math.min(v, tgt.maxHp - tgt.hp);
@@ -315,6 +376,7 @@ export class Battle {
     src.healDone += real;
     src.threat += real * 0.5 * src.threatMul();
     if (src.has('overflow') && v > real) this.addShield(tgt, (v - real) * 0.5);   // 특성 넘치는 생명
+    if (toShield && v > real) this.addShield(tgt, v - real);
     if (v > 0) this.hud.number(tgt, v, 'heal');
   }
 
@@ -338,6 +400,13 @@ export class Battle {
     u.hp = 0;
     u.shield = 0;
     u.moveTo = null;
+    // 고유 희생의 문장: 남은 아군이 강해진다 (낀 영웅이 살아 있든 쓰러졌든)
+    const mates = this.units.filter(x => x.side === u.side && x !== u);
+    const sac = mates.concat(u).reduce((a, x) => a + x.uq('sacrifice'), 0);
+    if (sac) for (const m of mates.filter(x => x.alive)) {
+      m.buffAtk += 0.15 * sac;
+      if (mates.concat(u).some(x => x.uq2('sacrifice'))) this.healFlat(m, m, m.maxHp * 0.2);
+    }
     u.play(u.def.anims.death, false);
     this.hud.removeBar(u);
     if (u.side === 'enemy') {
@@ -459,6 +528,12 @@ export class Battle {
     const ult = u.def.ult!;
     u.gauge = 0;
     if (u.side === 'hero') this.ults++;
+    const mates = this.alliesOf(u).filter(x => x !== u);
+    if (u.uq2('focus')) u.critUntil = this.time + 3;
+    const gain = 20 * u.uq('resonance') + (u.has('set_star') ? 15 : 0);
+    if (gain) for (const m of mates) if (m.def.ult) m.gauge = Math.min(100, m.gauge + gain);
+    if (u.uq2('resonance')) for (const m of this.alliesOf(u)) this.buff(m, 0.15, 0, 5);
+    if (u.has('set_sanct')) for (const m of this.alliesOf(u)) this.healFlat(u, m, m.maxHp * 0.1);
     this.frozen = true;
     this.scene.animationTimeScale = 1;
     const paused: AnimationGroup[] = [];

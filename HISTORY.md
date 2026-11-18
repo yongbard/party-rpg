@@ -223,3 +223,17 @@
   - save.ts: stars, daily, weekly, attend. 예전 저장 옮기기(장 보스 N-3 을 깼으면 N-1 ~ N-10 클리어, 별 1개).
 - 확인: 헤드리스 Chrome. 예전 저장 옮기기(1-3·2-1 클리어 → 1-1 ~ 1-10, 2-1). 출석 받기(골드 3,000), 1-1 별 3개 → 보석 150. 임무 받기·보너스·날짜 바뀜 초기화·주 경계(월요일). 균형: 1-3 Lv.2, 1-5 Lv.4, 1-7 Lv.6, 1-9 Lv.8, 2-1 Lv.9, 2-3 Lv.10, 2-5 Lv.12, 2-7 Lv.14, 2-9 Lv.16 모두 승(체력 89~97%), 1-10 Lv.8 승(1명 쓰러짐), 2-10 Lv.18 패·Lv.22 승. npm run build 통과.
 - 결과: src/missions.ts 새로. data.ts, battle.ts, main.ts, lobby.ts, hud.ts, save.ts, style.css 수정.
+
+## 2026-11-18 — 3단계 장비 마무리: 고유 효과, 세트, +15 강화, 제작
+
+- 한 일:
+  - src/uniques.ts 새로: 고유 효과 16종(세기 p 에 따른 설명, 신화 이상 2차 효과, 파티 전체 여부), 세트 5종(2개 능력치, 4개 효과), uqPower(+10 ×1.25, +15 ×1.5).
+  - items.ts: Item 에 lv·set·uq. makeItem 이 희귀 이상 60% 세트, 전설 이상 고유 효과를 붙인다. statsOf(강화 반영), setCounts, bonusOf 가 세트·고유 효과를 Bonus(uniq, uniq2, party, caps 'set_*')로. 기본형이 없는 높은 등급 부위(갑옷)는 낮은 기본형을 쓴다.
+  - unit.ts: uq(id), uq2(id), 수호(위협 2배·받는 피해 감소·공격 −15%), 질풍(공속), 날카로운 눈 2차(치명 피해). buffAtk 설명 주석이 ultUntil 줄에 붙어 있던 것 고침.
+  - battle.ts: 고유 효과 16종과 4세트 효과 처리(기본 공격·피해·치유·처치·쓰러짐·필살기·웨이브 시작·매 프레임), 불멸 이상 파티 전체 효과.
+  - gacha.ts: 강화(enhanceCost, enhance), 제작(CRAFT, craft), 분해가 골드 + 강화석 + 정수(강화에 쓴 강화석 절반).
+  - main.ts·hud.ts: 전투 승리마다 강화석, 결과 화면에 표시.
+  - lobby.ts: 가방 상세(강화 단계, 강화 반영 수치, 고유 효과·2차·파티, 세트 2·4개, 강화·분해 버튼), 재료 줄과 [제작] 화면(16종), 칸에 +단계·★ 표시, 영웅 장비 탭에 고유 효과·세트 요약.
+  - save.ts: mats(stone, essence). loadout.ts: 전투력에 고유 효과·4세트.
+- 확인: 헤드리스 Chrome. 고유·세트 장비 15개를 파티에 끼우고 장비 탭 요약(철벽 4/4 등), 불멸 장신구 +10 강화(골드 27,500, 강화석 220 차감, 고유 효과 ×1.25), 파티 전체 효과(날카로운 눈 0.63·재생 0.50 이 다른 아군에게), 제작(피의 서약 전설 망치, 정수 30 차감), 1-10 전투 승리(광풍 4세트 추가 타격, 오류 없음). npm run build 통과.
+- 결과: src/uniques.ts 새로. items.ts, unit.ts, battle.ts, gacha.ts, main.ts, hud.ts, lobby.ts, save.ts, loadout.ts, talents.ts(NumKey 를 items 에서), style.css 수정.

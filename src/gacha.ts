@@ -1,6 +1,7 @@
 // 뽑기: 보석 하나로 영웅·장비·무기를 뽑는다. 결과는 연출 전에 저장한다 (새로고침으로 다시 뽑기 방지)
 import { GRADES, HEROES } from './data';
-import { ITEM_BASES, rollItem, type Item, type Slot } from './items';
+import { ITEM_BASES, ITEM_MUL, MAX_ENHANCE, rollItem, type Item, type Slot } from './items';
+import { UNIQUES } from './uniques';
 import { addItem, writeSave, type SaveData } from './save';
 
 /** 등급(영웅은 잠재 등급) 확률 % — design.md 3.3 */
@@ -143,17 +144,62 @@ export function promote(save: SaveData, heroId: string) {
   return true;
 }
 
-/** 분해: 끼고 있지 않은 아이템을 골드로 바꾼다 */
+/** 분해로 얻는 강화석·정수 (등급별) */
+export const SALVAGE_STONE = [1, 2, 4, 8, 15, 30, 60, 120];
+export const SALVAGE_ESSENCE = [0, 0, 1, 2, 5, 12, 30, 60];
+
+/** 강화 비용 (지금 단계 → 다음 단계). 실패 없음 */
+export function enhanceCost(it: Item) {
+  const lv = it.lv ?? 0;
+  return { gold: Math.round(100 * (lv + 1) * ITEM_MUL[it.grade]), stone: (lv + 1) * (1 + Math.floor(it.grade / 2)) };
+}
+/** 이 아이템에 지금까지 쓴 강화석 (분해 때 절반을 돌려준다) */
+const spentStone = (it: Item) => Array.from({ length: it.lv ?? 0 }, (_, k) => (k + 1) * (1 + Math.floor(it.grade / 2))).reduce((a, b) => a + b, 0);
+export const salvageOf = (it: Item) => ({ gold: SALVAGE_GOLD[it.grade], stone: SALVAGE_STONE[it.grade] + Math.floor(spentStone(it) / 2), essence: SALVAGE_ESSENCE[it.grade] });
+
+const mats = (save: SaveData) => (save.mats ??= { stone: 0, essence: 0 });
+
+/** 분해: 끼고 있지 않은 아이템을 골드·강화석·정수로 바꾼다 */
 export function salvage(save: SaveData, uids: number[]) {
   const worn = new Set(Object.values(save.heroes).flatMap(h => Object.values(h.equip ?? {})));
-  let gold = 0, n = 0;
+  let gold = 0, stone = 0, essence = 0, n = 0;
   save.items = (save.items ?? []).filter(it => {
     if (!uids.includes(it.uid) || worn.has(it.uid)) return true;
-    gold += SALVAGE_GOLD[it.grade];
+    const r = salvageOf(it);
+    gold += r.gold; stone += r.stone; essence += r.essence;
     n++;
     return false;
   });
   save.gold += gold;
+  mats(save).stone += stone;
+  mats(save).essence += essence;
   writeSave(save);
-  return { gold, n };
+  return { gold, stone, essence, n };
+}
+
+export const canEnhance = (save: SaveData, it: Item) => {
+  const c = enhanceCost(it);
+  return (it.lv ?? 0) < MAX_ENHANCE && save.gold >= c.gold && mats(save).stone >= c.stone;
+};
+export function enhance(save: SaveData, uid: number) {
+  const it = save.items?.find(i => i.uid === uid);
+  if (!it || !canEnhance(save, it)) return false;
+  const c = enhanceCost(it);
+  save.gold -= c.gold;
+  mats(save).stone -= c.stone;
+  it.lv = (it.lv ?? 0) + 1;
+  writeSave(save);
+  return true;
+}
+
+/** 제작: 정수 + 골드로 고유 효과를 골라 전설 장비를 확정으로 만든다 (부위·기본형·세트는 무작위) */
+export const CRAFT = { essence: 30, gold: 30000, grade: 4 };
+export const canCraft = (save: SaveData) => save.gold >= CRAFT.gold && mats(save).essence >= CRAFT.essence;
+export function craft(save: SaveData, uq: string) {
+  if (!UNIQUES[uq] || !canCraft(save)) return null;
+  save.gold -= CRAFT.gold;
+  mats(save).essence -= CRAFT.essence;
+  const it = addItem(save, rollItem(0, CRAFT.grade, UNIQUES[uq].slot, Math.random, uq));
+  writeSave(save);
+  return it;
 }

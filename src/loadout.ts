@@ -23,8 +23,8 @@ export function loadout(save: SaveData, heroId: string, grade?: number) {
     mul: heroMul(h.level) * gradeMul(h.grade),
     look: equippedLook(lookOf(def, g)!, h.equip ?? {}, save.items ?? []),
     title: def.titles?.[g],
-    // 특성은 포인트마다 기본 전투력 1.5% 로 친다 (끝 노드 효과까지 수치로 재기 어렵다)
-    power: base + Math.round(base * 0.015 * spentOf(h) + bonus.atk * 2 + bonus.hp * 0.1 + bonus.def * 1.5 + bonus.crit * 300 + bonus.critDmg * 100 + bonus.spd * 2 + bonus.atkPct * 400),
+    // 특성은 포인트마다 기본 전투력 1.5%, 장비 고유 효과·4세트는 하나에 5% 로 친다 (규칙을 바꾸는 효과는 수치로 재기 어렵다)
+    power: base + Math.round(base * 0.015 * spentOf(h) + base * 0.05 * (Object.keys(bonus.uniq).length + bonus.caps.filter(c => c.startsWith('set_')).length) + bonus.atk * 2 + bonus.hp * 0.1 + bonus.def * 1.5 + bonus.crit * 300 + bonus.critDmg * 100 + bonus.spd * 2 + bonus.atkPct * 400),
   };
 }
 

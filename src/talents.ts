@@ -1,9 +1,8 @@
 // 특성 트리와 별(승급). design.md 3.2, 정한 값은 docs/content-design.md 4.5
 // 영웅마다 가지 3개(첫째가 설계 의도). 가지 = 능력치 노드 4개(각 3단계) + 끝 노드 1개(규칙을 바꾼다)
-import { zeroBonus, type Bonus } from './items';
+import { zeroBonus, type Bonus, type NumKey } from './items';
 import type { SaveData } from './save';
 
-type NumKey = Exclude<keyof Bonus, 'caps'>;
 export interface TNode { name: string; stat: NumKey; per: number }
 export interface Branch { id: string; name: string; desc: string; nodes: TNode[]; cap: { id: string; name: string; desc: string } }
 
@@ -140,7 +139,7 @@ export const branchesOf = (heroId: string) => (HERO_BRANCHES[heroId] ?? []).map(
 
 /** 패시브가 열리는 등급: 희귀, 전설, 초월 */
 export const PASSIVE_AT = [2, 4, 7];
-export interface Passive { name: string; b: Partial<Omit<Bonus, 'caps'>>; cap?: string }
+export interface Passive { name: string; b: Partial<Record<NumKey, number>>; cap?: string }
 const P = (name: string, b: Passive['b'], cap?: string): Passive => ({ name, b, cap });
 /** 영웅별 패시브 (열리는 등급 순). 최대 등급이 낮은 영웅은 앞의 것만 쓴다 */
 export const PASSIVES: Record<string, Passive[]> = {

@@ -197,7 +197,7 @@ export class Hud {
     }
   }
 
-  result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number; items?: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[] } | null, onRetry: () => void, onLobby: () => void) {
+  result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number; stone?: number; items?: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[] } | null, onRetry: () => void, onLobby: () => void) {
     const max = Math.max(1, ...heroes.map(h => Math.max(h.dmgDone, h.healDone, h.dmgTaken)));
     const row = (h: Unit) => `
       <div class="rr" style="--accent:${h.def.color}">
@@ -212,7 +212,7 @@ export class Hud {
       <div class="rbox ${win ? 'win' : 'lose'}">
         <div class="rt">${win ? '승리' : '패배'}</div>
         <div class="rs">전투 시간 ${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}</div>
-        ${reward ? `<div class="rw"><span class="gold">${reward.gold.toLocaleString()}</span>${reward.gems ? `<span class="gem">${reward.gems.toLocaleString()}</span>` : ''}</div>` : ''}
+        ${reward ? `<div class="rw"><span class="gold">${reward.gold.toLocaleString()}</span>${reward.gems ? `<span class="gem">${reward.gems.toLocaleString()}</span>` : ''}${reward.stone ? `<span class="stone">강화석 ${reward.stone}</span>` : ''}</div>` : ''}
         ${reward?.stars ? `<div class="rstars">${reward.stars.map(st => `<div class="rst ${st.met || st.was ? 'on' : ''}"><i>★</i>${st.text}${st.met && !st.was ? '<small>NEW</small>' : ''}</div>`).join('')}</div>` : ''}
         ${reward?.items?.length ? `<div class="rdrop">${reward.items.map(it => `<div class="drop" style="--gc:${GRADE_COLORS[it.grade]}"><i class="ico" style="--ico:url(${ITEM_ICON(it)})"></i><span><small>${GRADES[it.grade]}</small>${baseOf(it).name}</span></div>`).join('')}</div>` : ''}
         ${heroes.map(row).join('')}
