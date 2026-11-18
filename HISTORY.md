@@ -194,3 +194,7 @@
 - 한 일: data.ts 레온 looks[7] 을 q/body/TripoDragon(검·방패·발광·오라 유지)으로. items.ts 변신 몸에는 투구·망토를 안 붙임. heroModel.ts BODY_TALL(용 1.3) → ModelInstance.tall → Unit.tall: 머리 위 HP 바·필살기 컷인 높이에 곱함. camera.ts 초상화는 큰 몸이면 Head 뼈 위치를 겨눔(용 얼굴이 몸통보다 앞에 있어 잘렸음).
 - 확인: 헤드리스 Chrome, 레온 초월 Lv.60 저장 → 로비, 영웅 탭(초월 · 용기사), 1-1 전투, 필살기 컷인, 초상화 카드. npm run build 통과.
 - 결과: src/data.ts, items.ts, heroModel.ts, assets.ts, unit.ts, camera.ts.
+
+## 2026-11-18 — 변신형 배포
+
+- 한 일: 2e0ce5e, 99e91fc, c3ffabe 를 main 에 push (사용자 승인). GitHub Actions deploy 성공(31초). 공개 주소에서 assets/q/body/TripoDragon.glb 응답 200 확인.
