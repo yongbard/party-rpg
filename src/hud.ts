@@ -45,13 +45,13 @@ export class Hud {
     const btns = el('div', 'btns');
     this.speedBtn = el('button', 'btn', '1×') as HTMLButtonElement;
     this.pauseBtn = el('button', 'btn', '❚❚') as HTMLButtonElement;
-    this.speedBtn.onclick = () => this.onSpeed();
+    this.speedBtn.onclick = () => { this.speedBtn.removeAttribute('data-new'); this.onSpeed(); };
     this.pauseBtn.onclick = () => this.onPause();
     this.autoBtn = el('button', 'btn auto', 'AUTO') as HTMLButtonElement;
-    this.autoBtn.onclick = () => this.onAuto();
+    this.autoBtn.onclick = () => { this.autoBtn.removeAttribute('data-new'); this.onAuto(); };
     // 앞뒤 교대: 앞줄 2명과 뒷줄 2명이 자리를 바꾼다
     this.swapBtn = el('button', 'btn swap', '⇅') as HTMLButtonElement;
-    this.swapBtn.onclick = () => this.onSwap();
+    this.swapBtn.onclick = () => { this.swapBtn.removeAttribute('data-new'); this.onSwap(); };
     btns.append(this.swapBtn, this.autoBtn, this.speedBtn, this.pauseBtn);
     this.bossEl = el('div', 'boss hide', '<div class="bn"></div><div class="bb"><i class="lag"></i><i class="fill"></i></div>');
     top.append(this.waveEl, btns);
@@ -113,9 +113,19 @@ export class Hud {
     });
   }
 
-  /** 튜토리얼이 가리킬 곳 */
-  card(i: number) { return this.cards[i]?.box ?? null; }
-  get swapEl() { return this.swapBtn; }
+  /** 진행에 따라 전투 버튼을 보인다 (unlocks.ts). fresh 는 처음 나온 버튼: 누를 때까지 빛 */
+  setLocks(open: Record<'speed' | 'auto' | 'swap', boolean>, fresh: Record<'speed' | 'auto' | 'swap', boolean>) {
+    for (const [k, b] of [['speed', this.speedBtn], ['auto', this.autoBtn], ['swap', this.swapBtn]] as const) {
+      b.style.display = open[k] ? '' : 'none';
+      b.toggleAttribute('data-new', fresh[k]);
+    }
+  }
+  /** 앞줄이 위험할 때 ⇅ 를 잠깐 빛낸다 */
+  pulseSwap() {
+    this.swapBtn.classList.remove('hint');
+    void this.swapBtn.offsetWidth;   // 애니메이션을 처음부터
+    this.swapBtn.classList.add('hint');
+  }
 
   setAuto(on: boolean) { this.autoBtn.classList.toggle('on', on); }
   setSpeed(s: number) { this.speedBtn.textContent = `${s}×`; }

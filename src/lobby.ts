@@ -10,7 +10,7 @@ import { SETS, UNIQUES, UNIQUE_IDS, uqPower } from './uniques';
 import { showSummon } from './summonView';
 import { baseOf, canEquip, EQUIP_SLOTS, fmtStat, ITEM_ICON, MAX_ENHANCE, setCounts, SLOT_NAMES, STAT_NAMES, statsOf, type EquipSlot, type Item, type Slot } from './items';
 import { equippedItems } from './loadout';
-import { loadout, rivalParty, wearerOf } from './loadout';
+import { fillableSlot, loadout, rivalParty, wearerOf } from './loadout';
 import { FACTION_IDS, FACTION_OF, FACTIONS, membersOf, POLICIES, synergy, type FactionId, type Policy } from './tactics';
 import { lookKeys, makeHeroModel } from './heroModel';
 import type { Fx } from './fx';
@@ -110,6 +110,21 @@ export class Lobby {
   private has(f: Feature) { return unlocked(this.save.cleared, f); }
   /** 새로 열린 기능 표시: 빛(data-new)과, 누르면 본 것으로 적는 data-feat */
   private nw(f: Feature) { return `data-feat="${f}" ${isNew(this.save, f) ? 'data-new' : ''}`; }
+
+  /** 할 수 있는 일이 있는 영웅: 파티 영웅의 레벨이 다음 적보다 낮고 골드로 올릴 수 있다, 빈 칸에 낄 장비가 있다, 승격할 수 있다 */
+  private heroDot(id: string) {
+    const s = this.save, h = s.heroes[id];
+    const foe = STAGES.find(st => st.id === this.frontier(-1))!.level;
+    return (s.party.includes(id) && h.level < foe && h.level < maxLevel(h.grade, h.stars) && s.gold >= levelCost(h.level))
+      || (this.has('gear') && !!fillableSlot(s, id))
+      || (this.has('promo') && !canPromote(s, id));
+  }
+  /** 아래 탭 점: 영웅 탭은 위 heroDot, 소환 탭은 10회 소환할 보석이 있을 때 */
+  private tabDot(t: Tab) {
+    if (t === 'hero') return this.owned().some(d => this.heroDot(d.id));
+    if (t === 'summon') return this.save.gems >= BANNERS[0].cost10;
+    return false;
+  }
 
   /** 열린 스테이지 중 안 깬 첫째 (다 깼으면 마지막). ch 를 주면 그 장 안에서 */
   private frontier(ch: number) {
@@ -317,7 +332,7 @@ export class Lobby {
       <div class="lb-bottom">
         ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'dungeon' ? this.dungeonHtml() : this.tab === 'hero' ? this.heroHtml() : this.tab === 'summon' ? this.summonHtml() : this.bagHtml()}
         <div class="lb-tabs">${TABS.filter(([t]) => t === 'adventure' || this.has(t)).map(([t, name, icon]) => `
-          <button data-tab="${t}" class="${this.tab === t ? 'on' : ''}" ${t === 'adventure' ? '' : this.nw(t)}><i class="tic" style="--ico:url(${uiIcon(icon)})"></i><span>${name}</span></button>`).join('')}
+          <button data-tab="${t}" class="${this.tab === t ? 'on' : ''}" ${t === 'adventure' ? '' : this.nw(t)}><i class="tic" style="--ico:url(${uiIcon(icon)})"></i><span>${name}</span>${this.tabDot(t) ? '<i class="dot"></i>' : ''}</button>`).join('')}
         </div>
       </div>`;
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
@@ -581,7 +596,7 @@ export class Lobby {
     return `
       <div class="lb-panel hero" style="--accent:${d.color}">
         <div class="chips">${this.owned().map(x => `
-          <button class="chip ${x.id === this.heroId ? 'on' : ''} ${s.party.includes(x.id) ? 'party' : ''}" data-id="${x.id}" style="--accent:${x.color}">${this.face(x.id)}<span>Lv.${s.heroes[x.id].level}</span></button>`).join('')}
+          <button class="chip ${x.id === this.heroId ? 'on' : ''} ${s.party.includes(x.id) ? 'party' : ''}" data-id="${x.id}" style="--accent:${x.color}">${this.face(x.id)}<span>Lv.${s.heroes[x.id].level}</span>${this.heroDot(x.id) ? '<i class="dot"></i>' : ''}</button>`).join('')}
         </div>
         <div class="hd-head">
           <div><div class="hd-title" style="color:${GRADE_COLORS[grade]}">${GRADES[grade]} · ${d.titles?.[grade] ?? ''}</div><div class="hd-name">${d.name}${this.facTag(d.id)}<span>Lv.${lv}<small>/${MAXL}</small></span></div></div>
@@ -590,7 +605,7 @@ export class Lobby {
         <div class="ladder">${ladder}</div>
         ${shown !== grade ? `<div class="ladder-note">${GRADES[shown]} 「${d.titles?.[shown] ?? ''}」 외형 미리보기 · ${shown > grade ? '같은 영웅 조각으로 승격하면 이 모습이 된다' : '지나온 모습'}</div>` : `<div class="ladder-note">최대 ${GRADES[max]}까지 성장 · 칭호를 누르면 그 등급 외형을 미리 본다</div>`}
         ${this.heroView === 'look' || !this.has('promo') ? '' : this.promoHtml(d.id)}
-        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치</button>${this.has('talent') ? `<button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}" ${this.nw('talent')}>특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button>` : ''}${this.has('gear') ? `<button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}" ${this.nw('gear')}>장비</button>` : ''}<button data-v="look" class="${this.heroView === 'look' ? 'on' : ''}">외형</button></div>
+        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치</button>${this.has('talent') ? `<button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}" ${this.nw('talent')}>특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button>` : ''}${this.has('gear') ? `<button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}" ${this.nw('gear')}>장비${fillableSlot(s, d.id) ? '<i class="dot"></i>' : ''}</button>` : ''}<button data-v="look" class="${this.heroView === 'look' ? 'on' : ''}">외형</button></div>
         ${this.heroView === 'look' ? '' : this.heroView === 'gear' ? this.gearHtml(d.id) : this.heroView === 'talent' ? this.talentHtml(d.id) : `
         <div class="hd-stats">
           <div><small>체력</small><b>${fmt((st.hp * m + bn.hp) * (1 + bn.hpPct))}</b>${grow(st.hp)}</div>

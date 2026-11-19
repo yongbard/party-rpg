@@ -8,7 +8,7 @@ import { canRun, finishRun, stageOf } from './modes';
 import { rollGrade, rollItem, type Item } from './items';
 import { loadout, rivalParty } from './loadout';
 import { sound } from './sound';
-import { seen, showTip, tipOpen, type TipId } from './tutorial';
+import { isNew, isOpen as unlocked, markSeen, type Feature } from './unlocks';
 import { ANIM_KEYS, lookKeys } from './heroModel';
 import { Fx } from './fx';
 import { Hud } from './hud';
@@ -131,10 +131,13 @@ async function main() {
     b.spawnHeroes();
     hud.setHeroes(b.heroes, b.heroes.map(h => portraits[h.def.id] ?? portraitUrl(h.def.id)));
     hud.visible(true);
-    b.setSpeed(speed);
-    hud.setSpeed(speed);
+    // 아직 안 열린 배속·AUTO 는 1×·끔으로 (저장값은 그대로)
+    const open = { speed: unlocked(save.cleared, 'speed'), auto: unlocked(save.cleared, 'auto'), swap: unlocked(save.cleared, 'swap') };
+    hud.setLocks(open, { speed: isNew(save, 'speed'), auto: isNew(save, 'auto'), swap: isNew(save, 'swap') });
+    b.setSpeed(open.speed ? speed : 1);
+    hud.setSpeed(open.speed ? speed : 1);
     sound.music('battle');
-    b.auto = !!save.auto;
+    b.auto = open.auto && !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
       let reward: { gold: number; gems: number; stone: number; items: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[]; lines?: string[]; title?: string } | null = null;
@@ -188,8 +191,11 @@ async function main() {
   lobby.onStart = id => void startBattle(id);
 
   hud.onUlt = i => battle?.requestUlt(i);
+  /** 처음 누른 전투 버튼은 본 것으로 */
+  const seeFeat = (f: Feature) => { if (markSeen(save, f)) writeSave(save); };
   hud.onSpeed = () => {
     if (!battle) return;
+    seeFeat('speed');
     speed = speed >= 3 ? 1 : speed + 1;
     (save.opt ??= { sfx: 0.7, mus: 0.35, speed: 1 }).speed = speed;
     writeSave(save);
@@ -197,8 +203,9 @@ async function main() {
     hud.setSpeed(speed);
   };
   hud.onPause = () => { if (battle) hud.setPaused(battle.togglePause()); };
-  hud.onSwap = () => battle?.swapRows();
+  hud.onSwap = () => { seeFeat('swap'); battle?.swapRows(); };
   hud.onAuto = () => {
+    seeFeat('auto');
     save.auto = !save.auto;
     writeSave(save);
     hud.setAuto(save.auto);
@@ -214,16 +221,11 @@ async function main() {
   let fpsEl: HTMLElement | null = null;
   if (params.has('fps')) { fpsEl = document.createElement('div'); fpsEl.className = 'fps'; document.body.append(fpsEl); }
 
-  // 전투 안내 (튜토리얼): 처음 게이지가 찼을 때 필살기, 앞줄이 위험할 때 앞뒤 교대. 안내를 보는 동안 멈춘다
-  const battleTips = (b: Battle) => {
-    if (tipOpen() || b.state !== 'fight' || b.frozen || b.paused) return;
-    const tip = (id: TipId, el: Element | null) => {
-      if (showTip(save, id, el, () => { if (battle === b && b.paused) hud.setPaused(b.togglePause()); })) hud.setPaused(b.togglePause());
-    };
-    if (!seen(save, 'ult')) {
-      const i = b.heroes.findIndex(h => h.alive && h.gauge >= 100);
-      if (i >= 0 && !b.auto) tip('ult', hud.card(i));
-    } else if (!seen(save, 'swap') && b.canSwap() && b.heroes.some(h => h.alive && h.slot < 2 && h.hp / h.maxHp < 0.5)) tip('swap', hud.swapEl);
+  // 앞줄 영웅 체력이 전투에서 처음 절반 아래가 되면 ⇅ 를 빛낸다 (전투마다 한 번)
+  let swapHinted: Battle | null = null;
+  const swapHint = (b: Battle) => {
+    if (swapHinted === b || !unlocked(save.cleared, 'swap') || !b.canSwap()) return;
+    if (b.heroes.some(h => h.alive && h.slot < 2 && h.hp / h.maxHp < 0.5)) { swapHinted = b; hud.pulseSwap(); }
   };
 
   engine.runRenderLoop(() => {
@@ -232,7 +234,7 @@ async function main() {
     arena.update(dt);
     battle?.update(dt);
     if (battle && !battle.frozen) rig.frame(battle.units.filter(u => u.alive));
-    if (battle) battleTips(battle);
+    if (battle) swapHint(battle);
     if (!battle) { lobby.update(); fx.update(dt); }
     scene.render();
     if (fpsEl) fpsEl.textContent = `${engine.getFps().toFixed(0)} fps · ${engine.name}`;

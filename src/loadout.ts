@@ -1,6 +1,6 @@
 // 저장 데이터에서 영웅 한 명의 지금 모습·능력치를 꺼낸다 (로비와 전투가 같이 쓴다)
 import { gradeMul, HEROES, heroMul, lookOf, power } from './data';
-import { addBonus, bonusOf, equippedLook, EQUIP_SLOTS, type Item } from './items';
+import { addBonus, baseOf, bonusOf, canEquip, equippedLook, EQUIP_SLOTS, type Item } from './items';
 import { membersOf, type FactionId } from './tactics';
 import { passiveBonus, spentOf, talentBonus } from './talents';
 import type { SaveData } from './save';
@@ -51,4 +51,12 @@ export function rivalParty(save: SaveData, team: string, off = 0) {
 /** 이 아이템을 낀 영웅 id (없으면 undefined) */
 export function wearerOf(save: SaveData, uid: number) {
   return Object.entries(save.heroes).find(([, h]) => Object.values(h.equip ?? {}).includes(uid))?.[0];
+}
+
+/** 빈 장비 칸에 낄 수 있는 (아무도 안 낀) 장비가 가방에 있는 칸. 없으면 undefined (로비 점, 패배 바로가기) */
+export function fillableSlot(save: SaveData, heroId: string) {
+  const eq = save.heroes[heroId].equip ?? {};
+  const weapon = save.items?.find(i => i.uid === eq.weapon);
+  return EQUIP_SLOTS.find(sl => eq[sl] === undefined && !(sl === 'offhand' && weapon && baseOf(weapon).hands === 2)
+    && (save.items ?? []).some(i => !wearerOf(save, i.uid) && canEquip(heroId, sl, i, sl === 'offhand' ? weapon : undefined) === null));
 }

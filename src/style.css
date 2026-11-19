@@ -647,3 +647,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .lb-tabs button[data-new] { color: var(--gold); animation: tabrise .7s cubic-bezier(.2,1.4,.4,1), newglow 1.2s ease-in-out .7s infinite; }
 @keyframes tabrise { 0% { opacity: 0; transform: translateY(14px) scale(.7); } 100% { opacity: 1; transform: none; } }
 .lb-tabs button[data-new]::before { content: 'NEW'; position: absolute; top: -7px; right: 4px; padding: 0 4px; border-radius: 6px; font: 700 9px var(--body); letter-spacing: 0; color: #2a1a00; background: linear-gradient(180deg, #fff1b8, var(--gold)); }
+/* 할 수 있는 일 점: 아래 탭·영웅 칩 */
+.lb-tabs .dot, .chip .dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #ff5a4a; box-shadow: 0 0 6px rgba(255,90,74,.8); }
+.lb-tabs .dot { right: calc(50% - 22px); }
+/* 전투: 앞줄이 위험할 때 ⇅ 를 잠깐 빛낸다 */
+.btn.hint { animation: newglow .6s ease-in-out 5; }
