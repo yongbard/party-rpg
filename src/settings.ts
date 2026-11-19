@@ -1,4 +1,4 @@
-// 설정 화면: 소리, 전투 배속, 저장 내보내기·가져오기, 튜토리얼 다시 보기, 처음부터, 크레딧 (docs/credits.md 와 같게)
+// 설정 화면: 소리, 전투 배속, 저장 내보내기·가져오기, 처음부터, 크레딧 (docs/credits.md 와 같게)
 import { exportCode, parseSave, resetSave, storeSave, writeSave, type SaveData } from './save';
 import { sound } from './sound';
 
@@ -14,9 +14,8 @@ const CREDITS: [string, string, string][] = [
   ['소리·이펙트', '코드로 합성·그림 (Web Audio, src/sound.ts, src/fx.ts)', '직접 제작'],
 ];
 
-export interface SettingsHooks { onTutorial: () => void }
 
-export function openSettings(save: SaveData, hooks: SettingsHooks) {
+export function openSettings(save: SaveData) {
   const opt = (save.opt ??= { sfx: 0.7, mus: 0.35, speed: 1 });
   const el = document.createElement('div');
   el.className = 'set-ov';
@@ -50,7 +49,7 @@ export function openSettings(save: SaveData, hooks: SettingsHooks) {
           ${msg ? `<div class="set-msg">${msg}</div>` : ''}
           <input type="file" class="imp-input" accept=".json,.txt,application/json,text/plain" hidden>
         </div>
-        <div class="set-sec"><b>기타</b><div class="set-row"><button class="set-btn tut">튜토리얼 다시 보기</button><button class="set-btn cred">크레딧</button></div>
+        <div class="set-sec"><b>기타</b><div class="set-row"><button class="set-btn cred">크레딧</button></div>
           <button class="set-btn danger reset">${confirmReset ? '정말 지울까? 한 번 더 누르면 처음부터' : '처음부터 다시 하기'}</button></div>
       </div>`;
     }
@@ -101,7 +100,6 @@ export function openSettings(save: SaveData, hooks: SettingsHooks) {
     on('.imp-code', () => tryImport(el.querySelector<HTMLTextAreaElement>('.imp-text')!.value));
     on('.imp-no', () => { pending = null; render(); });
     on('.imp-go', () => { storeSave(pending!); location.reload(); });
-    on('.tut', () => { save.tut = []; writeSave(save); el.remove(); hooks.onTutorial(); });
     on('.reset', () => {
       if (!confirmReset) { confirmReset = true; render(); return; }
       resetSave();

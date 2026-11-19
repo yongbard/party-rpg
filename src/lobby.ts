@@ -338,7 +338,7 @@ export class Lobby {
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
     this.measure();
     this.el.querySelectorAll<HTMLButtonElement>('.lb-tabs button').forEach(b => { b.onclick = () => void this.setTab(b.dataset.tab as Tab); });
-    (this.el.querySelector('.opt-t') as HTMLButtonElement).onclick = () => openSettings(this.save, { onTutorial: () => { this.tab = 'adventure'; this.missions = false; this.forming = false; this.render(); } });
+    (this.el.querySelector('.opt-t') as HTMLButtonElement).onclick = () => openSettings(this.save);
     const on = (sel: string, fn: (b: HTMLButtonElement) => void) => this.el.querySelectorAll<HTMLButtonElement>(sel).forEach(b => { b.onclick = () => fn(b); });
     if (this.tab === 'adventure') {
       on('.stage', b => { this.selected = b.dataset.id!; this.render(); });

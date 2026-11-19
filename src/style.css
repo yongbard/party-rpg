@@ -635,11 +635,6 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .cr-list span { font: 700 11.5px var(--body); line-height: 1.4; }
 .cr-list small { font: 700 10.5px var(--body); color: var(--muted); }
 .set-back { width: 100%; margin-top: 10px; }
-.tip-ov { position: absolute; inset: 0; z-index: 50; }
-.tip-hole { position: absolute; border-radius: 12px; box-shadow: 0 0 0 9999px rgba(5,4,8,.66), 0 0 0 2px var(--gold), 0 0 18px var(--gold); pointer-events: none; animation: tippulse 1.2s ease-in-out infinite; }
-@keyframes tippulse { 50% { box-shadow: 0 0 0 9999px rgba(5,4,8,.66), 0 0 0 3px var(--gold), 0 0 30px var(--gold); } }
-.tip-box { position: absolute; left: 16px; right: 16px; padding: 12px 14px 12px 16px; border-radius: 14px; border: 1.5px solid transparent; background: linear-gradient(180deg, rgba(40,33,52,.97), rgba(18,14,24,.98)) padding-box, linear-gradient(180deg, #f5d98e, #9c7a3a) border-box; box-shadow: 0 8px 30px rgba(0,0,0,.6), 0 0 18px rgba(241,200,106,.25); color: var(--text); font: 700 14px var(--body); line-height: 1.5; animation: pop .3s cubic-bezier(.2,1.4,.4,1); }
-.tip-box small { display: block; margin-top: 4px; font: 700 10.5px var(--body); color: var(--muted); }
 
 /* 새로 열린 기능 (unlocks.ts): 누를 때까지 금빛 고동. 아래 탭은 떠오르며 나타난다 */
 [data-new] { animation: newglow 1.2s ease-in-out infinite; }
