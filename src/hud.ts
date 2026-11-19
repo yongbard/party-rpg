@@ -96,6 +96,7 @@ export class Hud {
     this.bannerEl.className = 'banner';
     this.resultEl.classList.add('hide');
     this.hint(false);
+    this.swapBtn.classList.remove('swap-hint');
     this.setPaused(false);
     this.heroes = [];
   }
@@ -122,9 +123,10 @@ export class Hud {
   }
   /** 앞줄이 위험할 때 ⇅ 를 잠깐 빛낸다 */
   pulseSwap() {
-    this.swapBtn.classList.remove('hint');
+    this.swapBtn.classList.remove('swap-hint');
     void this.swapBtn.offsetWidth;   // 애니메이션을 처음부터
-    this.swapBtn.classList.add('hint');
+    this.swapBtn.classList.add('swap-hint');
+    this.swapBtn.addEventListener('animationend', () => this.swapBtn.classList.remove('swap-hint'), { once: true });
   }
 
   setAuto(on: boolean) { this.autoBtn.classList.toggle('on', on); }

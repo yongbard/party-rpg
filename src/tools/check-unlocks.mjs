@@ -52,6 +52,8 @@ await page.waitForFunction(() => document.getElementById('lobby').style.display 
 
 // 3. 영웅 탭이 새것으로 빛나고, 누르면 꺼진다
 ok(await page.$('#lobby .lb-tabs [data-tab="hero"][data-new]') !== null, '1-1 뒤: 영웅 탭 [data-new]');
+await page.click('#lobby .stage.sel');   // 다른 곳을 눌러 다시 그린다
+ok(!(await page.$eval('#lobby .lb-tabs [data-tab="hero"]', b => getComputedStyle(b).animationName)).includes('tabrise'), '다시 그려도 탭 등장 애니메이션을 되풀이하지 않음');
 await shot('04-lobby-after-1-1');
 await page.click('#lobby .lb-tabs [data-tab="hero"]');
 await page.waitForFunction(() => document.querySelector('#lobby .lb-tabs [data-tab="hero"].on'));
@@ -69,6 +71,13 @@ await setCleared(ids(1, 10));
 ok((await tabs()).length === 5, `1-10 까지 탭 5개 (${await tabs()})`);
 await shot('05-lobby-1-10');
 
+// 4-1. 승격·별은 1-8 을 깨면 영웅 탭 안에서 빛난다
+await setCleared(ids(1, 8), { seen: ['hero', 'speed', 'gear', 'bag', 'missions', 'auto', 'swap', 'summon', 'form', 'policy', 'talent'] });
+await page.click('#lobby .lb-tabs [data-tab="hero"]');
+await page.waitForFunction(() => document.querySelector('#lobby .lb-tabs [data-tab="hero"].on'));
+ok(await page.$('#lobby [data-feat="promo"][data-new]') !== null, '1-8 뒤: 승격·별 빛');
+await page.click('#lobby .lb-tabs [data-tab="adventure"]');
+
 // 5. 점: 레벨이 다음 적보다 낮고 골드가 있으면 영웅 탭에 점
 await setCleared(ids(1, 9), { gold: 1e7, seen: ['hero', 'speed', 'gear', 'bag', 'missions', 'auto', 'swap', 'summon', 'form', 'policy', 'talent', 'promo'] });
 ok(await page.$('#lobby .lb-tabs [data-tab="hero"] .dot') !== null, '레벨 낮고 골드 있음: 영웅 탭 점');
@@ -76,6 +85,14 @@ ok(await page.$('#lobby .lb-tabs [data-tab="hero"] .dot') !== null, '레벨 낮�
 // 6. 패배 바로가기: 1-10 에 Lv.1 파티로 지면 [레벨 올리기] → 영웅 탭
 await page.evaluate(() => window.game.startBattle('1-10'));
 await page.waitForFunction(() => window.battle && window.battle.stage?.id === '1-10' || document.getElementById('hud').style.display !== 'none', { timeout: 60000 });
+await page.waitForFunction(() => window.battle.state === 'fight', { timeout: 30000 });
+const swapTop0 = await page.$eval('#hud .btn.swap', b => b.getBoundingClientRect().top);
+await page.evaluate(() => { const h = window.battle.heroes.find(h => h.slot < 2); h.hp = h.maxHp * 0.2; });
+await new Promise(r => setTimeout(r, 600));
+const sw = await page.$eval('#hud .btn.swap', b => ({ top: b.getBoundingClientRect().top, anim: getComputedStyle(b).animationName }));
+ok(sw.anim.includes('newglow'), `앞줄 위험: ⇅ 빛 (${sw.anim})`);
+ok(Math.abs(sw.top - swapTop0) < 2, `⇅ 가 제자리 (${swapTop0} → ${sw.top})`);
+await shot('06a-swap-hint');
 await page.evaluate(() => window.battle.onEnd(false));
 await page.waitForSelector('#hud .result:not(.hide)');
 const links = await page.$$eval('#hud .result .rlink', bs => bs.map(b => b.textContent));

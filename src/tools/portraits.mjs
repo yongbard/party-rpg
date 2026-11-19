@@ -17,7 +17,8 @@ const ids = await page.evaluate(async () => {
   const { HEROES } = await import('/src/data.ts');
   const s = window.game.save;
   for (const h of HEROES) s.heroes[h.id] ??= { level: 1, grade: h.startGrade ?? 2 };
-  s.tut = ['*'];
+  s.cleared = ['1-1'];   // 영웅 탭은 1-1 을 깨야 열린다 (unlocks.ts)
+  window.game.lobby.show(s);
   for (const b of document.querySelectorAll('#lobby button')) if (b.textContent.trim() === '닫기') b.click();
   document.querySelector('.lb-tabs [data-tab="hero"]').click();
   return HEROES.map(h => h.id);

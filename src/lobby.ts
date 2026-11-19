@@ -56,6 +56,7 @@ export class Lobby {
   private bagFilter: Slot | 'all' = 'all';
   private bagSel: number | null = null;
   private crafting = false;            // 가방 탭: 제작 화면
+  private risen = new Set<string>();   // 새로 열려 이미 떠오른 아래 탭 (다시 그릴 때 등장 애니메이션을 되풀이하지 않게)
   private dview: 'day' | 'tower' | 'raid' | 'mock' = 'day';   // 던전 탭: 요일 던전 / 무한탑 / 레이드 / 모의전
   private mockTeam: 'b' | FactionId = 'kingdom';   // 모의전 상대
   private mockOff = 0;                 // 모의전 AI 상대 레벨 차이
@@ -332,9 +333,10 @@ export class Lobby {
       <div class="lb-bottom">
         ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'dungeon' ? this.dungeonHtml() : this.tab === 'hero' ? this.heroHtml() : this.tab === 'summon' ? this.summonHtml() : this.bagHtml()}
         <div class="lb-tabs">${TABS.filter(([t]) => t === 'adventure' || this.has(t)).map(([t, name, icon]) => `
-          <button data-tab="${t}" class="${this.tab === t ? 'on' : ''}" ${t === 'adventure' ? '' : this.nw(t)}><i class="tic" style="--ico:url(${uiIcon(icon)})"></i><span>${name}</span>${this.tabDot(t) ? '<i class="dot"></i>' : ''}</button>`).join('')}
+          <button data-tab="${t}" class="${this.tab === t ? 'on' : ''} ${this.risen.has(t) ? 'risen' : ''}" ${t === 'adventure' ? '' : this.nw(t)}><i class="tic" style="--ico:url(${uiIcon(icon)})"></i><span>${name}</span>${this.tabDot(t) ? '<i class="dot"></i>' : ''}</button>`).join('')}
         </div>
       </div>`;
+    this.el.querySelectorAll<HTMLElement>('.lb-tabs [data-new]').forEach(b => this.risen.add(b.dataset.tab!));
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
     this.measure();
     this.el.querySelectorAll<HTMLButtonElement>('.lb-tabs button').forEach(b => { b.onclick = () => void this.setTab(b.dataset.tab as Tab); });
@@ -604,7 +606,7 @@ export class Lobby {
         </div>
         <div class="ladder">${ladder}</div>
         ${shown !== grade ? `<div class="ladder-note">${GRADES[shown]} 「${d.titles?.[shown] ?? ''}」 외형 미리보기 · ${shown > grade ? '같은 영웅 조각으로 승격하면 이 모습이 된다' : '지나온 모습'}</div>` : `<div class="ladder-note">최대 ${GRADES[max]}까지 성장 · 칭호를 누르면 그 등급 외형을 미리 본다</div>`}
-        ${this.heroView === 'look' || !this.has('promo') ? '' : this.promoHtml(d.id)}
+        ${this.heroView === 'look' || !this.has('promo') ? '' : `<div class="promo-wrap" ${this.nw('promo')}>${this.promoHtml(d.id)}</div>`}
         <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치</button>${this.has('talent') ? `<button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}" ${this.nw('talent')}>특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button>` : ''}${this.has('gear') ? `<button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}" ${this.nw('gear')}>장비${fillableSlot(s, d.id) ? '<i class="dot"></i>' : ''}</button>` : ''}<button data-v="look" class="${this.heroView === 'look' ? 'on' : ''}">외형</button></div>
         ${this.heroView === 'look' ? '' : this.heroView === 'gear' ? this.gearHtml(d.id) : this.heroView === 'talent' ? this.talentHtml(d.id) : `
         <div class="hd-stats">

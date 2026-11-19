@@ -641,14 +641,16 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 @keyframes newglow { 0%, 100% { box-shadow: 0 0 0 1px rgba(241,200,106,.5), 0 0 6px rgba(241,200,106,.25); } 50% { box-shadow: 0 0 0 2px var(--gold), 0 0 20px rgba(241,200,106,.75); } }
 .lb-tabs button[data-new] { color: var(--gold); animation: tabrise .7s cubic-bezier(.2,1.4,.4,1), newglow 1.2s ease-in-out .7s infinite; }
 @keyframes tabrise { 0% { opacity: 0; transform: translateY(14px) scale(.7); } 100% { opacity: 1; transform: none; } }
+.lb-tabs button[data-new].risen { animation: newglow 1.2s ease-in-out infinite; }   /* 떠오르기는 처음 한 번만 */
 .lb-tabs button[data-new]::before { content: 'NEW'; position: absolute; top: -7px; right: 4px; padding: 0 4px; border-radius: 6px; font: 700 9px var(--body); letter-spacing: 0; color: #2a1a00; background: linear-gradient(180deg, #fff1b8, var(--gold)); }
 /* 할 수 있는 일 점: 아래 탭·영웅 칩 */
 .lb-tabs .dot, .chip .dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: #ff5a4a; box-shadow: 0 0 6px rgba(255,90,74,.8); }
 .lb-tabs .dot { right: calc(50% - 22px); }
 /* 전투: 앞줄이 위험할 때 ⇅ 를 잠깐 빛낸다 */
-.btn.hint { animation: newglow .6s ease-in-out 5; }
+.btn.swap-hint { animation: newglow .6s ease-in-out 5; }
 /* 결과: 새로 열린 기능 한 줄, 패배 바로가기 */
 .rnew { margin: -4px auto 12px; padding: 6px 12px; width: fit-content; border-radius: 999px; font: 700 13px var(--body); color: var(--text); background: rgba(241,200,106,.12); box-shadow: inset 0 0 0 1px rgba(241,200,106,.45), 0 0 14px rgba(241,200,106,.25); animation: pop .4s cubic-bezier(.2,1.4,.4,1) .3s both; }
 .rnew b { color: var(--gold); font-weight: 800; }
 .rlinks { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-top: 12px; }
 .rlink { padding: 10px; border-radius: 12px; font: 400 16px var(--title); cursor: pointer; border: 1px solid #8a5f1c; color: #2a1a00; background: linear-gradient(180deg, #fff5c9 0%, #f5d27c 48%, #dca645 52%, #e9bd5c 100%); box-shadow: inset 0 1px 0 #fffbe8, inset 0 -3px 0 rgba(120,72,0,.3), 0 0 14px rgba(241,200,106,.35); animation: newglow 1.2s ease-in-out infinite; }
+.promo-wrap { border-radius: 12px; }
