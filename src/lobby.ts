@@ -21,7 +21,7 @@ import { Unit } from './unit';
 import { portraitUrl } from './common';
 import { openSettings } from './settings';
 import { sound } from './sound';
-import { showTip, tipOpen } from './tutorial';
+import { isNew, isOpen as unlocked, markSeen, type Feature } from './unlocks';
 
 // 카메라에서 보면 +x 가 왼쪽이다 (오른손 좌표계, 카메라가 +z 를 본다)
 const LINEUP = [2.4, 0.8, -0.8, -2.4];
@@ -69,7 +69,12 @@ export class Lobby {
     this.el = document.createElement('div');
     this.el.id = 'lobby';
     document.getElementById('app')!.append(this.el);
-    this.el.addEventListener('pointerdown', e => { if ((e.target as Element).closest('button')) sound.play('click'); });
+    this.el.addEventListener('pointerdown', e => {
+      if ((e.target as Element).closest('button')) sound.play('click');
+      // 새로 열린 것을 누르면 본 것으로. 다시 그리지 않고 빛만 끈다 (다시 그리면 같은 터치의 click 이 사라진다)
+      const f = (e.target as Element).closest<HTMLElement>('[data-feat]');
+      if (f && markSeen(this.save, f.dataset.feat as Feature)) { writeSave(this.save); f.removeAttribute('data-new'); }
+    });
     addEventListener('resize', () => { if (this.el.style.display !== 'none') this.measure(); });
   }
 
@@ -81,35 +86,30 @@ export class Lobby {
     this.rig.setBand((top - c.top) / c.height + 0.01, (bottom - c.top - 30) / c.height);
   }
 
-  show(save: SaveData) {
+  /** go: 로비를 열 때 갈 곳 (결과 화면의 바로가기). 없으면 모험 탭 */
+  show(save: SaveData, go?: { tab: Tab; heroView?: 'info' | 'gear' | 'talent'; heroId?: string }) {
     this.save = save;
     this.rig.setView('lobby', true);
     this.units = save.party.map((id, i) => this.makeUnit(HEROES.find(h => h.id === id)!, slotPos(i), save.heroes[id].grade));
     if (!save.heroes[this.heroId]) this.heroId = save.party[0];
     this.forming = false;
-    this.missions = claimable(save).includes('a');   // 오늘 첫 접속이면 출석부터 보여 준다
+    this.missions = !go && this.has('missions') && claimable(save).includes('a');   // 오늘 첫 접속이면 출석부터 보여 준다
     this.selected = this.frontier(-1);
-    this.tab = 'adventure';
+    this.tab = go?.tab ?? 'adventure';
+    if (go?.heroView) this.heroView = go.heroView;
+    if (go?.heroId && save.heroes[go.heroId]) this.heroId = go.heroId;
     this.render();
     this.el.style.display = '';
     this.measure();   // 숨긴 채로 그리면 패널 위치를 못 잰다
     this.rig.setView('lobby', true);
     sound.music('lobby');
-    this.tips();
+    if (this.tab === 'hero') void this.syncGuest().then(() => this.rig.focus(this.cur()));
   }
 
-  /** 처음 한 번 뜨는 안내 (tutorial.ts). 진행에 맞춰 하나씩 */
-  private tips() {
-    const s = this.save;
-    if (tipOpen() || this.el.style.display === 'none' || this.tab !== 'adventure' || this.forming || this.missions) return;
-    const q = (sel: string) => this.el.querySelector(sel);
-    const next = () => this.tips();
-    if (!s.cleared.includes('1-1')) { showTip(s, 'start', q('.lb-go.start')); return; }
-    if (showTip(s, 'hero', q('.lb-tabs [data-tab="hero"]'), next)) return;
-    if (showTip(s, 'missions', q('.ms-t'), next)) return;
-    if (s.cleared.includes('1-2') && showTip(s, 'summon', q('.lb-tabs [data-tab="summon"]'), next)) return;
-    if (s.cleared.includes('1-3')) showTip(s, 'dungeon', q('.lb-tabs [data-tab="dungeon"]'));
-  }
+  /** 진행에 따라 열린 기능인가 (unlocks.ts) */
+  private has(f: Feature) { return unlocked(this.save.cleared, f); }
+  /** 새로 열린 기능 표시: 빛(data-new)과, 누르면 본 것으로 적는 data-feat */
+  private nw(f: Feature) { return `data-feat="${f}" ${isNew(this.save, f) ? 'data-new' : ''}`; }
 
   /** 열린 스테이지 중 안 깬 첫째 (다 깼으면 마지막). ch 를 주면 그 장 안에서 */
   private frontier(ch: number) {
@@ -301,6 +301,10 @@ export class Lobby {
 
   private render() {
     const s = this.save;
+    // 잠긴 탭·보기에 머물러 있으면 (처음부터 다시 등) 되돌린다
+    if (this.tab !== 'adventure' && !this.has(this.tab)) this.tab = 'adventure';
+    if (this.dview !== 'day' && !this.has(this.dview)) this.dview = 'day';
+    if ((this.heroView === 'gear' || this.heroView === 'talent') && !this.has(this.heroView)) this.heroView = 'info';
     this.el.innerHTML = `
       <div class="lb-top">
         <button class="opt-t" aria-label="설정"><i class="tic" style="--ico:url(${uiIcon('cog')})"></i></button>
@@ -312,8 +316,8 @@ export class Lobby {
       </div>
       <div class="lb-bottom">
         ${this.tab === 'adventure' ? this.adventureHtml() : this.tab === 'dungeon' ? this.dungeonHtml() : this.tab === 'hero' ? this.heroHtml() : this.tab === 'summon' ? this.summonHtml() : this.bagHtml()}
-        <div class="lb-tabs">${TABS.map(([t, name, icon]) => `
-          <button data-tab="${t}" class="${this.tab === t ? 'on' : ''}"><i class="tic" style="--ico:url(${uiIcon(icon)})"></i><span>${name}</span></button>`).join('')}
+        <div class="lb-tabs">${TABS.filter(([t]) => t === 'adventure' || this.has(t)).map(([t, name, icon]) => `
+          <button data-tab="${t}" class="${this.tab === t ? 'on' : ''}" ${t === 'adventure' ? '' : this.nw(t)}><i class="tic" style="--ico:url(${uiIcon(icon)})"></i><span>${name}</span></button>`).join('')}
         </div>
       </div>`;
     this.plates = [...this.el.querySelectorAll<HTMLElement>('.plate')];
@@ -327,7 +331,6 @@ export class Lobby {
       on('.lb-go.start', () => this.onStart(this.selected));
       on('.form-t', () => { this.forming = !this.forming; this.render(); });
       on('.ms-t', () => { this.missions = !this.missions; this.render(); });
-      setTimeout(() => this.tips(), 0);
       on('.ms-go', b => this.claimMission(b.dataset.k!));
       this.el.querySelector('.stage.sel')?.scrollIntoView({ block: 'nearest' });
       on('.fr', b => void this.toggleMember(b.dataset.id!));
@@ -407,7 +410,7 @@ export class Lobby {
         </div>
         <div class="conds">${sel.conds.map((c, i) => `<span class="${selBits & (1 << i) ? 'on' : ''}"><i>★</i>${condText(c)}</span>`).join('')}</div>
         ${this.synHtml(s.party, true)}
-        <div class="go-row"><button class="form-t">편성</button><button class="ms-t">임무${dot}</button><button class="lb-go start">출전</button></div>
+        <div class="go-row">${this.has('form') ? `<button class="form-t" ${this.nw('form')}>편성</button>` : ''}${this.has('missions') ? `<button class="ms-t" ${this.nw('missions')}>임무${dot}</button>` : ''}<button class="lb-go start">출전</button></div>
       </div>`;
   }
 
@@ -415,7 +418,7 @@ export class Lobby {
   private dungeonHtml() {
     const s = this.save;
     const wd = refreshModes(s);
-    const seg = `<div class="seg dseg">${([['day', '요일 던전'], ['tower', '무한탑'], ['raid', '레이드'], ['mock', '모의전']] as const).map(([v, n]) => `<button data-v="${v}" class="${this.dview === v ? 'on' : ''}">${n}</button>`).join('')}</div>`;
+    const seg = `<div class="seg dseg">${([['day', '요일 던전'], ['tower', '무한탑'], ['raid', '레이드'], ['mock', '모의전']] as const).filter(([v]) => v === 'day' || this.has(v)).map(([v, n]) => `<button data-v="${v}" class="${this.dview === v ? 'on' : ''}" ${v === 'day' ? '' : this.nw(v)}>${n}</button>`).join('')}</div>`;
     const go = (id: string, label: string) => { const why = canRun(id, s); return `<button class="lb-go dgo" data-id="${id}" ${why ? 'disabled' : ''}>${why ?? label}</button>`; };
     let body = '';
     if (this.dview === 'day') {
@@ -586,8 +589,8 @@ export class Lobby {
         </div>
         <div class="ladder">${ladder}</div>
         ${shown !== grade ? `<div class="ladder-note">${GRADES[shown]} 「${d.titles?.[shown] ?? ''}」 외형 미리보기 · ${shown > grade ? '같은 영웅 조각으로 승격하면 이 모습이 된다' : '지나온 모습'}</div>` : `<div class="ladder-note">최대 ${GRADES[max]}까지 성장 · 칭호를 누르면 그 등급 외형을 미리 본다</div>`}
-        ${this.heroView === 'look' ? '' : this.promoHtml(d.id)}
-        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치</button><button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}">특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button><button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}">장비</button><button data-v="look" class="${this.heroView === 'look' ? 'on' : ''}">외형</button></div>
+        ${this.heroView === 'look' || !this.has('promo') ? '' : this.promoHtml(d.id)}
+        <div class="seg"><button data-v="info" class="${this.heroView === 'info' ? 'on' : ''}">능력치</button>${this.has('talent') ? `<button data-v="talent" class="${this.heroView === 'talent' ? 'on' : ''}" ${this.nw('talent')}>특성${pointsOf(s.heroes[d.id]) > spentOf(s.heroes[d.id]) ? '<i class="dot"></i>' : ''}</button>` : ''}${this.has('gear') ? `<button data-v="gear" class="${this.heroView === 'gear' ? 'on' : ''}" ${this.nw('gear')}>장비</button>` : ''}<button data-v="look" class="${this.heroView === 'look' ? 'on' : ''}">외형</button></div>
         ${this.heroView === 'look' ? '' : this.heroView === 'gear' ? this.gearHtml(d.id) : this.heroView === 'talent' ? this.talentHtml(d.id) : `
         <div class="hd-stats">
           <div><small>체력</small><b>${fmt((st.hp * m + bn.hp) * (1 + bn.hpPct))}</b>${grow(st.hp)}</div>
@@ -600,8 +603,8 @@ export class Lobby {
         <ul class="hd-skills">
           ${d.ult ? `<li class="ult"><b>${d.ult.name}</b><small>필살기${ul > 1 ? ` Lv.${ul}` : ''}</small><p>${d.ult.desc}${ultNote}</p></li>` : ''}${skills}${passives}
         </ul>
-        <div class="pol"><small>행동 방침</small>${POLICIES.map(p => `<button class="pl ${(s.policy?.[d.id] ?? 'attack') === p.id ? 'on' : ''}" data-p="${p.id}">${p.name}</button>`).join('')}</div>
-        <div class="pol-d">${POLICIES.find(p => p.id === (s.policy?.[d.id] ?? 'attack'))!.desc}</div>
+        ${this.has('policy') ? `<div class="pol" ${this.nw('policy')}><small>행동 방침</small>${POLICIES.map(p => `<button class="pl ${(s.policy?.[d.id] ?? 'attack') === p.id ? 'on' : ''}" data-p="${p.id}">${p.name}</button>`).join('')}</div>
+        <div class="pol-d">${POLICIES.find(p => p.id === (s.policy?.[d.id] ?? 'attack'))!.desc}</div>` : ''}
         <div class="hd-lv">${btn(1)}${btn(5)}</div>`}
       </div>`;
   }
@@ -881,13 +884,13 @@ export class Lobby {
         ${set ? `<div class="iset"><b>세트 · ${set.name}</b><span>2개: ${set.twoText}</span><span>4개: ${set.fourText}</span></div>` : ''}
         <div class="idw">${w ? `${HEROES.find(h => h.id === w)!.name} 착용 중` : '착용 안 함'}</div></div>
         <div class="ibtns">
-          ${lv < MAX_ENHANCE ? `<button class="enh" data-uid="${sel.uid}" ${canEnhance(s, sel) ? '' : 'disabled'}>강화 +${lv + 1}<span><i class="ic-gold"></i>${fmt(c.gold)} · 강화석 ${c.stone}</span></button>` : '<b class="enh-max">강화 최대</b>'}
+          ${!this.has('enhance') ? '' : lv < MAX_ENHANCE ? `<button class="enh" data-uid="${sel.uid}" ${canEnhance(s, sel) ? '' : 'disabled'} ${this.nw('enhance')}>강화 +${lv + 1}<span><i class="ic-gold"></i>${fmt(c.gold)} · 강화석 ${c.stone}</span></button>` : '<b class="enh-max">강화 최대</b>'}
           ${w ? '' : `<button class="salv one" data-uid="${sel.uid}">분해<span><i class="ic-gold"></i>${fmt(sv.gold)} · 강화석 ${sv.stone}${sv.essence ? ` · 정수 ${sv.essence}` : ''}</span></button>`}
         </div>
       </div>`;
     })() : '<div class="empty-note">장비를 누르면 자세히 본다 · 장착은 영웅 탭 → 장비에서</div>';
     const m = s.mats ?? { stone: 0, essence: 0 };
-    const matRow = `<div class="mats"><span>강화석 <b>${fmt(m.stone)}</b></span><span>정수 <b>${fmt(m.essence)}</b></span><span>승격석 <b>${fmt(m.promo ?? 0)}</b></span><button class="craft-t ${this.crafting ? 'on' : ''}">${this.crafting ? '가방으로' : '제작'}</button></div>`;
+    const matRow = `<div class="mats"><span>강화석 <b>${fmt(m.stone)}</b></span><span>정수 <b>${fmt(m.essence)}</b></span><span>승격석 <b>${fmt(m.promo ?? 0)}</b></span>${this.has('craft') ? `<button class="craft-t ${this.crafting ? 'on' : ''}" ${this.nw('craft')}>${this.crafting ? '가방으로' : '제작'}</button>` : ''}</div>`;
     if (this.crafting) return `
       <div class="lb-panel bag">
         <div class="lb-ch">제작<span class="pp">전설 장비 · 고유 효과를 골라 확정</span></div>

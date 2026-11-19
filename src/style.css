@@ -489,6 +489,8 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .go-row { grid-template-columns: 70px 70px 1fr; }
 .go-row .ms-t { position: relative; }
 .go-row .dot, .ms-t .dot { position: absolute; top: 6px; right: 8px; width: 7px; height: 7px; border-radius: 50%; background: #ff5a4a; }
+.go-row:where(:has(> :nth-child(2):last-child)) { grid-template-columns: 70px 1fr; }   /* 편성·임무가 아직 안 열렸을 때 (unlocks.ts) */
+.go-row:where(:has(> :only-child)) { grid-template-columns: 1fr; }
 .att { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: 10px; }
 .att-d { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border-radius: 9px; border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.04); color: var(--muted); font-family: var(--body); }
 .att-d b { font: 900 11px var(--body); }
@@ -549,7 +551,7 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 .rlines { display: flex; flex-direction: column; align-items: center; gap: 2px; margin: -4px 0 12px; font: 700 12px var(--body); color: var(--text); }
 
 /* 던전 탭 */
-.lb-tabs { grid-template-columns: repeat(5, 1fr); }
+.lb-tabs { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }   /* 열린 탭 수만큼 */
 .dun .dseg { margin-bottom: 10px; }
 .dgs { display: flex; flex-direction: column; gap: 5px; }
 .dg { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 8px; padding: 8px 12px; border-radius: 11px; border: 1px solid rgba(255,255,255,.07); background: rgba(255,255,255,.04); color: var(--text); text-align: left; font-family: var(--body); }
@@ -638,3 +640,10 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 @keyframes tippulse { 50% { box-shadow: 0 0 0 9999px rgba(5,4,8,.66), 0 0 0 3px var(--gold), 0 0 30px var(--gold); } }
 .tip-box { position: absolute; left: 16px; right: 16px; padding: 12px 14px 12px 16px; border-radius: 14px; border: 1.5px solid transparent; background: linear-gradient(180deg, rgba(40,33,52,.97), rgba(18,14,24,.98)) padding-box, linear-gradient(180deg, #f5d98e, #9c7a3a) border-box; box-shadow: 0 8px 30px rgba(0,0,0,.6), 0 0 18px rgba(241,200,106,.25); color: var(--text); font: 700 14px var(--body); line-height: 1.5; animation: pop .3s cubic-bezier(.2,1.4,.4,1); }
 .tip-box small { display: block; margin-top: 4px; font: 700 10.5px var(--body); color: var(--muted); }
+
+/* 새로 열린 기능 (unlocks.ts): 누를 때까지 금빛 고동. 아래 탭은 떠오르며 나타난다 */
+[data-new] { animation: newglow 1.2s ease-in-out infinite; }
+@keyframes newglow { 0%, 100% { box-shadow: 0 0 0 1px rgba(241,200,106,.5), 0 0 6px rgba(241,200,106,.25); } 50% { box-shadow: 0 0 0 2px var(--gold), 0 0 20px rgba(241,200,106,.75); } }
+.lb-tabs button[data-new] { color: var(--gold); animation: tabrise .7s cubic-bezier(.2,1.4,.4,1), newglow 1.2s ease-in-out .7s infinite; }
+@keyframes tabrise { 0% { opacity: 0; transform: translateY(14px) scale(.7); } 100% { opacity: 1; transform: none; } }
+.lb-tabs button[data-new]::before { content: 'NEW'; position: absolute; top: -7px; right: 4px; padding: 0 4px; border-radius: 6px; font: 700 9px var(--body); letter-spacing: 0; color: #2a1a00; background: linear-gradient(180deg, #fff1b8, var(--gold)); }
