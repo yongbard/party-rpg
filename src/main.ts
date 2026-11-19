@@ -6,9 +6,10 @@ import { CameraRig } from './camera';
 import { condMet, condText, repeatGems, stageEnemies, starGems } from './data';
 import { canRun, finishRun, stageOf } from './modes';
 import { rollGrade, rollItem, type Item } from './items';
-import { loadout, rivalParty } from './loadout';
+import { fillableSlot, loadout, rivalParty } from './loadout';
+import { pointsOf, spentOf } from './talents';
 import { sound } from './sound';
-import { isNew, isOpen as unlocked, markSeen, type Feature } from './unlocks';
+import { isNew, isOpen as unlocked, markSeen, newlyOpened, UNLOCKS, type Feature } from './unlocks';
 import { ANIM_KEYS, lookKeys } from './heroModel';
 import { Fx } from './fx';
 import { Hud } from './hud';
@@ -140,6 +141,8 @@ async function main() {
     b.auto = open.auto && !!save.auto;
     hud.setAuto(b.auto);
     b.onEnd = win => {
+      const before = [...save.cleared];
+      let links: { label: string; go: () => void }[] = [];
       let reward: { gold: number; gems: number; stone: number; items: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[]; lines?: string[]; title?: string } | null = null;
       if (!story) {
         // 요일 던전·무한탑·레이드 (레이드는 져도 그때까지 피해로 보상), 모의전 (보상 없음)
@@ -178,10 +181,29 @@ async function main() {
         if (nNew) track(save, 'star', nNew);
         writeSave(save);
       }
-      hud.result(win, b.heroes, b.time, reward, () => { endBattle(); void startBattle(stage.id); }, () => { endBattle(); lobby.show(save); });
+      if (story && !win) links = defeatLinks(stage.level);
+      const opened = newlyOpened(before, save.cleared).map(f => UNLOCKS[f].name);
+      hud.result(win, b.heroes, b.time, reward, () => { endBattle(); void startBattle(stage.id); }, () => { endBattle(); lobby.show(save); }, { opened, links });
     };
     b.start();
     (window as unknown as { battle: Battle }).battle = b;
+  };
+  /** 메인 스토리에서 졌을 때 갈 곳 (최대 2개): 레벨, 빈 장비 칸, 남은 특성, 그 셋이 없으면 소환 */
+  const defeatLinks = (foe: number) => {
+    const go = (g: Parameters<typeof lobby.show>[1]) => () => { endBattle(); lobby.show(save, g); };
+    const party = save.party.filter(id => save.heroes[id]);
+    const out: { label: string; go: () => void }[] = [];
+    const avg = party.reduce((a, id) => a + save.heroes[id].level, 0) / party.length;
+    if (unlocked(save.cleared, 'hero') && avg < foe) {
+      const low = [...party].sort((a, b) => save.heroes[a].level - save.heroes[b].level)[0];
+      out.push({ label: '레벨 올리기', go: go({ tab: 'hero', heroView: 'info', heroId: low }) });
+    }
+    const gearId = unlocked(save.cleared, 'gear') && party.find(id => fillableSlot(save, id));
+    if (gearId) out.push({ label: '장비 끼기', go: go({ tab: 'hero', heroView: 'gear', heroId: gearId }) });
+    const talId = unlocked(save.cleared, 'talent') && party.find(id => pointsOf(save.heroes[id]) > spentOf(save.heroes[id]));
+    if (talId) out.push({ label: '특성 찍기', go: go({ tab: 'hero', heroView: 'talent', heroId: talId }) });
+    if (!out.length && unlocked(save.cleared, 'summon')) out.push({ label: '영웅 소환', go: go({ tab: 'summon' }) });
+    return out.slice(0, 2);
   };
   const endBattle = () => {
     battle?.dispose();

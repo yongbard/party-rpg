@@ -229,7 +229,8 @@ export class Hud {
     }
   }
 
-  result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number; stone?: number; lines?: string[]; title?: string; items?: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[] } | null, onRetry: () => void, onLobby: () => void) {
+  result(win: boolean, heroes: Unit[], time: number, reward: { gold: number; gems: number; stone?: number; lines?: string[]; title?: string; items?: Item[]; first?: boolean; stars?: { text: string; met: boolean; was: boolean }[] } | null, onRetry: () => void, onLobby: () => void,
+    extra?: { opened?: string[]; links?: { label: string; go: () => void }[] }) {
     sound.play(win ? 'win' : 'lose');
     const max = Math.max(1, ...heroes.map(h => Math.max(h.dmgDone, h.healDone, h.dmgTaken)));
     const row = (h: Unit) => `
@@ -246,14 +247,17 @@ export class Hud {
         <div class="rt">${reward?.title ?? (win ? '승리' : '패배')}</div>
         <div class="rs">전투 시간 ${Math.floor(time / 60)}:${String(Math.floor(time % 60)).padStart(2, '0')}</div>
         ${reward ? `<div class="rw"><span class="gold">${reward.gold.toLocaleString()}</span>${reward.gems ? `<span class="gem">${reward.gems.toLocaleString()}</span>` : ''}${reward.stone ? `<span class="stone">강화석 ${reward.stone}</span>` : ''}</div>` : ''}
+        ${extra?.opened?.length ? `<div class="rnew"><b>새로 열림</b> · ${extra.opened.join(' · ')}</div>` : ''}
         ${reward?.lines?.length ? `<div class="rlines">${reward.lines.map(l => `<span>${l}</span>`).join('')}</div>` : ''}
         ${reward?.stars ? `<div class="rstars">${reward.stars.map(st => `<div class="rst ${st.met || st.was ? 'on' : ''}"><i>★</i>${st.text}${st.met && !st.was ? '<small>NEW</small>' : ''}</div>`).join('')}</div>` : ''}
         ${reward?.items?.length ? `<div class="rdrop">${reward.items.map(it => `<div class="drop" style="--gc:${GRADE_COLORS[it.grade]}"><i class="ico" style="--ico:url(${ITEM_ICON(it)})"></i><span><small>${GRADES[it.grade]}</small>${baseOf(it).name}</span></div>`).join('')}</div>` : ''}
         ${heroes.map(row).join('')}
+        ${extra?.links?.length ? `<div class="rlinks">${extra.links.map((l, i) => `<button class="rlink" data-i="${i}">${l.label}</button>`).join('')}</div>` : ''}
         <div class="rbtns"><button class="lobby">로비로</button><button class="retry">다시 하기</button></div>
       </div>`;
     this.resultEl.querySelector('.retry')!.addEventListener('click', onRetry);
     this.resultEl.querySelector('.lobby')!.addEventListener('click', onLobby);
+    this.resultEl.querySelectorAll<HTMLButtonElement>('.rlink').forEach(b => b.addEventListener('click', () => extra!.links![Number(b.dataset.i)].go()));
     this.resultEl.classList.remove('hide');
   }
 }
