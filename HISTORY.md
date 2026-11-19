@@ -331,3 +331,14 @@
 - 한 일: style.css 금테 패널 규칙을 .lb-panel·.rbox·.set-box 공용으로(패배 .rbox.lose 붉은 테·붉은 보석). 결과 제목(.rt) 양옆 빛줄·아래 그림자, 결과·설정·안내 창 등장 애니메이션(pop). 결과 줄(.rn)에 영웅 얼굴 36px — hud.ts faces(setHeroes 가 받은 초상화). 전투 위 버튼(.btn) 금 테, 전투 카드 금 테 + 위에 영웅 색 줄(.card::before). 설정 버튼(.set-btn) 입체, 고른 것은 금색. 안내 말풍선(.tip-box) 금테.
 - 확인: 헤드리스 390×844 로 안내·설정·전투(필살 준비)·승리·패배 화면. npm run build 통과.
 - 결과: src/style.css, src/hud.ts.
+
+## 2026-11-19 — 진행에 따라 열리는 화면 (젤다식, 설명 없이 익히기)
+
+- 한 일:
+  - 사용자 요청: 튜토리얼 없이 해 보며 익히는 흐름. A안(이야기 없이 진행 흐름만), 방법 1(진행에 따라 열리고 화면 신호로 이끈다) 결정. 설계 docs/2026-11-19-unlock-flow-design.md, 계획 docs/2026-11-19-unlock-flow-plan.md.
+  - src/unlocks.ts: 기능 18개를 깨야 할 스테이지로 연다(영웅·배속 1-1, 장비·가방 1-2, 임무·AUTO 1-3, 앞뒤 교대 1-4, 소환·편성 1-5, 행동 방침 1-6, 특성 1-7, 승격·별 1-8, 던전·장비 강화 1-10, 무한탑 2-2, 장비 제작 2-4, 레이드 2-5, 모의전 2-7). 열림은 cleared 로만 계산, 본 것은 save.seen. 하던 저장은 불러올 때 열린 것을 모두 seen 으로.
+  - lobby.ts: 잠긴 탭·버튼·영역 숨김(아래 탭은 열린 수만큼 칸), 새것 data-new 금빛 고동(아래 탭은 떠오르며 NEW), 누르면 data-feat 로 본 것 처리. 점: 영웅 탭·칩(파티 영웅 레벨 < 다음 스테이지 적 레벨이고 골드로 +1 가능, 빈 칸에 낄 장비 loadout.ts fillableSlot, 승격 가능), 장비 보기, 소환 탭(보석 ≥ 1,350). show(save, go) 로 결과 화면에서 원하는 탭·영웅으로.
+  - hud.ts·main.ts: 전투 배속·AUTO·⇅ 는 열렸을 때만(잠겼으면 1×, AUTO 끔), 처음 나온 버튼은 누를 때까지 빛. 앞줄 체력이 전투마다 처음 50% 아래면 ⇅ 빛(말풍선 대신). 결과: 이기면 "새로 열림 · …", 메인 스토리에서 지면 바로가기 최대 2개(레벨 올리기·장비 끼기·특성 찍기, 셋 다 아니면 영웅 소환).
+  - 말풍선 안내 7개와 설정의 튜토리얼 다시 보기 뺌. src/tutorial.ts → archive/src/. save.tut 필드는 호환으로 둠.
+- 확인: node --test src/tools/test-unlocks.mjs 5개 통과. node src/tools/check-unlocks.mjs(헤드리스 390×844) 15개 OK — 새 저장 탭 1개·편성/임무 없음, 1-1 전투 버튼 일시정지만, 1-1 승리 결과 새로 열림, 영웅 탭 빛·누르면 꺼짐, 1-5 탭 4개, 1-10 탭 5개, 영웅 탭 점, 1-10 패배 바로가기 → 영웅 탭, seen 없는 다 깬 저장 빛 0개. npm run build 통과.
+- 결과: src/unlocks.ts, src/save.ts, src/lobby.ts, src/hud.ts, src/main.ts, src/loadout.ts, src/settings.ts, src/style.css, src/tools/test-unlocks.mjs, src/tools/check-unlocks.mjs, archive/src/tutorial.ts, 스크린샷 logs/unlock-check/.

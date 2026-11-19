@@ -45,6 +45,7 @@
 - 2026-11-19: UI 디자인 1차. 패널 금빛 테두리·보석 장식, 금색 버튼 입체, 보조 버튼 금 테, 아래 탭 아이콘(game-icons.net CC BY 3.0)·고른 탭 빛, 설정 톱니 아이콘. 영웅 16명 시작 등급 초상화 파일(public/portraits, src/tools/portraits.mjs) — 안 가진 영웅(소환 결과 카드·편성 목록)도 머리글자 대신 얼굴. 초상화는 기본 대기 동작으로 찍음(마법사 손이 얼굴을 가리지 않게).
 - 2026-11-19: 7단계 2부 변신형 4명(사용자 결정 A). 최고 등급에서 몸 자체가 바뀜: 카일 별빛 사수(별자리 망토 엘프), 가르쉬 불멸의 대족장(돌·이끼 갑옷 거인 오크, 키 2.3), 모르간 죽음의 현자(왕관 쓴 리치, 키 2.0), 세라 현자(후광·흰 청색 예복). Tripo 무료 H2.5 로 생성(100 크레딧, 남은 55) → Blender 로 영웅 뼈대. data.ts TRANSFORM.
 - 2026-11-19: UI 디자인 2차. 결과·설정 창도 로비 패널과 같은 금테(패배는 붉은 테), 결과 제목 양옆 빛줄·튀어나오는 등장, 결과 줄에 영웅 얼굴, 전투 위 버튼 금 테, 전투 카드 금 테 + 위에 영웅 색 줄, 설정 버튼 입체, 안내 말풍선 금테.
+- 2026-11-19: 진행에 따라 열리는 화면(젤다식, 설명 없이 익히기). 처음엔 모험 탭과 필살기만 있고 스테이지를 깰 때마다 기능이 열린다(영웅·배속 1-1, 장비·가방 1-2, 임무·AUTO 1-3, 앞뒤 교대 1-4, 소환·편성 1-5, 행동 방침 1-6, 특성 1-7, 승격·별 1-8, 던전·강화 1-10, 무한탑 2-2, 제작 2-4, 레이드 2-5, 모의전 2-7; src/unlocks.ts). 새로 열린 탭·버튼은 누를 때까지 금빛 고동(아래 탭은 떠오르며 NEW), 결과에 "새로 열림" 한 줄. 할 수 있는 일 점(레벨이 다음 적보다 낮고 골드 있음, 빈 칸에 낄 장비, 승격 가능, 10회 소환 보석). 앞줄이 처음 위험해지면 ⇅ 빛. 메인 스토리에서 지면 원인별 바로가기 최대 2개(레벨 올리기·장비 끼기·특성 찍기·영웅 소환). 말풍선 안내 7개와 설정의 튜토리얼 다시 보기는 뺌. 하던 저장은 지금 열린 것을 본 것으로 쳐 빛이 쏟아지지 않는다. 설계 docs/2026-11-19-unlock-flow-design.md
 - 다음: 7단계 2부(AI 생성으로 상위 등급 의상·변신형, Tripo 크레딧 사용 여부는 사용자 결정), UI 디자인.
 - 2026-11-17: 로딩 최적화. 모델 37MB → 4.2MB (쓰는 애니메이션만 남기고 meshopt 압축). 첫 로딩 총량 약 5.5MB.
 - 남은 최적화: JS 번들 6.1MB(gzip 1.3MB, Babylon 전체를 불러옴 → 모듈별 import 로 줄일 수 있음).
@@ -84,8 +85,8 @@ party_rpg_261116/
 │   ├── modes.ts          요일 던전·무한탑·레이드·모의전: 스테이지 만들기(stageOf), 입장 조건(canRun), 보상(finishRun)
 │   ├── tactics.ts        진영 4개·영웅별 진영·시너지(synergy), 행동 방침 4가지
 │   ├── sound.ts          소리: Web Audio 합성 효과음(play)·배경음(music), 첫 터치 때 켜짐
-│   ├── tutorial.ts       처음 한 번 뜨는 안내 7개(showTip), 본 것은 저장 tut
-│   ├── settings.ts       설정 화면: 소리·배속·저장 내보내기/가져오기·튜토리얼·처음부터·크레딧
+│   ├── unlocks.ts        진행에 따라 열리는 기능 표(스테이지별), 열림·새것 판정, 본 것(저장 seen). 다른 파일을 가져오지 않는다
+│   ├── settings.ts       설정 화면: 소리·배속·저장 내보내기/가져오기·처음부터·크레딧
 │   ├── summonView.ts     소환 연출 (소환진, 카드 뒤집기, 결과)
 │   ├── battle.ts         전투 로직: 대상 선택(위협), 이동, 공격, 피해·치유, 투사체, 컷인, 웨이브
 │   ├── unit.ts           유닛 상태와 애니메이션 재생
@@ -103,6 +104,8 @@ party_rpg_261116/
 │   ├── tools/blender_probe.py      Blender 로 모델 크기·높이별 폭과 뼈 위치 보기 (조사용)
 │   ├── tools/fetch-polypizza.sh    Poly Pizza 에서 Quaternius 모델을 이름으로 찾아 GLB 받기 (인자: 출력 폴더, 이름들)
 │   ├── tools/fetch-itch.mjs        itch.io 무료 팩 다운로드 (PICK·OUT 환경 변수)
+│   ├── tools/test-unlocks.mjs      unlocks.ts 시험 (node --test)
+│   ├── tools/check-unlocks.mjs     헤드리스 Chrome 으로 열림 흐름 확인, 스크린샷 logs/unlock-check/ (개발 서버를 띄운 채 실행)
 │   ├── tools/portraits.mjs         영웅 16명 시작 등급 초상화 → public/portraits/{id}.webp (개발 서버를 띄운 채 node 로 실행)
 │   └── tools/import-quaternius.mjs Quaternius·무기 원본 → public/assets/q (텍스처 webp 1024, 옷 파츠 색 밝히기, 인간 머리만 자르기, 애니메이션 고르기)
 ├── data/kaykit/          원본 모델 characters/, enemies/(+weapons/) (3-5 부터 안 씀), dungeon/
@@ -120,6 +123,7 @@ party_rpg_261116/
 │   ├── content-design.md 콘텐츠 규모·조합형 캐릭터·장비·뽑기 설계 (2026-11-17)
 │   └── credits.md        에셋 출처·라이선스
 ├── archive/assets/      예전 게임용 모델 characters·enemies (KayKit 영웅·해골, 3-5 부터 안 씀)
+├── archive/src/         예전 코드 tutorial.ts (말풍선 안내, 2026-11-19 부터 안 씀)
 ├── logs/                 개발 서버 로그
 └── conversations/        대화 기록
 ```
@@ -133,6 +137,8 @@ npm run dev       개발 서버 (http://localhost:5173, 같은 네트워크 폰�
 npm run build     dist/ 에 배포용 빌드
 npm run assets    data/kaykit/dungeon 원본 → public/assets/dungeon
 npm run import-q  data/quaternius·data/weapons 원본 → public/assets/q (npm run import-q -- part 처럼 종류 하나만도 됨)
+node --test src/tools/test-unlocks.mjs   열림 표 시험
+node src/tools/check-unlocks.mjs         열림 흐름 화면 확인 (개발 서버를 띄운 채)
 ```
 
 AI 모델에 뼈대 심기 (Blender 5.3 휴대판, C:\Users\USER\tools\blender-5.3.0-windows-x64):
