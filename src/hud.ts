@@ -100,10 +100,13 @@ export class Hud {
     this.heroes = [];
   }
 
+  private faces: Record<string, string> = {};   // 결과 화면 얼굴 (setHeroes 가 받은 초상화)
+
   setHeroes(heroes: Unit[], portraits: string[]) {
     this.heroes = heroes;
     heroes.forEach((h, i) => {
       const c = this.cards[i];
+      this.faces[h.def.id] = portraits[i];
       c.box.style.setProperty('--accent', h.def.color);
       (c.box.querySelector('img') as HTMLImageElement).src = portraits[i];
       c.box.querySelector('.nm')!.innerHTML = `<b>${h.def.name}</b>`;
@@ -221,7 +224,7 @@ export class Hud {
     const max = Math.max(1, ...heroes.map(h => Math.max(h.dmgDone, h.healDone, h.dmgTaken)));
     const row = (h: Unit) => `
       <div class="rr" style="--accent:${h.def.color}">
-        <div class="rn">${h.def.name}</div>
+        <div class="rn">${this.faces[h.def.id] ? `<img src="${this.faces[h.def.id]}" alt="">` : ''}<b>${h.def.name}</b></div>
         <div class="rbars">
           <div class="rb d"><i style="width:${(h.dmgDone / max) * 100}%"></i><span>피해 ${Math.round(h.dmgDone).toLocaleString()}</span></div>
           <div class="rb h"><i style="width:${(h.healDone / max) * 100}%"></i><span>치유 ${Math.round(h.healDone).toLocaleString()}</span></div>

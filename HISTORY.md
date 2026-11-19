@@ -325,3 +325,9 @@
   - data.ts TRANSFORM: 네 영웅의 마지막 등급 외형을 변신 몸으로(무기·보조·발광·오라만 이어받음). heroModel.ts BODY_TALL 가르쉬 1.28, 모르간 1.1. main.ts 전투 카드 초상화가 없으면 초상화 파일로(검은 칸이었음). 크레딧: docs/credits.md, settings.ts.
 - 확인: poc.html?hero=…&body=… 에서 각 영웅 동작(대기·공격·달리기)으로 움직임. poc 등급 사다리 4명, 색·빛만 바뀌는 등급 0개. 게임 전투(1-6)·로비·초상화(가르쉬·카일·모르간·세라). npm run build 통과.
 - 결과: data/tripo/*_v1.glb 4개, public/assets/q/body/Tripo*.glb 4개, src/data.ts, src/heroModel.ts, src/main.ts, src/settings.ts, src/tools/blender_rig.py, src/tools/blender_probe.py, docs/credits.md.
+
+## 2026-11-19 — 7단계 UI 디자인 2차: 전투 화면·결과·설정·안내
+
+- 한 일: style.css 금테 패널 규칙을 .lb-panel·.rbox·.set-box 공용으로(패배 .rbox.lose 붉은 테·붉은 보석). 결과 제목(.rt) 양옆 빛줄·아래 그림자, 결과·설정·안내 창 등장 애니메이션(pop). 결과 줄(.rn)에 영웅 얼굴 36px — hud.ts faces(setHeroes 가 받은 초상화). 전투 위 버튼(.btn) 금 테, 전투 카드 금 테 + 위에 영웅 색 줄(.card::before). 설정 버튼(.set-btn) 입체, 고른 것은 금색. 안내 말풍선(.tip-box) 금테.
+- 확인: 헤드리스 390×844 로 안내·설정·전투(필살 준비)·승리·패배 화면. npm run build 통과.
+- 결과: src/style.css, src/hud.ts.
