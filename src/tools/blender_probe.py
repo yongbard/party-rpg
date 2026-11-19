@@ -27,9 +27,10 @@ print('MODEL', [o.name for o in m], 'min', tuple(round(v, 3) for v in lo), 'max'
 # 높이 구간마다 x 폭: 팔·날개가 어디에 있는지
 mesh = next(o for o in m if o.type == 'MESH')
 vs = [mesh.matrix_world @ v.co for v in mesh.data.vertices]
-for i in range(10):
-    z0 = lo.z + (hi.z - lo.z) * i / 10
-    z1 = lo.z + (hi.z - lo.z) * (i + 1) / 10
+N = 20
+for i in range(N):
+    z0 = lo.z + (hi.z - lo.z) * i / N
+    z1 = lo.z + (hi.z - lo.z) * (i + 1) / N
     band = [v for v in vs if z0 <= v.z < z1]
     if band:
         print(f'  z {z0:.2f}~{z1:.2f}: n {len(band)} x {min(v.x for v in band):.2f}~{max(v.x for v in band):.2f} y {min(v.y for v in band):.2f}~{max(v.y for v in band):.2f}')

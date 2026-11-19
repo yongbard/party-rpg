@@ -275,6 +275,21 @@ export const HEROES: UnitDef[] = [
   ...MORE_HEROES,
 ];
 
+// 7단계 변신형: 최고 등급은 몸 자체가 바뀐다 (Tripo 로 만든 통짜 몸에 영웅 뼈대를 심음, src/tools/blender_rig.py, docs/credits.md)
+// 무기·발광·오라는 그 등급 것을 그대로 쓰고, 옷 파츠·머리·투구·망토·색조·크기는 뺀다 (키는 몸 파일이 정한다)
+const TRANSFORM: Record<string, string> = {
+  kyle: 'q/body/TripoStarArcher',   // 별빛 사수
+  garsh: 'q/body/TripoEarthTitan',  // 불멸의 대족장
+  morgan: 'q/body/TripoLich',       // 죽음의 현자
+  sera: 'q/body/TripoSage',         // 현자
+};
+for (const h of HEROES) {
+  const body = TRANSFORM[h.id];
+  if (!body || !h.looks) continue;
+  const top = h.looks[h.looks.length - 1];
+  h.looks[h.looks.length - 1] = { body, weapon: top.weapon, offhand: top.offhand, glow: top.glow, aura: top.aura };
+}
+
 // 7단계 외형: 등급마다 실루엣이 바뀌게 장식을 더한다 (그 등급부터 계속 단다). q/acc 는 뼈에 붙이는 소품, fx: 는 코드로 만드는 빛 장식 (heroModel.ts)
 // AI 변신형 몸(q/body/Tripo…)에는 달지 않는다
 const ACC_STEPS: Record<string, Record<number, string[]>> = {

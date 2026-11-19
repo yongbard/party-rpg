@@ -310,3 +310,18 @@
   - 크레딧: docs/credits.md, settings.ts.
 - 확인: 헤드리스 390×844 로 임무·모험·던전·영웅·소환·소환 결과·가방·전투 화면. npm run build 통과.
 - 결과: src/style.css, src/lobby.ts, src/summonView.ts, src/common.ts, src/main.ts, src/camera.ts, src/settings.ts, src/tools/portraits.mjs, public/icons/ui/, public/portraits/, docs/credits.md.
+
+## 2026-11-19 — 7단계 2부: 변신형 4명 (Tripo + Blender 뼈대)
+
+- 한 일:
+  - 사용자 결정 A(변신형 4명, 크레딧 100). Tripo 웹(사용자 Chrome 로그인)에서 글 → 3D, H2.5·텍스처 2K·PBR 끔·폴리곤 2만 → 모델당 25 크레딧. 크레딧 155 → 55, 받기 14 → 10. 동시 생성은 무료 계정이 막아 한 개씩.
+    - 카일: celestial star archer, 남색 별자리 망토·은 갑옷·흰 머리 엘프 → data/tripo/kyle_star_v1.glb
+    - 가르쉬: giant orc warlord earth titan, 돌판·이끼 갑옷·뼈 어깨 → garsh_titan_v1.glb (팔이 수평보다 조금 처짐)
+    - 모르간: lich king, 금 뼈 왕관·초록 눈·보라 예복 → morgan_lich_v1.glb
+    - 세라: radiant sage priestess, 금 후광·흰 청색 예복 → sera_sage_v1.glb (예복이 발목까지)
+    - 문장은 모두 low poly … empty open hands, no 무기, distinct colors per part, clean topology, T-pose (용은 노랑 한 가지였어서 색을 나눠 달라고 함).
+  - blender_probe.py 높이 구간 10 → 20. blender_rig.py: Bone Heat 가 실패하면 복셀을 키워(H/90 → 45 → 25) 다시 — 리치(뼈 사이 틈)는 H/25 에서 성공.
+  - 뼈대 심기(키 m, 랜드마크 hip,shoulder,neck,hand,leg,front): 카일 1.85 0.47,0.76,0.84,0.47,0.06,-0.035 / 세라 1.8 0.47,0.72,0.81,0.42,0.05,-0.04 / 모르간 2.0 0.45,0.69,0.79,0.5,0.07,0.06 / 가르쉬 2.3 0.46,0.72,0.82,0.64,0.15,-0.03 → public/assets/q/body/TripoStarArcher·TripoSage·TripoLich·TripoEarthTitan.glb (각 1.5~1.7MB).
+  - data.ts TRANSFORM: 네 영웅의 마지막 등급 외형을 변신 몸으로(무기·보조·발광·오라만 이어받음). heroModel.ts BODY_TALL 가르쉬 1.28, 모르간 1.1. main.ts 전투 카드 초상화가 없으면 초상화 파일로(검은 칸이었음). 크레딧: docs/credits.md, settings.ts.
+- 확인: poc.html?hero=…&body=… 에서 각 영웅 동작(대기·공격·달리기)으로 움직임. poc 등급 사다리 4명, 색·빛만 바뀌는 등급 0개. 게임 전투(1-6)·로비·초상화(가르쉬·카일·모르간·세라). npm run build 통과.
+- 결과: data/tripo/*_v1.glb 4개, public/assets/q/body/Tripo*.glb 4개, src/data.ts, src/heroModel.ts, src/main.ts, src/settings.ts, src/tools/blender_rig.py, src/tools/blender_probe.py, docs/credits.md.

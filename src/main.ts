@@ -15,6 +15,7 @@ import { Hud } from './hud';
 import { Lobby } from './lobby';
 import { track } from './missions';
 import { addItem, loadSave, writeSave } from './save';
+import { portraitUrl } from './common';
 
 // 스테이지 적 레벨별 드랍 등급 확률 (일반 ~ 초월). 레벨 이하에서 가장 높은 줄을 쓴다
 const DROP_WEIGHTS: [number, number[]][] = [
@@ -128,7 +129,7 @@ async function main() {
     const b = new Battle(scene, assets, fx, rig, hud, arena.shadow, stage, party, rivals);
     battle = b;
     b.spawnHeroes();
-    hud.setHeroes(b.heroes, b.heroes.map(h => portraits[h.def.id]));
+    hud.setHeroes(b.heroes, b.heroes.map(h => portraits[h.def.id] ?? portraitUrl(h.def.id)));
     hud.visible(true);
     b.setSpeed(speed);
     hud.setSpeed(speed);

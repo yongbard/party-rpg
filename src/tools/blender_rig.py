@@ -84,21 +84,31 @@ bpy.ops.object.mode_set(mode='OBJECT')
 
 # 3. 자동 가중치: AI 메시는 구멍·겹침이 많아 Bone Heat 가 바로는 실패한다.
 #    물 샐 틈 없는 복셀 복사본에서 가중치를 구한 뒤 원본의 가장 가까운 면에서 옮겨 받는다
-proxy = mesh.copy()
-proxy.data = mesh.data.copy()
-bpy.context.collection.objects.link(proxy)
-rm = proxy.modifiers.new('remesh', 'REMESH')
-rm.mode = 'VOXEL'
-rm.voxel_size = H / 90
-bpy.ops.object.select_all(action='DESELECT')
-proxy.select_set(True)
-bpy.context.view_layer.objects.active = proxy
-bpy.ops.object.modifier_apply(modifier='remesh')
-proxy.select_set(True)
-arm.select_set(True)
-bpy.context.view_layer.objects.active = arm
-bpy.ops.object.parent_set(type='ARMATURE_AUTO')
-print('PROXY verts', len(proxy.data.vertices), 'unweighted', sum(1 for v in proxy.data.vertices if not v.groups))
+#    뼈만 있는 해골처럼 틈이 많으면 그래도 실패하므로, 실패하면 복셀을 키워(틈을 메워) 다시 한다
+def make_proxy(div):
+    p = mesh.copy()
+    p.data = mesh.data.copy()
+    bpy.context.collection.objects.link(p)
+    rm = p.modifiers.new('remesh', 'REMESH')
+    rm.mode = 'VOXEL'
+    rm.voxel_size = H / div
+    bpy.ops.object.select_all(action='DESELECT')
+    p.select_set(True)
+    bpy.context.view_layer.objects.active = p
+    bpy.ops.object.modifier_apply(modifier='remesh')
+    p.select_set(True)
+    arm.select_set(True)
+    bpy.context.view_layer.objects.active = arm
+    bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+    bad = sum(1 for v in p.data.vertices if not v.groups)
+    print('PROXY voxel H/%d verts' % div, len(p.data.vertices), 'unweighted', bad)
+    return p, bad / max(1, len(p.data.vertices))
+
+
+for div in (90, 45, 25):
+    proxy, bad = make_proxy(div)
+    if bad < 0.05 or div == 25: break   # 마지막 것은 실패해도 쓴다
+    bpy.data.objects.remove(proxy)
 for g in proxy.vertex_groups: mesh.vertex_groups.new(name=g.name)
 dt = mesh.modifiers.new('weights', 'DATA_TRANSFER')
 dt.object = proxy

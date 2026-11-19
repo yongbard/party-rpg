@@ -18,6 +18,7 @@
 | 투구·모자·망토 11종 | public/assets/q/gear (원본 data/kaykit 캐릭터에서 떼어 냄) | KayKit Adventurers·Skeletons, Kay Lousberg | CC0 |
 | 보스 몬스터 (Ghost_Skull 망령 군주, Demon 불꽃 악마, Dragon_Evolved 레이드 비룡) | public/assets/um (받은 원본 16종은 data/ultimate_monsters, 출처 목록 data/ultimate_monsters/sources.txt) | Quaternius Ultimate Monsters (quaternius.com, Google Drive 가 한도 초과라 같은 모델을 Poly Pizza poly.pizza 에서 GLB 로 받음, 2026-11-18, 16개 5.3MB) | CC0 |
 | 변신형 용 (용기사) | public/assets/q/body/TripoDragon.glb (원본 data/tripo/dragon_knight_v1.glb) | Tripo AI 무료 계정으로 생성 (tripo3d.ai, H2.5, 2026-11-18). 뼈대는 Quaternius Universal Base Characters 뼈대를 Blender 5.3 으로 옮겨 심음 | Tripo 무료 계정 결과물: 공개 모델·비상업 이용 (게임은 무료 공개) |
+| 변신형 4종: 별빛 사수(카일), 대지 거인(가르쉬), 리치(모르간), 현자(세라) | public/assets/q/body/TripoStarArcher.glb, TripoEarthTitan.glb, TripoLich.glb, TripoSage.glb, 각 1.5~1.7MB (원본 data/tripo/kyle_star_v1.glb, garsh_titan_v1.glb, morgan_lich_v1.glb, sera_sage_v1.glb) | Tripo AI 무료 계정으로 생성 (tripo3d.ai, H2.5, 텍스처 2K, 폴리곤 2만, 모델당 25 크레딧, 2026-11-19). 뼈대는 위와 같이 Blender 로 심음 | Tripo 무료 계정 결과물: 공개 모델·비상업 이용 |
 | 장비 아이콘 17종 | public/icons/*.svg | game-icons.net (Lorc, Delapouite, Willdabeast) | CC BY 3.0 (표기 의무) |
 | 메뉴 아이콘 6종(모험·던전·영웅·소환·가방 탭, 설정) | public/icons/ui/*.svg, 약 12KB | game-icons.net (Lorc, Delapouite), github.com/game-icons/icons | CC BY 3.0 (표기 의무) |
 | 글꼴 Black Han Sans, Noto Sans KR | Google Fonts 에서 불러옴 | Google Fonts | SIL OFL 1.1 |
