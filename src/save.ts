@@ -2,6 +2,7 @@
 import { HEROES } from './data';
 import { rollItem, type EquipSlot, type Item } from './items';
 import type { Policy } from './tactics';
+import { opened } from './unlocks';
 
 export interface SaveData {
   v: 1;
@@ -30,7 +31,8 @@ export interface SaveData {
   policy?: Record<string, Policy>;   // 영웅별 행동 방침 (tactics.ts), 없으면 공격 우선
   party2?: string[];        // 모의전 상대로 쓰는 내 파티 B
   opt?: { sfx: number; mus: number; speed: number };   // 설정: 효과음·음악 크기(0~1), 전투 배속
-  tut?: string[];           // 본 튜토리얼 안내 (tutorial.ts). '*' = 모두 본 것으로
+  tut?: string[];           // 예전 튜토리얼 안내 (빠짐, 하던 저장 호환으로 둔다)
+  seen?: string[];          // 눌러 본 기능 (unlocks.ts). 새로 열린 것만 빛낸다
 }
 
 const KEY = 'party-rpg-save';
@@ -85,6 +87,8 @@ function upgrade(s: SaveData) {
   }
   // 튜토리얼이 생기기 전부터 하던 저장은 안내를 띄우지 않는다
   s.tut ??= s.cleared.length ? ['*'] : [];
+  // 열림이 생기기 전부터 하던 저장: 지금 열린 것은 본 것으로 (빛이 쏟아지지 않게)
+  s.seen ??= opened(s.cleared);
   if (!s.pity) {
     s.pity = { hero: 0, hero5: 0, gear: 0 };
     s.gems += START_GEMS;
